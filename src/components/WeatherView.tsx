@@ -11,16 +11,16 @@ import {
   Tooltip,
   ResponsiveContainer,
   Area,
-  AreaChart,
-} from "recharts";
+  AreaChart } from
+"recharts";
 import { Field } from "@/data/fields";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
   PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+  PopoverTrigger } from
+"@/components/ui/popover";
 import FieldListPanel from "./FieldListPanel";
 
 const CHART_GOLD = "#EAB947";
@@ -31,7 +31,7 @@ const tooltipStyle = {
   border: "1px solid hsl(150, 12%, 22%)",
   borderRadius: "8px",
   color: "hsl(60, 20%, 85%)",
-  fontSize: "12px",
+  fontSize: "12px"
 };
 
 interface LiveWeather {
@@ -47,7 +47,7 @@ const weatherDescriptions: Record<number, string> = {
   45: "Fog", 48: "Rime fog", 51: "Light drizzle", 53: "Moderate drizzle",
   55: "Dense drizzle", 61: "Slight rain", 63: "Moderate rain", 65: "Heavy rain",
   71: "Slight snow", 73: "Moderate snow", 75: "Heavy snow",
-  80: "Slight showers", 81: "Moderate showers", 82: "Violent showers", 95: "Thunderstorm",
+  80: "Slight showers", 81: "Moderate showers", 82: "Violent showers", 95: "Thunderstorm"
 };
 
 function getFieldCenter(field: Field) {
@@ -126,7 +126,7 @@ const WeatherView = ({ selectedFields, onRemoveField }: WeatherViewProps) => {
           humidity: c.relative_humidity_2m,
           windSpeed: Math.round(c.wind_speed_10m),
           weatherCode: c.weather_code,
-          feelsLike: Math.round(c.apparent_temperature),
+          feelsLike: Math.round(c.apparent_temperature)
         });
       } catch {
         setLiveWeather(null);
@@ -159,11 +159,11 @@ const WeatherView = ({ selectedFields, onRemoveField }: WeatherViewProps) => {
             precipitation: data.daily.precipitation_sum[i] || 0,
             tempMax: data.daily.temperature_2m_max[i],
             tempMin: data.daily.temperature_2m_min[i],
-            evap: data.daily.et0_fao_evapotranspiration[i] || 0,
+            evap: data.daily.et0_fao_evapotranspiration[i] || 0
           }));
 
           // Monthly aggregation
-          const monthMap = new Map<string, { precip: number; count: number; tMax: number; tMin: number; evap: number }>();
+          const monthMap = new Map<string, {precip: number;count: number;tMax: number;tMin: number;evap: number;}>();
           daily.forEach((d: any) => {
             const key = format(new Date(d.date + "T00:00:00"), "MMM yyyy");
             const m = monthMap.get(key) || { precip: 0, count: 0, tMax: -999, tMin: 999, evap: 0 };
@@ -184,7 +184,7 @@ const WeatherView = ({ selectedFields, onRemoveField }: WeatherViewProps) => {
               accumulated: Math.round(accumulated * 10) / 10,
               tempMax: Math.round(v.tMax),
               tempMin: Math.round(v.tMin),
-              evapotranspiration: Math.round(v.evap * 10) / 10,
+              evapotranspiration: Math.round(v.evap * 10) / 10
             };
           });
 
@@ -207,21 +207,21 @@ const WeatherView = ({ selectedFields, onRemoveField }: WeatherViewProps) => {
         {/* Header */}
         <div className="flex items-center px-6 py-3 border-b border-border">
           <h1 className="text-lg font-semibold text-foreground">Historical Weather</h1>
-          {activeField && (
-            <div className="ml-4 flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: activeField.color }} />
-              {activeField.name} · {activeField.cropEmoji} {activeField.crop} · {activeField.location}
-            </div>
-          )}
+          {activeField
+
+
+
+
+          }
         </div>
 
         {/* Live Weather Card */}
-        {activeField && (
-          <div className="px-6 py-3 border-b border-border">
-            {liveLoading ? (
-              <div className="text-sm text-muted-foreground animate-pulse">Loading live conditions…</div>
-            ) : liveWeather ? (
-              <div className="space-y-3">
+        {activeField &&
+        <div className="px-6 py-3 border-b border-border">
+            {liveLoading ?
+          <div className="text-sm text-muted-foreground animate-pulse">Loading live conditions…</div> :
+          liveWeather ?
+          <div className="space-y-3">
                 <div className="flex items-center gap-6">
                   <div className="flex items-center gap-3">
                     <div className="text-3xl font-light text-foreground">{liveWeather.temperature}°C</div>
@@ -237,18 +237,18 @@ const WeatherView = ({ selectedFields, onRemoveField }: WeatherViewProps) => {
                 </div>
                 {/* Farmer Advice */}
                 <div className="space-y-1.5">
-                  {getFarmerAdvice(liveWeather, activeField.crop).map((tip, i) => (
-                    <div key={i} className="text-xs text-foreground/80 bg-accent/20 rounded-lg px-3 py-2 border border-border">
+                  {getFarmerAdvice(liveWeather, activeField.crop).map((tip, i) =>
+              <div key={i} className="text-xs text-foreground/80 bg-accent/20 rounded-lg px-3 py-2 border border-border">
                       {tip}
                     </div>
-                  ))}
+              )}
                 </div>
-              </div>
-            ) : (
-              <div className="text-sm text-muted-foreground">Weather unavailable</div>
-            )}
+              </div> :
+
+          <div className="text-sm text-muted-foreground">Weather unavailable</div>
+          }
           </div>
-        )}
+        }
 
         {/* Date controls */}
         <div className="flex items-center gap-4 px-6 py-3 border-b border-border flex-wrap">
@@ -285,17 +285,17 @@ const WeatherView = ({ selectedFields, onRemoveField }: WeatherViewProps) => {
 
         {/* Charts */}
         <div className="flex-1 overflow-y-auto p-6 space-y-8">
-          {!activeField ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center">
+          {!activeField ?
+          <div className="flex flex-col items-center justify-center py-20 text-center">
               <Sprout className="w-10 h-10 text-muted-foreground mb-3" />
               <p className="text-sm text-muted-foreground">Select a field to view weather data</p>
-            </div>
-          ) : loading ? (
-            <div className="flex items-center justify-center py-20">
+            </div> :
+          loading ?
+          <div className="flex items-center justify-center py-20">
               <div className="text-muted-foreground animate-pulse text-sm">Fetching weather data for {activeField.name}…</div>
-            </div>
-          ) : (
-            <>
+            </div> :
+
+          <>
               {/* Accumulated Precipitation */}
               <div className="animate-fade-in">
                 <div className="flex items-center justify-between mb-4">
@@ -368,14 +368,14 @@ const WeatherView = ({ selectedFields, onRemoveField }: WeatherViewProps) => {
                 </ResponsiveContainer>
               </div>
             </>
-          )}
+          }
         </div>
       </div>
 
       {/* Right sidebar - field list */}
       <FieldListPanel fields={selectedFields} onRemoveField={onRemoveField} />
-    </div>
-  );
+    </div>);
+
 };
 
 export default WeatherView;
