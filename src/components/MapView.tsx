@@ -4,13 +4,11 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { fields as allFields, Field } from "@/data/fields";
 import SearchBar from "./SearchBar";
 import MapToolbar from "./MapToolbar";
+import FieldSelectPanel from "./FieldSelectPanel";
 import RightToolbar, { RightMode } from "./RightToolbar";
 import LayersPanel from "./LayersPanel";
 import WeatherPanel from "./WeatherPanel";
 import LocationPanel from "./LocationPanel";
-import FieldDetailPanel from "./FieldDetailPanel";
-import TimelineScrubber from "./TimelineScrubber";
-import FieldListPanel from "./FieldListPanel";
 import { supabase } from "@/integrations/supabase/client";
 
 const MAP_STYLES = {
@@ -30,15 +28,15 @@ const MapView = () => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const [selectedFields, setSelectedFields] = useState<Field[]>(allFields);
-  const [mapToken, setMapToken] = useState("");
+  const [mapToken, setMapToken] = useState<string>("");
   const [mapLoaded, setMapLoaded] = useState(false);
   const [rightMode, setRightMode] = useState<RightMode>(null);
+  const [showLayers, setShowLayers] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<{ lng: number; lat: number; name: string } | null>(null);
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
   const [weatherLoading, setWeatherLoading] = useState(false);
-  const [locationSelected, setLocationSelected] = useState(false);
-  const [selectedField, setSelectedField] = useState<Field | null>(null);
 
+  // Fetch token from edge function
   useEffect(() => {
     const fetchToken = async () => {
       try {
@@ -74,18 +72,27 @@ const MapView = () => {
         id: fillLayerId,
         type: "fill",
         source: sourceId,
-        paint: { "fill-color": field.color, "fill-opacity": isSelected ? 0.3 : 0.1 },
+        paint: {
+          "fill-color": field.color,
+          "fill-opacity": isSelected ? 0.3 : 0.1,
+        },
       });
 
       map.addLayer({
         id: lineLayerId,
         type: "line",
         source: sourceId,
-        paint: { "line-color": field.color, "line-width": isSelected ? 2.5 : 1 },
+        paint: {
+          "line-color": field.color,
+          "line-width": isSelected ? 2.5 : 1,
+        },
       });
 
       map.on("click", fillLayerId, () => {
-        setSelectedField(field);
+        setSelectedFields((prev) => {
+          const exists = prev.some((f) => f.id === field.id);
+          return exists ? prev.filter((f) => f.id !== field.id) : [...prev, field];
+        });
       });
 
       map.on("mouseenter", fillLayerId, () => {
@@ -101,7 +108,7 @@ const MapView = () => {
     });
   }, []);
 
-  // Initialize map — globe view zoomed out
+  // Initialize map
   useEffect(() => {
     if (!mapContainer.current || !mapToken) return;
 
@@ -109,25 +116,18 @@ const MapView = () => {
 
     const map = new mapboxgl.Map({
       container: mapContainer.current,
-      style: MAP_STYLES.satellite,
-      center: [30, 20],
-      zoom: 1.8,
+      style: MAP_STYLES.dark,
+      center: [0.722, 40.719],
+      zoom: 14,
       pitch: 0,
-      projection: "globe",
       attributionControl: false,
     });
 
     mapRef.current = map;
 
-    map.on("style.load", () => {
-      map.setFog({ color: "hsl(150, 20%, 4%)", "high-color": "hsl(150, 15%, 8%)", "horizon-blend": 0.08, "space-color": "hsl(150, 20%, 3%)", "star-intensity": 0.6 });
-    });
-
     map.on("load", () => {
       setMapLoaded(true);
-      if (locationSelected) {
-        addFieldLayers(map, selectedFields);
-      }
+      addFieldLayers(map, selectedFields);
     });
 
     return () => map.remove();
@@ -157,7 +157,7 @@ const MapView = () => {
     map.setStyle(MAP_STYLES[style]);
     map.once("style.load", () => {
       setMapLoaded(true);
-      if (locationSelected) addFieldLayers(map, selectedFields);
+      addFieldLayers(map, selectedFields);
     });
   };
 
@@ -192,17 +192,7 @@ const MapView = () => {
 
   const handleLocationSelect = (lng: number, lat: number, name: string) => {
     setSelectedLocation({ lng, lat, name });
-    setLocationSelected(true);
-    const map = mapRef.current;
-    if (map) {
-      map.flyTo({ center: [lng, lat], zoom: 14, duration: 3000 });
-      // Add field layers after fly completes
-      setTimeout(() => {
-        if (map.isStyleLoaded()) {
-          addFieldLayers(map, selectedFields);
-        }
-      }, 3200);
-    }
+    mapRef.current?.flyTo({ center: [lng, lat], zoom: 13, duration: 2000 });
     fetchWeather(lat, lng);
   };
 
@@ -221,7 +211,6 @@ const MapView = () => {
 
   return (
     <div className="relative w-full h-full flex">
-      {/* Map area */}
       <div className="flex-1 relative">
         {!mapToken && (
           <div className="absolute inset-0 flex items-center justify-center bg-background z-10">
@@ -229,81 +218,53 @@ const MapView = () => {
           </div>
         )}
         <div ref={mapContainer} className="w-full h-full" />
-
-        {/* Globe state — centered search */}
-        {!locationSelected && mapToken && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center z-10 pointer-events-none">
-            <div className="pointer-events-auto mb-4">
-              <h1 className="text-xl font-semibold text-foreground text-center mb-4">Search a location to get started</h1>
-              <SearchBar
-                onSearch={() => {}}
-                mapToken={mapToken}
-                onLocationSelect={handleLocationSelect}
-                centered
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Post-location UI */}
-        {locationSelected && (
-          <>
-            <SearchBar
-              onSearch={() => {}}
-              mapToken={mapToken}
-              onLocationSelect={handleLocationSelect}
-            />
-            <MapToolbar
-              onZoomIn={handleZoomIn}
-              onZoomOut={handleZoomOut}
-              onStyleChange={handleStyleChange}
-            />
-            <TimelineScrubber />
-          </>
-        )}
+        <SearchBar
+          onSearch={() => {}}
+          mapToken={mapToken}
+          onLocationSelect={handleLocationSelect}
+        />
+        <MapToolbar
+          onZoomIn={handleZoomIn}
+          onZoomOut={handleZoomOut}
+          onStyleChange={handleStyleChange}
+          onToggleLayers={() => setRightMode(rightMode === "layers" ? null : "layers")}
+        />
       </div>
 
-      {/* Right side panels */}
-      {locationSelected && (
-        <>
-          {/* Field detail panel OR field list */}
-          {selectedField ? (
-            <FieldDetailPanel
-              field={selectedField}
-              onClose={() => setSelectedField(null)}
-              weatherData={weatherData ? { temp: weatherData.temp, description: weatherData.description } : null}
-            />
-          ) : (
-            <FieldListPanel fields={selectedFields} onRemoveField={handleRemoveField} />
-          )}
+      {/* Main right panel - field select */}
+      <FieldSelectPanel
+        fields={selectedFields}
+        onRemoveField={handleRemoveField}
+        onSave={() => {}}
+        onCancel={() => setSelectedFields(allFields)}
+        onBack={() => {}}
+      />
 
-          {/* Mode panels */}
-          {rightMode === "layers" && (
-            <LayersPanel
-              fields={allFields}
-              visibleFields={selectedFields}
-              onToggleField={handleToggleLayerField}
-              onShowAll={() => setSelectedFields(allFields)}
-              onHideAll={() => setSelectedFields([])}
-            />
-          )}
-          {rightMode === "weather" && (
-            <WeatherPanel
-              locationName={selectedLocation?.name}
-              weatherData={weatherData}
-              loading={weatherLoading}
-            />
-          )}
-          {rightMode === "location" && (
-            <LocationPanel
-              locationName={selectedLocation?.name}
-              coordinates={selectedLocation ? { lng: selectedLocation.lng, lat: selectedLocation.lat } : undefined}
-            />
-          )}
-
-          <RightToolbar activeMode={rightMode} onModeChange={setRightMode} />
-        </>
+      {/* Mode panels */}
+      {rightMode === "layers" && (
+        <LayersPanel
+          fields={allFields}
+          visibleFields={selectedFields}
+          onToggleField={handleToggleLayerField}
+          onShowAll={() => setSelectedFields(allFields)}
+          onHideAll={() => setSelectedFields([])}
+        />
       )}
+      {rightMode === "weather" && (
+        <WeatherPanel
+          locationName={selectedLocation?.name}
+          weatherData={weatherData}
+          loading={weatherLoading}
+        />
+      )}
+      {rightMode === "location" && (
+        <LocationPanel
+          locationName={selectedLocation?.name}
+          coordinates={selectedLocation ? { lng: selectedLocation.lng, lat: selectedLocation.lat } : undefined}
+        />
+      )}
+
+      <RightToolbar activeMode={rightMode} onModeChange={setRightMode} />
     </div>
   );
 };

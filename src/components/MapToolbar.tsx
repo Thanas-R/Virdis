@@ -1,4 +1,4 @@
-import { Plus, Minus, Map } from "lucide-react";
+import { Layers, Plus, Minus, Map } from "lucide-react";
 import { useState } from "react";
 
 type MapStyle = "dark" | "satellite";
@@ -7,10 +7,11 @@ interface MapToolbarProps {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onStyleChange?: (style: MapStyle) => void;
+  onToggleLayers?: () => void;
 }
 
-const MapToolbar = ({ onZoomIn, onZoomOut, onStyleChange }: MapToolbarProps) => {
-  const [currentStyle, setCurrentStyle] = useState<MapStyle>("satellite");
+const MapToolbar = ({ onZoomIn, onZoomOut, onStyleChange, onToggleLayers }: MapToolbarProps) => {
+  const [currentStyle, setCurrentStyle] = useState<MapStyle>("dark");
 
   const handleStyleToggle = () => {
     const next: MapStyle = currentStyle === "dark" ? "satellite" : "dark";
@@ -19,6 +20,7 @@ const MapToolbar = ({ onZoomIn, onZoomOut, onStyleChange }: MapToolbarProps) => 
   };
 
   const items = [
+    { icon: Layers, onClick: onToggleLayers ?? (() => {}), label: "Layers" },
     { icon: Plus, onClick: onZoomIn, label: "Zoom In" },
     { icon: Minus, onClick: onZoomOut, label: "Zoom Out" },
     { icon: Map, onClick: handleStyleToggle, label: currentStyle === "dark" ? "Satellite" : "Dark Mode", active: currentStyle === "satellite" },
@@ -30,10 +32,10 @@ const MapToolbar = ({ onZoomIn, onZoomOut, onStyleChange }: MapToolbarProps) => 
         <button
           key={label}
           onClick={onClick}
-          className={`w-9 h-9 rounded-lg backdrop-blur-sm border border-border flex items-center justify-center transition-colors ${
+          className={`w-10 h-10 rounded-lg backdrop-blur-sm border border-border flex items-center justify-center transition-colors ${
             active ? "text-primary bg-accent" : "text-foreground"
           }`}
-          style={{ backgroundColor: active ? undefined : "hsl(var(--search-bg))" }}
+          style={{ backgroundColor: active ? undefined : "#041009" }}
           title={label}
         >
           <Icon className="w-4 h-4" />
