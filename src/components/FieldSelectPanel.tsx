@@ -28,28 +28,28 @@ const FieldSelectPanel = ({ fields, onRemoveField, onSave, onCancel, onBack }: F
 
       {/* Field list */}
       <div className="flex-1 overflow-y-auto p-3 space-y-2">
-        {fields.map((field) => (
-          <FieldCard key={field.id} field={field} onRemove={onRemoveField} variant="select" />
-        ))}
+        {fields.map((field) =>
+        <FieldCard key={field.id} field={field} onRemove={onRemoveField} variant="select" />
+        )}
       </div>
 
       {/* Footer buttons */}
       <div className="p-4 border-t border-border flex gap-3">
         <button
           onClick={onCancel}
-          className="flex-1 py-2.5 rounded-lg border border-border text-foreground text-sm font-medium hover:bg-accent transition-colors"
-        >
+          className="flex-1 py-2.5 rounded-lg border border-border text-foreground text-sm font-medium hover:bg-accent transition-colors">
+
           Cancel
         </button>
         <button
           onClick={onSave}
-          className="flex-1 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
-        >
+          className="flex-1 py-2.5 rounded-lg text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity bg-amber-50">
+
           Save
         </button>
       </div>
-    </div>
-  );
+    </div>);
+
 };
 
 export default FieldSelectPanel;
