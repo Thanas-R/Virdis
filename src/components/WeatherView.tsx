@@ -6,10 +6,11 @@ import {
 "recharts";
 import { fields, accumulatedPrecipitation, dailyPrecipitation } from "@/data/fields";
 import FieldListPanel from "./FieldListPanel";
-import RightToolbar from "./RightToolbar";
+import RightToolbar, { RightMode } from "./RightToolbar";
 
 const WeatherView = () => {
   const [fieldList, setFieldList] = useState(fields);
+  const [rightMode, setRightMode] = useState<RightMode>(null);
 
   const handleRemoveField = (id: string) => {
     setFieldList((prev) => prev.filter((f) => f.id !== id));
@@ -138,7 +139,7 @@ const WeatherView = () => {
       <FieldListPanel fields={fieldList} onRemoveField={handleRemoveField} />
 
       {/* Right icon toolbar */}
-      <RightToolbar />
+      <RightToolbar activeMode={rightMode} onModeChange={setRightMode} />
     </div>);
 
 };

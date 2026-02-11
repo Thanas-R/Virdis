@@ -43,7 +43,7 @@ const FieldSelectPanel = ({ fields, onRemoveField, onSave, onCancel, onBack }: F
         </button>
         <button
           onClick={onSave}
-          className="flex-1 py-2.5 rounded-lg text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity bg-amber-50">
+          className="flex-1 py-2.5 rounded-lg text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity bg-primary">
 
           Save
         </button>
