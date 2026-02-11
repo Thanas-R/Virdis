@@ -8,10 +8,11 @@ interface MapToolbarProps {
   onZoomOut: () => void;
   onStyleChange?: (style: MapStyle) => void;
   onToggleLayers?: () => void;
+  defaultStyle?: MapStyle;
 }
 
-const MapToolbar = ({ onZoomIn, onZoomOut, onStyleChange, onToggleLayers }: MapToolbarProps) => {
-  const [currentStyle, setCurrentStyle] = useState<MapStyle>("dark");
+const MapToolbar = ({ onZoomIn, onZoomOut, onStyleChange, onToggleLayers, defaultStyle = "dark" }: MapToolbarProps) => {
+  const [currentStyle, setCurrentStyle] = useState<MapStyle>(defaultStyle);
 
   const handleStyleToggle = () => {
     const next: MapStyle = currentStyle === "dark" ? "satellite" : "dark";
