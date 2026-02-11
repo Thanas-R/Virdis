@@ -62,7 +62,7 @@ const SearchBar = ({ onSearch, mapToken, onLocationSelect }: SearchBarProps) => 
 
   return (
     <div className="absolute top-4 left-4 z-10" ref={containerRef}>
-      <div className="relative">
+      <div className="relative opacity-85">
         <input
           type="text"
           placeholder="Location…"
@@ -70,26 +70,26 @@ const SearchBar = ({ onSearch, mapToken, onLocationSelect }: SearchBarProps) => 
           onChange={(e) => handleChange(e.target.value)}
           onFocus={() => results.length > 0 && setShowResults(true)}
           className="w-72 backdrop-blur-sm border border-border rounded-lg px-4 py-2.5 pr-10 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          style={{ backgroundColor: "#041009" }}
-        />
+          style={{ backgroundColor: "#041009" }} />
+
         <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
       </div>
 
-      {showResults && results.length > 0 && (
-        <div className="absolute top-full mt-1 w-72 rounded-lg border border-border overflow-hidden shadow-xl" style={{ backgroundColor: "#041009" }}>
-          {results.map((r) => (
-            <button
-              key={r.id}
-              onClick={() => handleSelect(r)}
-              className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors border-b border-border last:border-0 truncate"
-            >
+      {showResults && results.length > 0 &&
+      <div className="absolute top-full mt-1 w-72 rounded-lg border border-border overflow-hidden shadow-xl" style={{ backgroundColor: "#041009" }}>
+          {results.map((r) =>
+        <button
+          key={r.id}
+          onClick={() => handleSelect(r)}
+          className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors border-b border-border last:border-0 truncate">
+
               📍 {r.place_name}
             </button>
-          ))}
+        )}
         </div>
-      )}
-    </div>
-  );
+      }
+    </div>);
+
 };
 
 export default SearchBar;

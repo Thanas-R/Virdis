@@ -21,29 +21,29 @@ const MapToolbar = ({ onZoomIn, onZoomOut, onStyleChange, onToggleLayers, defaul
   };
 
   const items = [
-    { icon: Layers, onClick: onToggleLayers ?? (() => {}), label: "Layers" },
-    { icon: Plus, onClick: onZoomIn, label: "Zoom In" },
-    { icon: Minus, onClick: onZoomOut, label: "Zoom Out" },
-    { icon: Map, onClick: handleStyleToggle, label: currentStyle === "dark" ? "Satellite" : "Dark Mode", active: currentStyle === "satellite" },
-  ];
+  { icon: Layers, onClick: onToggleLayers ?? (() => {}), label: "Layers" },
+  { icon: Plus, onClick: onZoomIn, label: "Zoom In" },
+  { icon: Minus, onClick: onZoomOut, label: "Zoom Out" },
+  { icon: Map, onClick: handleStyleToggle, label: currentStyle === "dark" ? "Satellite" : "Dark Mode", active: currentStyle === "satellite" }];
+
 
   return (
-    <div className="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col gap-2 z-10">
-      {items.map(({ icon: Icon, onClick, label, active }) => (
-        <button
-          key={label}
-          onClick={onClick}
-          className={`w-10 h-10 rounded-lg backdrop-blur-sm border border-border flex items-center justify-center transition-colors ${
-            active ? "text-primary bg-accent" : "text-foreground"
-          }`}
-          style={{ backgroundColor: active ? undefined : "#041009" }}
-          title={label}
-        >
+    <div className="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col gap-2 z-10 opacity-85">
+      {items.map(({ icon: Icon, onClick, label, active }) =>
+      <button
+        key={label}
+        onClick={onClick}
+        className={`w-10 h-10 rounded-lg backdrop-blur-sm border border-border flex items-center justify-center transition-colors ${
+        active ? "text-primary bg-accent" : "text-foreground"}`
+        }
+        style={{ backgroundColor: active ? undefined : "#041009" }}
+        title={label}>
+
           <Icon className="w-4 h-4" />
         </button>
-      ))}
-    </div>
-  );
+      )}
+    </div>);
+
 };
 
 export default MapToolbar;
