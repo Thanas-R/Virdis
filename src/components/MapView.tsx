@@ -1,23 +1,40 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { fields, Field } from "@/data/fields";
+import { fields as allFields, Field } from "@/data/fields";
 import SearchBar from "./SearchBar";
 import MapToolbar from "./MapToolbar";
 import FieldSelectPanel from "./FieldSelectPanel";
 import RightToolbar from "./RightToolbar";
-
-const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || "";
+import { supabase } from "@/integrations/supabase/client";
 
 const MapView = () => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
-  const [selectedFields, setSelectedFields] = useState<Field[]>(fields);
+  const [selectedFields, setSelectedFields] = useState<Field[]>(allFields);
+  const [mapToken, setMapToken] = useState<string>("");
+  const [mapLoaded, setMapLoaded] = useState(false);
 
+  // Fetch token from edge function
   useEffect(() => {
-    if (!mapContainer.current || !MAPBOX_TOKEN) return;
+    const fetchToken = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("get-mapbox-token");
+        if (data?.token) {
+          setMapToken(data.token);
+        }
+      } catch (e) {
+        console.error("Failed to fetch mapbox token", e);
+      }
+    };
+    fetchToken();
+  }, []);
 
-    mapboxgl.accessToken = MAPBOX_TOKEN;
+  // Initialize map
+  useEffect(() => {
+    if (!mapContainer.current || !mapToken) return;
+
+    mapboxgl.accessToken = mapToken;
 
     const map = new mapboxgl.Map({
       container: mapContainer.current,
@@ -31,8 +48,10 @@ const MapView = () => {
     mapRef.current = map;
 
     map.on("load", () => {
-      // Add field polygons
-      selectedFields.forEach((field) => {
+      setMapLoaded(true);
+
+      // Add all field sources and layers
+      allFields.forEach((field) => {
         const sourceId = `field-${field.id}`;
         const fillLayerId = `field-fill-${field.id}`;
         const lineLayerId = `field-line-${field.id}`;
@@ -41,13 +60,12 @@ const MapView = () => {
           type: "geojson",
           data: {
             type: "Feature",
-            properties: { name: field.name },
-            geometry: {
-              type: "Polygon",
-              coordinates: field.coordinates,
-            },
+            properties: { id: field.id, name: field.name },
+            geometry: { type: "Polygon", coordinates: field.coordinates },
           },
         });
+
+        const isSelected = selectedFields.some((f) => f.id === field.id);
 
         map.addLayer({
           id: fillLayerId,
@@ -55,7 +73,7 @@ const MapView = () => {
           source: sourceId,
           paint: {
             "fill-color": field.color,
-            "fill-opacity": 0.2,
+            "fill-opacity": isSelected ? 0.3 : 0.1,
           },
         });
 
@@ -65,14 +83,55 @@ const MapView = () => {
           source: sourceId,
           paint: {
             "line-color": field.color,
-            "line-width": 2,
+            "line-width": isSelected ? 2.5 : 1,
           },
+        });
+
+        // Click handler to toggle selection
+        map.on("click", fillLayerId, () => {
+          setSelectedFields((prev) => {
+            const exists = prev.some((f) => f.id === field.id);
+            if (exists) {
+              return prev.filter((f) => f.id !== field.id);
+            }
+            return [...prev, field];
+          });
+        });
+
+        // Cursor pointer on hover
+        map.on("mouseenter", fillLayerId, () => {
+          map.getCanvas().style.cursor = "pointer";
+          map.setPaintProperty(fillLayerId, "fill-opacity", 0.45);
+        });
+
+        map.on("mouseleave", fillLayerId, () => {
+          map.getCanvas().style.cursor = "";
+          const sel = selectedFields.some((f) => f.id === field.id);
+          map.setPaintProperty(fillLayerId, "fill-opacity", sel ? 0.3 : 0.1);
         });
       });
     });
 
     return () => map.remove();
-  }, [selectedFields]);
+  }, [mapToken]);
+
+  // Update polygon styles when selection changes
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapLoaded) return;
+
+    allFields.forEach((field) => {
+      const fillLayerId = `field-fill-${field.id}`;
+      const lineLayerId = `field-line-${field.id}`;
+      const isSelected = selectedFields.some((f) => f.id === field.id);
+
+      try {
+        map.setPaintProperty(fillLayerId, "fill-opacity", isSelected ? 0.3 : 0.08);
+        map.setPaintProperty(lineLayerId, "line-width", isSelected ? 2.5 : 1);
+        map.setPaintProperty(lineLayerId, "line-opacity", isSelected ? 1 : 0.4);
+      } catch {}
+    });
+  }, [selectedFields, mapLoaded]);
 
   const handleZoomIn = () => mapRef.current?.zoomIn();
   const handleZoomOut = () => mapRef.current?.zoomOut();
@@ -82,23 +141,25 @@ const MapView = () => {
 
   return (
     <div className="relative w-full h-full flex">
-      {/* Map */}
       <div className="flex-1 relative">
+        {!mapToken && (
+          <div className="absolute inset-0 flex items-center justify-center bg-background z-10">
+            <div className="text-muted-foreground text-sm animate-pulse">Loading map…</div>
+          </div>
+        )}
         <div ref={mapContainer} className="w-full h-full" />
         <SearchBar onSearch={() => {}} />
         <MapToolbar onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} />
       </div>
 
-      {/* Right sidebar */}
       <FieldSelectPanel
         fields={selectedFields}
         onRemoveField={handleRemoveField}
         onSave={() => {}}
-        onCancel={() => setSelectedFields(fields)}
+        onCancel={() => setSelectedFields(allFields)}
         onBack={() => {}}
       />
 
-      {/* Right icon toolbar */}
       <RightToolbar />
     </div>
   );
