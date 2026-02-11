@@ -65,6 +65,11 @@ export default {
           green: "hsl(var(--field-green))",
           olive: "hsl(var(--field-olive))",
         },
+        chart: {
+          cream: "hsl(var(--chart-cream))",
+          gold: "hsl(var(--chart-gold))",
+          green: "hsl(var(--chart-green))",
+        },
         "surface-outer": "hsl(var(--surface-outer))",
       },
       borderRadius: {

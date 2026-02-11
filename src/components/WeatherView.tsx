@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { ChevronDown, CalendarArrowUp, CalendarArrowDown } from "lucide-react";
 import {
-  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer } from
-"recharts";
+  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer
+} from "recharts";
 import { fields, accumulatedPrecipitation, dailyPrecipitation } from "@/data/fields";
 import FieldListPanel from "./FieldListPanel";
 import RightToolbar, { RightMode } from "./RightToolbar";
@@ -14,6 +14,13 @@ const WeatherView = () => {
 
   const handleRemoveField = (id: string) => {
     setFieldList((prev) => prev.filter((f) => f.id !== id));
+  };
+
+  const chartTooltipStyle = {
+    backgroundColor: "hsl(150, 18%, 14%)",
+    border: "1px solid hsl(150, 12%, 22%)",
+    borderRadius: "8px",
+    color: "hsl(60, 20%, 85%)",
   };
 
   return (
@@ -33,9 +40,7 @@ const WeatherView = () => {
             <div className="text-xs text-muted-foreground">Weather Now</div>
             <div className="text-sm text-foreground">Mostly Clear</div>
           </div>
-          <div className="text-2xl font-light text-foreground flex items-center gap-2">
-            +20° <span className="text-2xl">⛅</span>
-          </div>
+          <div className="text-2xl font-light text-foreground">+20°</div>
           <div className="flex items-center gap-2 border border-border rounded-lg px-3 py-2">
             <div>
               <div className="text-xs text-muted-foreground">Compare</div>
@@ -68,10 +73,10 @@ const WeatherView = () => {
               <h3 className="text-sm font-medium text-foreground">Accumulated Precipitation, mm</h3>
               <div className="flex items-center gap-4 text-xs">
                 <span className="flex items-center gap-1">
-                  <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: "hsl(340, 70%, 65%)" }} /> 5 Year Avg
+                  <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: "hsl(42, 82%, 57%)" }} /> 5 Year Avg
                 </span>
                 <span className="flex items-center gap-1">
-                  <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: "hsl(180, 70%, 55%)" }} /> Precipitation 2019
+                  <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: "hsl(48, 82%, 92%)" }} /> Precipitation 2019
                 </span>
                 <span className="flex items-center gap-1">
                   <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: "hsl(120, 50%, 50%)" }} /> Growth Stages 2019
@@ -83,16 +88,9 @@ const WeatherView = () => {
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(150, 12%, 22%)" />
                 <XAxis dataKey="month" stroke="hsl(150, 10%, 55%)" fontSize={12} />
                 <YAxis stroke="hsl(150, 10%, 55%)" fontSize={12} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "hsl(150, 18%, 14%)",
-                    border: "1px solid hsl(150, 12%, 22%)",
-                    borderRadius: "8px",
-                    color: "hsl(60, 20%, 85%)"
-                  }} />
-
-                <Line type="monotone" dataKey="fiveYearAvg" stroke="hsl(340, 70%, 65%)" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="current" stroke="hsl(180, 70%, 55%)" strokeWidth={2} dot={false} />
+                <Tooltip contentStyle={chartTooltipStyle} />
+                <Line type="monotone" dataKey="fiveYearAvg" stroke="hsl(42, 82%, 57%)" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="current" stroke="hsl(48, 82%, 92%)" strokeWidth={2} dot={false} />
                 <Line type="monotone" dataKey="growth" stroke="hsl(120, 50%, 50%)" strokeWidth={2} dot={false} strokeDasharray="5 5" />
               </LineChart>
             </ResponsiveContainer>
@@ -104,13 +102,10 @@ const WeatherView = () => {
               <h3 className="text-sm font-medium text-foreground">Daily Precipitation, mm</h3>
               <div className="flex items-center gap-4 text-xs">
                 <span className="flex items-center gap-1">
-                  <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: "hsl(340, 60%, 55%)" }} /> 5 Year Avg
+                  <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: "hsl(42, 82%, 57%)" }} /> 5 Year Avg
                 </span>
                 <span className="flex items-center gap-1">
-                  <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: "hsl(180, 60%, 50%)" }} /> Precipitation 2019
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: "hsl(120, 50%, 50%)" }} /> Growth Stages 2019
+                  <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: "hsl(48, 82%, 92%)" }} /> Precipitation 2019
                 </span>
               </div>
             </div>
@@ -119,16 +114,9 @@ const WeatherView = () => {
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(150, 12%, 22%)" />
                 <XAxis dataKey="month" stroke="hsl(150, 10%, 55%)" fontSize={12} />
                 <YAxis stroke="hsl(150, 10%, 55%)" fontSize={12} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "hsl(150, 18%, 14%)",
-                    border: "1px solid hsl(150, 12%, 22%)",
-                    borderRadius: "8px",
-                    color: "hsl(60, 20%, 85%)"
-                  }} />
-
-                <Bar dataKey="fiveYearAvg" fill="hsl(340, 60%, 55%)" />
-                <Bar dataKey="current" fill="hsl(180, 60%, 50%)" />
+                <Tooltip contentStyle={chartTooltipStyle} />
+                <Bar dataKey="fiveYearAvg" fill="hsl(42, 82%, 57%)" />
+                <Bar dataKey="current" fill="hsl(48, 82%, 92%)" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -137,11 +125,9 @@ const WeatherView = () => {
 
       {/* Right sidebar */}
       <FieldListPanel fields={fieldList} onRemoveField={handleRemoveField} />
-
-      {/* Right icon toolbar */}
       <RightToolbar activeMode={rightMode} onModeChange={setRightMode} />
-    </div>);
-
+    </div>
+  );
 };
 
 export default WeatherView;
