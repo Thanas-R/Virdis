@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { ChevronDown, Calendar } from "lucide-react";
+import { ChevronDown, CalendarArrowUp, CalendarArrowDown } from "lucide-react";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer,
-} from "recharts";
+  ResponsiveContainer } from
+"recharts";
 import { fields, accumulatedPrecipitation, dailyPrecipitation } from "@/data/fields";
 import FieldListPanel from "./FieldListPanel";
 import RightToolbar from "./RightToolbar";
@@ -47,14 +47,14 @@ const WeatherView = () => {
                 <div className="text-xs text-muted-foreground">Start Date</div>
                 <div className="text-sm text-foreground">Apr 1, 2019</div>
               </div>
-              <Calendar className="w-4 h-4 text-muted-foreground" />
+              <CalendarArrowUp className="w-4 h-4 text-muted-foreground" />
             </div>
             <div className="flex items-center gap-2 border border-border rounded-lg px-3 py-2">
               <div>
                 <div className="text-xs text-muted-foreground">End Date</div>
                 <div className="text-sm text-foreground">Oct 1, 2019</div>
               </div>
-              <Calendar className="w-4 h-4 text-muted-foreground" />
+              <CalendarArrowDown className="w-4 h-4 text-muted-foreground" />
             </div>
           </div>
         </div>
@@ -87,9 +87,9 @@ const WeatherView = () => {
                     backgroundColor: "hsl(150, 18%, 14%)",
                     border: "1px solid hsl(150, 12%, 22%)",
                     borderRadius: "8px",
-                    color: "hsl(60, 20%, 85%)",
-                  }}
-                />
+                    color: "hsl(60, 20%, 85%)"
+                  }} />
+
                 <Line type="monotone" dataKey="fiveYearAvg" stroke="hsl(340, 70%, 65%)" strokeWidth={2} dot={false} />
                 <Line type="monotone" dataKey="current" stroke="hsl(180, 70%, 55%)" strokeWidth={2} dot={false} />
                 <Line type="monotone" dataKey="growth" stroke="hsl(120, 50%, 50%)" strokeWidth={2} dot={false} strokeDasharray="5 5" />
@@ -123,9 +123,9 @@ const WeatherView = () => {
                     backgroundColor: "hsl(150, 18%, 14%)",
                     border: "1px solid hsl(150, 12%, 22%)",
                     borderRadius: "8px",
-                    color: "hsl(60, 20%, 85%)",
-                  }}
-                />
+                    color: "hsl(60, 20%, 85%)"
+                  }} />
+
                 <Bar dataKey="fiveYearAvg" fill="hsl(340, 60%, 55%)" />
                 <Bar dataKey="current" fill="hsl(180, 60%, 50%)" />
               </BarChart>
@@ -139,8 +139,8 @@ const WeatherView = () => {
 
       {/* Right icon toolbar */}
       <RightToolbar />
-    </div>
-  );
+    </div>);
+
 };
 
 export default WeatherView;
