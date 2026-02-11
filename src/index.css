@@ -15,7 +15,7 @@
     --popover: 150 18% 14%;
     --popover-foreground: 60 20% 85%;
 
-    --primary: 25 70% 75%;
+    --primary: 49 100% 96%;
     --primary-foreground: 150 20% 10%;
 
     --secondary: 150 15% 20%;
@@ -32,18 +32,18 @@
 
     --border: 150 12% 22%;
     --input: 150 12% 22%;
-    --ring: 25 70% 75%;
+    --ring: 49 100% 96%;
 
     --radius: 0.75rem;
 
     --sidebar-background: 150 18% 12%;
     --sidebar-foreground: 60 20% 85%;
-    --sidebar-primary: 25 70% 75%;
+    --sidebar-primary: 49 100% 96%;
     --sidebar-primary-foreground: 150 20% 10%;
     --sidebar-accent: 150 15% 18%;
     --sidebar-accent-foreground: 60 20% 85%;
     --sidebar-border: 150 12% 22%;
-    --sidebar-ring: 25 70% 75%;
+    --sidebar-ring: 49 100% 96%;
 
     /* Custom tokens */
     --field-yellow: 50 80% 60%;
