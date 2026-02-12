@@ -19,6 +19,8 @@ interface MapViewProps {
   onToggleField: (field: Field) => void;
   onShowAll: () => void;
   onHideAll: () => void;
+  flyToField?: Field | null;
+  onFlyToDone?: () => void;
 }
 
 const MapView = ({
@@ -28,6 +30,8 @@ const MapView = ({
   onToggleField,
   onShowAll,
   onHideAll,
+  flyToField,
+  onFlyToDone,
 }: MapViewProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -46,6 +50,17 @@ const MapView = ({
     };
     fetchToken();
   }, []);
+
+  // Fly to field when requested from other views
+  useEffect(() => {
+    if (!flyToField || !mapRef.current) return;
+    const coords = flyToField.coordinates[0];
+    const lat = coords.reduce((sum, c) => sum + c[1], 0) / coords.length;
+    const lng = coords.reduce((sum, c) => sum + c[0], 0) / coords.length;
+    mapRef.current.flyTo({ center: [lng, lat], zoom: 16, duration: 1500 });
+    setSelectedField(flyToField);
+    onFlyToDone?.();
+  }, [flyToField, onFlyToDone]);
 
   const addFieldLayers = useCallback(
     (map: mapboxgl.Map, selected: Field[]) => {
@@ -150,6 +165,15 @@ const MapView = ({
     mapRef.current?.flyTo({ center: [lng, lat], zoom: 13, duration: 2000 });
   };
 
+  const handleFieldClickInPanel = (field: Field) => {
+    // Fly to field on map
+    const coords = field.coordinates[0];
+    const lat = coords.reduce((sum, c) => sum + c[1], 0) / coords.length;
+    const lng = coords.reduce((sum, c) => sum + c[0], 0) / coords.length;
+    mapRef.current?.flyTo({ center: [lng, lat], zoom: 16, duration: 1500 });
+    setSelectedField(field);
+  };
+
   return (
     <div className="relative w-full h-full flex">
       <div className="flex-1 relative">
@@ -173,7 +197,7 @@ const MapView = ({
         selectedFields={selectedFields}
         allFields={allFields}
         selectedField={selectedField}
-        onFieldClick={setSelectedField}
+        onFieldClick={handleFieldClickInPanel}
         onDeselectField={() => setSelectedField(null)}
         onRemoveField={onRemoveField}
         onToggleField={onToggleField}

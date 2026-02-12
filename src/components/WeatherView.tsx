@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { CalendarArrowUp, CalendarArrowDown, Droplets, Wind, Thermometer, Sun, CloudRain, Sprout, Cloud } from "lucide-react";
+import { CalendarArrowUp, CalendarArrowDown, Droplets, Wind, Sprout } from "lucide-react";
 import {
   LineChart,
   Line,
@@ -42,27 +42,12 @@ interface LiveWeather {
   feelsLike: number;
 }
 
-interface ForecastDay {
-  date: string;
-  label: string;
-  tempMax: number;
-  tempMin: number;
-  precipitation: number;
-  weatherCode: number;
-}
-
 const weatherDescriptions: Record<number, string> = {
   0: "Clear sky", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
   45: "Fog", 48: "Rime fog", 51: "Light drizzle", 53: "Moderate drizzle",
   55: "Dense drizzle", 61: "Slight rain", 63: "Moderate rain", 65: "Heavy rain",
   71: "Slight snow", 73: "Moderate snow", 75: "Heavy snow",
   80: "Slight showers", 81: "Moderate showers", 82: "Violent showers", 95: "Thunderstorm"
-};
-
-const weatherIcons: Record<number, string> = {
-  0: "☀️", 1: "🌤️", 2: "⛅", 3: "☁️", 45: "🌫️", 48: "🌫️",
-  51: "🌦️", 53: "🌦️", 55: "🌧️", 61: "🌧️", 63: "🌧️", 65: "🌧️",
-  71: "🌨️", 73: "🌨️", 75: "❄️", 80: "🌦️", 81: "🌧️", 82: "⛈️", 95: "⛈️"
 };
 
 function getFieldCenter(field: Field) {
@@ -93,23 +78,16 @@ function getFarmerAdvice(weather: LiveWeather, crop: string): string[] {
   } else if (weather.windSpeed > 20) {
     advice.push(`🌬️ Moderate wind (${weather.windSpeed} km/h). Spray operations may drift — adjust nozzles or wait.`);
   }
-  const code = weather.weatherCode;
-  if (code >= 61 && code <= 67) {
-    advice.push(`🌧️ Rain expected. Delay field work and harvesting. Good natural irrigation for ${crop}.`);
-  } else if (code >= 95) {
-    advice.push(`⛈️ Thunderstorm warning. Stay indoors and secure equipment.`);
-  } else if (code === 0 || code === 1) {
-    advice.push(`☀️ Clear conditions — ideal for field scouting, spraying, or harvesting ${crop}.`);
-  }
   return advice;
 }
 
 interface WeatherViewProps {
   selectedFields: Field[];
   onRemoveField: (id: string) => void;
+  onFieldClick?: (field: Field) => void;
 }
 
-const WeatherView = ({ selectedFields, onRemoveField }: WeatherViewProps) => {
+const WeatherView = ({ selectedFields, onRemoveField, onFieldClick }: WeatherViewProps) => {
   const [startDate, setStartDate] = useState<Date>(new Date(2024, 3, 1));
   const [endDate, setEndDate] = useState<Date>(new Date(2024, 9, 1));
   const [monthlyData, setMonthlyData] = useState<any[]>([]);
@@ -118,11 +96,10 @@ const WeatherView = ({ selectedFields, onRemoveField }: WeatherViewProps) => {
   const [loading, setLoading] = useState(false);
   const [liveWeather, setLiveWeather] = useState<LiveWeather | null>(null);
   const [liveLoading, setLiveLoading] = useState(false);
-  const [forecast, setForecast] = useState<ForecastDay[]>([]);
 
   const activeField = selectedFields[0];
 
-  // Fetch live weather + 7-day forecast
+  // Fetch live weather
   useEffect(() => {
     if (!activeField) return;
     const fetchLive = async () => {
@@ -130,7 +107,7 @@ const WeatherView = ({ selectedFields, onRemoveField }: WeatherViewProps) => {
       try {
         const { lat, lng } = getFieldCenter(activeField);
         const res = await fetch(
-          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,apparent_temperature,weather_code&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code&timezone=auto&forecast_days=7`
+          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,apparent_temperature,weather_code&timezone=auto`
         );
         const data = await res.json();
         const c = data.current;
@@ -141,17 +118,6 @@ const WeatherView = ({ selectedFields, onRemoveField }: WeatherViewProps) => {
           weatherCode: c.weather_code,
           feelsLike: Math.round(c.apparent_temperature)
         });
-        if (data.daily) {
-          const days: ForecastDay[] = data.daily.time.map((date: string, i: number) => ({
-            date,
-            label: format(new Date(date + "T00:00:00"), "EEE"),
-            tempMax: Math.round(data.daily.temperature_2m_max[i]),
-            tempMin: Math.round(data.daily.temperature_2m_min[i]),
-            precipitation: Math.round((data.daily.precipitation_sum[i] || 0) * 10) / 10,
-            weatherCode: data.daily.weather_code[i]
-          }));
-          setForecast(days);
-        }
       } catch {
         setLiveWeather(null);
       } finally {
@@ -254,7 +220,7 @@ const WeatherView = ({ selectedFields, onRemoveField }: WeatherViewProps) => {
     <div className="relative w-full h-full flex">
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header row: title + field info + date pickers */}
+        {/* Header row */}
         <div className="flex items-center gap-4 px-6 py-3 border-b border-border flex-wrap">
           <h1 className="text-lg font-semibold text-foreground">Historical Weather</h1>
           {activeField &&
@@ -263,11 +229,8 @@ const WeatherView = ({ selectedFields, onRemoveField }: WeatherViewProps) => {
               {activeField.name} · {activeField.cropEmoji} {activeField.crop} · {activeField.location}
             </div>
           }
-
-          {/* Spacer */}
           <div className="flex-1" />
 
-          {/* Date pickers in header */}
           <Popover>
             <PopoverTrigger asChild>
               <button className="flex items-center gap-2 border border-border rounded-lg px-3 py-2 hover:bg-accent/30 transition-colors">
@@ -320,39 +283,14 @@ const WeatherView = ({ selectedFields, onRemoveField }: WeatherViewProps) => {
                   </div>
                 </div>
                 {/* Farmer Advice */}
-                
-
-
-
-
+                <div className="flex flex-wrap gap-2">
+                  {getFarmerAdvice(liveWeather, activeField.crop).map((tip, i) => (
+                    <div key={i} className="text-xs text-muted-foreground bg-accent/20 rounded-lg px-3 py-1.5">{tip}</div>
+                  ))}
+                </div>
               </div> :
-
           <div className="text-sm text-muted-foreground">Weather unavailable</div>
           }
-          </div>
-        }
-
-        {/* 7-Day Forecast */}
-        {activeField && forecast.length > 0 &&
-        <div className="px-6 py-3 border-b border-border">
-            <h3 className="text-sm font-medium text-foreground mb-3">7-Day Forecast</h3>
-            <div className="grid grid-cols-7 gap-2">
-              {forecast.map((day) =>
-            <div key={day.date} className="flex flex-col items-center gap-1 p-2 rounded-lg border border-border bg-secondary/20">
-                  <span className="text-xs font-medium text-foreground">{day.label}</span>
-                  <span className="text-lg">{weatherIcons[day.weatherCode] || "🌤️"}</span>
-                  <div className="flex gap-1 text-xs">
-                    <span style={{ color: CHART_GOLD }}>{day.tempMax}°</span>
-                    <span className="text-muted-foreground">{day.tempMin}°</span>
-                  </div>
-                  {day.precipitation > 0 &&
-              <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
-                      <Droplets className="w-2.5 h-2.5" />{day.precipitation}mm
-                    </span>
-              }
-                </div>
-            )}
-            </div>
           </div>
         }
 
@@ -367,7 +305,6 @@ const WeatherView = ({ selectedFields, onRemoveField }: WeatherViewProps) => {
           <div className="flex items-center justify-center py-20">
               <div className="text-muted-foreground animate-pulse text-sm">Fetching weather data for {activeField.name}…</div>
             </div> :
-
           <>
               {/* Accumulated Precipitation */}
               <div className="animate-fade-in">
@@ -479,9 +416,9 @@ const WeatherView = ({ selectedFields, onRemoveField }: WeatherViewProps) => {
       </div>
 
       {/* Right sidebar - field list */}
-      <FieldListPanel fields={selectedFields} onRemoveField={onRemoveField} />
-    </div>);
-
+      <FieldListPanel fields={selectedFields} onRemoveField={onRemoveField} onFieldClick={onFieldClick} />
+    </div>
+  );
 };
 
 export default WeatherView;
