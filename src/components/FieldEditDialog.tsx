@@ -4,21 +4,21 @@ import { Field } from "@/data/fields";
 import LocationAutocomplete from "./LocationAutocomplete";
 
 const PRESET_COLORS = [
-  "#D4A853", "#C75B7A", "#5BB8C7", "#8B9A5B", "#7BC75B",
-  "#EAB947", "#E06C75", "#61AFEF", "#C678DD", "#98C379",
-  "#D19A66", "#56B6C2", "#BE5046", "#E5C07B", "#FF6B6B",
-];
+"#D4A853", "#C75B7A", "#5BB8C7", "#8B9A5B", "#7BC75B",
+"#EAB947", "#E06C75", "#61AFEF", "#C678DD", "#98C379",
+"#D19A66", "#56B6C2", "#BE5046", "#E5C07B", "#FF6B6B"];
+
 
 const CROP_OPTIONS = [
-  { name: "Maize" },
-  { name: "Grapes" },
-  { name: "Sunflower" },
-  { name: "Apple" },
-  { name: "Wheat" },
-  { name: "Rice" },
-  { name: "Soybean" },
-  { name: "Cotton" },
-];
+{ name: "Maize" },
+{ name: "Grapes" },
+{ name: "Sunflower" },
+{ name: "Apple" },
+{ name: "Wheat" },
+{ name: "Rice" },
+{ name: "Soybean" },
+{ name: "Cotton" }];
+
 
 interface FieldEditDialogProps {
   field: Field;
@@ -44,13 +44,13 @@ const FieldEditDialog = ({ field, onSave, onDelete, onClose }: FieldEditDialogPr
       area: parseFloat(area) || field.area,
       location,
       color,
-      group: group || undefined,
+      group: group || undefined
     });
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-card rounded-xl border border-border p-5 w-80 space-y-4 shadow-2xl animate-fade-in">
+      <div className="bg-card rounded-xl border border-border p-5 w-80 space-y-4 shadow-2xl animate-fade-in mx-[5px]">
         {/* Header */}
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-foreground">Edit Field</h3>
@@ -65,9 +65,9 @@ const FieldEditDialog = ({ field, onSave, onDelete, onClose }: FieldEditDialogPr
           <input
             type="text"
             value={name}
-            onChange={e => setName(e.target.value)}
-            className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          />
+            onChange={(e) => setName(e.target.value)}
+            className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+
         </div>
 
         {/* Crop */}
@@ -75,12 +75,12 @@ const FieldEditDialog = ({ field, onSave, onDelete, onClose }: FieldEditDialogPr
           <label className="text-xs text-muted-foreground block mb-1">Crop</label>
           <select
             value={crop}
-            onChange={e => setCrop(e.target.value)}
-            className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          >
-            {CROP_OPTIONS.map(c => (
-              <option key={c.name} value={c.name}>{c.name}</option>
-            ))}
+            onChange={(e) => setCrop(e.target.value)}
+            className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+
+            {CROP_OPTIONS.map((c) =>
+            <option key={c.name} value={c.name}>{c.name}</option>
+            )}
           </select>
         </div>
 
@@ -92,18 +92,18 @@ const FieldEditDialog = ({ field, onSave, onDelete, onClose }: FieldEditDialogPr
               type="number"
               step="0.1"
               value={area}
-              onChange={e => setArea(e.target.value)}
-              className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            />
+              onChange={(e) => setArea(e.target.value)}
+              className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+
           </div>
           <div>
             <label className="text-xs text-muted-foreground block mb-1">Group</label>
             <input
               type="text"
               value={group}
-              onChange={e => setGroup(e.target.value)}
-              className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            />
+              onChange={(e) => setGroup(e.target.value)}
+              className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+
           </div>
         </div>
 
@@ -113,26 +113,26 @@ const FieldEditDialog = ({ field, onSave, onDelete, onClose }: FieldEditDialogPr
           <LocationAutocomplete
             value={location}
             onChange={setLocation}
-            placeholder="Search location…"
-          />
+            placeholder="Search location…" />
+
         </div>
 
         {/* Color picker */}
         <div>
           <label className="text-xs text-muted-foreground block mb-1">Color</label>
           <div className="flex flex-wrap gap-2">
-            {PRESET_COLORS.map(c => (
-              <button
-                key={c}
-                onClick={() => setColor(c)}
-                className="w-6 h-6 rounded-full border-2 transition-transform hover:scale-110"
-                style={{
-                  backgroundColor: c,
-                  borderColor: color === c ? "hsl(60, 20%, 85%)" : "transparent",
-                  transform: color === c ? "scale(1.2)" : undefined,
-                }}
-              />
-            ))}
+            {PRESET_COLORS.map((c) =>
+            <button
+              key={c}
+              onClick={() => setColor(c)}
+              className="w-6 h-6 rounded-full border-2 transition-transform hover:scale-110"
+              style={{
+                backgroundColor: c,
+                borderColor: color === c ? "hsl(60, 20%, 85%)" : "transparent",
+                transform: color === c ? "scale(1.2)" : undefined
+              }} />
+
+            )}
           </div>
         </div>
 
@@ -141,26 +141,26 @@ const FieldEditDialog = ({ field, onSave, onDelete, onClose }: FieldEditDialogPr
           <button
             onClick={() => onDelete(field.id)}
             className="p-2.5 rounded-lg border border-destructive/30 text-destructive hover:bg-destructive/10 transition-colors"
-            title="Delete field"
-          >
+            title="Delete field">
+
             <Trash2 className="w-4 h-4" />
           </button>
           <button
             onClick={onClose}
-            className="flex-1 py-2.5 rounded-lg border border-border text-sm text-foreground hover:bg-accent transition-colors"
-          >
+            className="flex-1 py-2.5 rounded-lg border border-border text-sm text-foreground hover:bg-accent transition-colors">
+
             Cancel
           </button>
           <button
             onClick={handleSave}
-            className="flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors bg-primary text-primary-foreground"
-          >
+            className="flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors bg-primary text-primary-foreground">
+
             Save
           </button>
         </div>
       </div>
-    </div>
-  );
+    </div>);
+
 };
 
 export default FieldEditDialog;
