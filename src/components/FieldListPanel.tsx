@@ -1,4 +1,4 @@
-import { Search, Menu, Check, ArrowUpDown } from "lucide-react";
+import { Search, Check, ArrowUpDown, SlidersHorizontal } from "lucide-react";
 import { useState } from "react";
 import { Field } from "@/data/fields";
 import FieldCard from "./FieldCard";
@@ -10,12 +10,19 @@ interface FieldListPanelProps {
 
 const FieldListPanel = ({ fields, onRemoveField }: FieldListPanelProps) => {
   const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState<"name" | "area" | "ndvi">("name");
 
-  const filtered = fields.filter(
-    (f) =>
-      f.name.toLowerCase().includes(search.toLowerCase()) ||
-      f.crop.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = fields
+    .filter(
+      (f) =>
+        f.name.toLowerCase().includes(search.toLowerCase()) ||
+        f.crop.toLowerCase().includes(search.toLowerCase())
+    )
+    .sort((a, b) => {
+      if (sortBy === "area") return b.area - a.area;
+      if (sortBy === "ndvi") return (b.ndviChange ?? 0) - (a.ndviChange ?? 0);
+      return a.name.localeCompare(b.name);
+    });
 
   return (
     <div className="w-[320px] h-full bg-card/95 backdrop-blur-md border-l border-border flex flex-col">
@@ -23,7 +30,7 @@ const FieldListPanel = ({ fields, onRemoveField }: FieldListPanelProps) => {
       <div className="flex items-center justify-between p-4 border-b border-border">
         <h2 className="text-lg font-semibold text-foreground">Field List</h2>
         <button className="text-muted-foreground hover:text-foreground transition-colors">
-          <Menu className="w-5 h-5" />
+          <SlidersHorizontal className="w-5 h-5" />
         </button>
       </div>
 
@@ -46,7 +53,10 @@ const FieldListPanel = ({ fields, onRemoveField }: FieldListPanelProps) => {
         <button className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border border-border text-sm text-foreground hover:bg-accent transition-colors">
           <Check className="w-4 h-4" /> Filter
         </button>
-        <button className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border border-border text-sm text-foreground hover:bg-accent transition-colors">
+        <button
+          onClick={() => setSortBy(sortBy === "name" ? "area" : sortBy === "area" ? "ndvi" : "name")}
+          className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border border-border text-sm text-foreground hover:bg-accent transition-colors"
+        >
           <ArrowUpDown className="w-4 h-4" /> Sort
         </button>
       </div>
