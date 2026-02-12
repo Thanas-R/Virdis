@@ -4,8 +4,8 @@ import WeatherView from "@/components/WeatherView";
 import { fields as initialFieldsData, Field } from "@/data/fields";
 import SidePanel from "@/components/SidePanel";
 
-const ALL_FIELDS_KEY = "farm-all-fields";
-const SELECTED_IDS_KEY = "farm-selected-fields";
+const ALL_FIELDS_KEY = "farm-fields-v3";
+const SELECTED_IDS_KEY = "farm-sel-v3";
 
 function loadAllFields(): Field[] {
   try {
@@ -36,6 +36,7 @@ const Index = () => {
   const [activeField, setActiveField] = useState<Field | null>(null);
   const [detailField, setDetailField] = useState<Field | null>(null);
   const [flyToField, setFlyToField] = useState<Field | null>(null);
+  const [editBoundaryFieldId, setEditBoundaryFieldId] = useState<string | null>(null);
 
   const selectedFields = allFields.filter(f => selectedIds.includes(f.id));
 
@@ -87,6 +88,12 @@ const Index = () => {
     setSelectedIds(ids);
   }, []);
 
+  const handleEditBoundary = useCallback((field: Field) => {
+    setEditBoundaryFieldId(field.id);
+    setDetailField(null); // close detail to see the map
+    setFlyToField(field);
+  }, []);
+
   return (
     <div className="h-screen w-screen bg-surface-outer flex items-center justify-center p-6">
       <div className="w-full h-full max-w-[1400px] max-h-[900px] rounded-2xl overflow-hidden bg-background shadow-2xl relative border-[#041009] border-2">
@@ -125,6 +132,9 @@ const Index = () => {
                   setDetailField(field);
                 }}
                 onAddField={handleAddField}
+                editBoundaryFieldId={editBoundaryFieldId}
+                onUpdateField={handleUpdateField}
+                onCancelEditBoundary={() => setEditBoundaryFieldId(null)}
               />
             </div>
             <div
@@ -148,6 +158,7 @@ const Index = () => {
             onApplySelection={handleApplySelection}
             onUpdateField={handleUpdateField}
             onDeleteField={handleDeleteField}
+            onEditBoundary={handleEditBoundary}
           />
         </div>
       </div>
