@@ -428,20 +428,20 @@ const MapView = ({
       }
 
       {/* Boundary editing indicator */}
-      {editBoundaryFieldId
+      {editBoundaryFieldId &&
+      <div className="absolute bottom-6 left-4 z-10 bg-card/90 backdrop-blur-sm rounded-lg border border-border px-4 py-2.5 text-xs text-foreground space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: "#EAB947" }} />
+            <span className="font-medium">Editing Boundary</span>
+          </div>
+          <div className="text-muted-foreground">Drag vertices to reshape</div>
+          <button
+          onClick={onCancelEditBoundary}
+          className="mt-1 px-3 py-1 rounded-md bg-primary text-primary-foreground text-xs">
 
-
-
-
-
-
-
-
-
-
-
-
-
+            Done
+          </button>
+        </div>
       }
 
       {/* New field dialog */}
