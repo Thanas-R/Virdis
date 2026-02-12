@@ -1,4 +1,4 @@
-import { X, MoreHorizontal } from "lucide-react";
+import { X, MoreHorizontal, MapPin } from "lucide-react";
 import { Field } from "@/data/fields";
 import { useState } from "react";
 
@@ -70,7 +70,7 @@ const FieldCard = ({ field, onRemove, variant = "select", style }: FieldCardProp
           <div className="text-xs text-muted-foreground">📁 {field.group}</div>
         )}
         <div className="text-xs text-muted-foreground flex items-center gap-1">
-          <span style={{ color: "hsl(0, 70%, 60%)" }}>📍</span> {field.location}
+          <MapPin className="w-3 h-3 text-muted-foreground flex-shrink-0" /> {field.location}
         </div>
       </div>
 
