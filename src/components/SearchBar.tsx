@@ -81,7 +81,7 @@ const SearchBar = ({ onSearch, mapToken, onLocationSelect }: SearchBarProps) => 
         <button
           key={r.id}
           onClick={() => handleSelect(r)}
-          className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors border-b border-border last:border-0 truncate">
+          className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors border-b border-border last:border-0 truncate opacity-85">
 
               📍 {r.place_name}
             </button>
