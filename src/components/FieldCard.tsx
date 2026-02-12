@@ -6,26 +6,35 @@ interface FieldCardProps {
   field: Field;
   onRemove: (id: string) => void;
   variant?: "select" | "list";
+  isActive?: boolean;
   style?: React.CSSProperties;
 }
 
-const FieldCard = ({ field, onRemove, variant = "select", style }: FieldCardProps) => {
+const FieldCard = ({ field, onRemove, variant = "select", isActive = false, style }: FieldCardProps) => {
   const isListVariant = variant === "list";
   const [isHovered, setIsHovered] = useState(false);
 
   return (
     <div
-      className="flex items-center gap-3 p-3 rounded-lg border border-border transition-all duration-300 ease-out cursor-pointer group"
+      className="flex items-center gap-3 p-3 rounded-lg border transition-all duration-300 ease-out cursor-pointer group"
       style={{
         ...style,
-        backgroundColor: isHovered
-          ? "hsl(150, 15%, 18%)"
-          : "hsl(150, 15%, 14%)",
+        backgroundColor: isActive
+          ? "hsl(150, 15%, 20%)"
+          : isHovered
+            ? "hsl(150, 15%, 18%)"
+            : "hsl(150, 15%, 14%)",
         transform: isHovered ? "translateX(-2px) scale(1.01)" : "translateX(0) scale(1)",
-        boxShadow: isHovered
-          ? `0 4px 20px -4px ${field.color}33, inset 0 0 0 1px ${field.color}44`
-          : "none",
-        borderColor: isHovered ? field.color + "66" : undefined,
+        boxShadow: isActive
+          ? `0 0 0 1px ${field.color}88, 0 4px 20px -4px ${field.color}33`
+          : isHovered
+            ? `0 4px 20px -4px ${field.color}33, inset 0 0 0 1px ${field.color}44`
+            : "none",
+        borderColor: isActive
+          ? field.color + "88"
+          : isHovered
+            ? field.color + "66"
+            : "hsl(150, 12%, 22%)",
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}

@@ -128,7 +128,7 @@ const FieldDetailView = ({ field, onBack }: FieldDetailViewProps) => {
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-5">
-        {/* Field Info Grid */}
+        {/* 1. Field Info Grid */}
         <div className="p-4 rounded-xl border border-border bg-accent/15">
           <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Field Info</h3>
           <div className="grid grid-cols-2 gap-4 text-sm">
@@ -158,7 +158,30 @@ const FieldDetailView = ({ field, onBack }: FieldDetailViewProps) => {
           </div>
         </div>
 
-        {/* Crop Growth Stage */}
+        {/* 2. Current Weather */}
+        <div>
+          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Current Weather</h3>
+          {loading ? (
+            <div className="p-4 rounded-xl border border-border bg-accent/10">
+              <div className="text-sm text-muted-foreground animate-pulse">Loading…</div>
+            </div>
+          ) : weather ? (
+            <div className="p-4 rounded-xl border border-border bg-accent/15 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-3xl font-light text-foreground">{Math.round(weather.temperature_2m)}°C</span>
+                <span className="text-sm text-muted-foreground">{weatherCodes[weather.weather_code] || "Unknown"}</span>
+              </div>
+              <div className="flex gap-4 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1.5"><Droplets className="w-3.5 h-3.5" />{weather.relative_humidity_2m}%</span>
+                <span className="flex items-center gap-1.5"><Wind className="w-3.5 h-3.5" />{Math.round(weather.wind_speed_10m)} km/h</span>
+              </div>
+            </div>
+          ) : (
+            <div className="p-4 rounded-xl border border-border bg-accent/10 text-sm text-muted-foreground">Weather unavailable</div>
+          )}
+        </div>
+
+        {/* 3. Growth Stage */}
         <div>
           <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
             <Leaf className="w-3.5 h-3.5" /> Growth Stage
@@ -185,30 +208,7 @@ const FieldDetailView = ({ field, onBack }: FieldDetailViewProps) => {
           </div>
         </div>
 
-        {/* Weather */}
-        <div>
-          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Current Weather</h3>
-          {loading ? (
-            <div className="p-4 rounded-xl border border-border bg-accent/10">
-              <div className="text-sm text-muted-foreground animate-pulse">Loading…</div>
-            </div>
-          ) : weather ? (
-            <div className="p-4 rounded-xl border border-border bg-accent/15 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-3xl font-light text-foreground">{Math.round(weather.temperature_2m)}°C</span>
-                <span className="text-sm text-muted-foreground">{weatherCodes[weather.weather_code] || "Unknown"}</span>
-              </div>
-              <div className="flex gap-4 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1.5"><Droplets className="w-3.5 h-3.5" />{weather.relative_humidity_2m}%</span>
-                <span className="flex items-center gap-1.5"><Wind className="w-3.5 h-3.5" />{Math.round(weather.wind_speed_10m)} km/h</span>
-              </div>
-            </div>
-          ) : (
-            <div className="p-4 rounded-xl border border-border bg-accent/10 text-sm text-muted-foreground">Weather unavailable</div>
-          )}
-        </div>
-
-        {/* Historical Yield */}
+        {/* 4. Historical Yield */}
         {yields.length > 0 && (
           <div>
             <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
@@ -239,7 +239,7 @@ const FieldDetailView = ({ field, onBack }: FieldDetailViewProps) => {
           </div>
         )}
 
-        {/* Scouting Tasks */}
+        {/* 5. Scouting Tasks */}
         <div>
           <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Scouting Tasks</h3>
           <div className="space-y-2">
