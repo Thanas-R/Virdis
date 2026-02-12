@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { CalendarArrowUp, CalendarArrowDown, Droplets, Wind, Thermometer, Sun, CloudRain, Sprout, Cloud } from "lucide-react";
+import { CalendarArrowUp, CalendarArrowDown, Droplets, Wind, Thermometer, Sun, CloudRain, Sprout } from "lucide-react";
 import {
   LineChart,
   Line,
@@ -42,14 +42,7 @@ interface LiveWeather {
   feelsLike: number;
 }
 
-interface ForecastDay {
-  date: string;
-  label: string;
-  tempMax: number;
-  tempMin: number;
-  precipitation: number;
-  weatherCode: number;
-}
+
 
 const weatherDescriptions: Record<number, string> = {
   0: "Clear sky", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
@@ -59,11 +52,7 @@ const weatherDescriptions: Record<number, string> = {
   80: "Slight showers", 81: "Moderate showers", 82: "Violent showers", 95: "Thunderstorm"
 };
 
-const weatherIcons: Record<number, string> = {
-  0: "☀️", 1: "🌤️", 2: "⛅", 3: "☁️", 45: "🌫️", 48: "🌫️",
-  51: "🌦️", 53: "🌦️", 55: "🌧️", 61: "🌧️", 63: "🌧️", 65: "🌧️",
-  71: "🌨️", 73: "🌨️", 75: "❄️", 80: "🌦️", 81: "🌧️", 82: "⛈️", 95: "⛈️"
-};
+
 
 function getFieldCenter(field: Field) {
   const coords = field.coordinates[0];
@@ -118,11 +107,11 @@ const WeatherView = ({ selectedFields, onRemoveField }: WeatherViewProps) => {
   const [loading, setLoading] = useState(false);
   const [liveWeather, setLiveWeather] = useState<LiveWeather | null>(null);
   const [liveLoading, setLiveLoading] = useState(false);
-  const [forecast, setForecast] = useState<ForecastDay[]>([]);
+  
 
   const activeField = selectedFields[0];
 
-  // Fetch live weather + 7-day forecast
+  // Fetch live weather
   useEffect(() => {
     if (!activeField) return;
     const fetchLive = async () => {
@@ -130,7 +119,7 @@ const WeatherView = ({ selectedFields, onRemoveField }: WeatherViewProps) => {
       try {
         const { lat, lng } = getFieldCenter(activeField);
         const res = await fetch(
-          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,apparent_temperature,weather_code&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code&timezone=auto&forecast_days=7`
+          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,apparent_temperature,weather_code&timezone=auto`
         );
         const data = await res.json();
         const c = data.current;
@@ -141,17 +130,6 @@ const WeatherView = ({ selectedFields, onRemoveField }: WeatherViewProps) => {
           weatherCode: c.weather_code,
           feelsLike: Math.round(c.apparent_temperature)
         });
-        if (data.daily) {
-          const days: ForecastDay[] = data.daily.time.map((date: string, i: number) => ({
-            date,
-            label: format(new Date(date + "T00:00:00"), "EEE"),
-            tempMax: Math.round(data.daily.temperature_2m_max[i]),
-            tempMin: Math.round(data.daily.temperature_2m_min[i]),
-            precipitation: Math.round((data.daily.precipitation_sum[i] || 0) * 10) / 10,
-            weatherCode: data.daily.weather_code[i]
-          }));
-          setForecast(days);
-        }
       } catch {
         setLiveWeather(null);
       } finally {
@@ -332,29 +310,7 @@ const WeatherView = ({ selectedFields, onRemoveField }: WeatherViewProps) => {
           </div>
         }
 
-        {/* 7-Day Forecast */}
-        {activeField && forecast.length > 0 &&
-        <div className="px-6 py-3 border-b border-border">
-            <h3 className="text-sm font-medium text-foreground mb-3">7-Day Forecast</h3>
-            <div className="grid grid-cols-7 gap-2">
-              {forecast.map((day) =>
-            <div key={day.date} className="flex flex-col items-center gap-1 p-2 rounded-lg border border-border bg-secondary/20">
-                  <span className="text-xs font-medium text-foreground">{day.label}</span>
-                  <span className="text-lg">{weatherIcons[day.weatherCode] || "🌤️"}</span>
-                  <div className="flex gap-1 text-xs">
-                    <span style={{ color: CHART_GOLD }}>{day.tempMax}°</span>
-                    <span className="text-muted-foreground">{day.tempMin}°</span>
-                  </div>
-                  {day.precipitation > 0 &&
-              <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
-                      <Droplets className="w-2.5 h-2.5" />{day.precipitation}mm
-                    </span>
-              }
-                </div>
-            )}
-            </div>
-          </div>
-        }
+
 
         {/* Charts */}
         <div className="flex-1 overflow-y-auto p-6 space-y-8">
