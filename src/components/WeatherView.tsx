@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { CalendarArrowUp, CalendarArrowDown, Droplets, Wind, Thermometer, Sun, CloudRain, Sprout } from "lucide-react";
+import { CalendarArrowUp, CalendarArrowDown, Droplets, Wind, Thermometer, Sun, CloudRain, Sprout, Cloud } from "lucide-react";
 import {
   LineChart,
   Line,
@@ -11,16 +11,16 @@ import {
   Tooltip,
   ResponsiveContainer,
   Area,
-  AreaChart } from
-"recharts";
+  AreaChart,
+} from "recharts";
 import { Field } from "@/data/fields";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
   PopoverContent,
-  PopoverTrigger } from
-"@/components/ui/popover";
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import FieldListPanel from "./FieldListPanel";
 
 const CHART_GOLD = "#EAB947";
@@ -31,7 +31,7 @@ const tooltipStyle = {
   border: "1px solid hsl(150, 12%, 22%)",
   borderRadius: "8px",
   color: "hsl(60, 20%, 85%)",
-  fontSize: "12px"
+  fontSize: "12px",
 };
 
 interface LiveWeather {
@@ -42,12 +42,27 @@ interface LiveWeather {
   feelsLike: number;
 }
 
+interface ForecastDay {
+  date: string;
+  label: string;
+  tempMax: number;
+  tempMin: number;
+  precipitation: number;
+  weatherCode: number;
+}
+
 const weatherDescriptions: Record<number, string> = {
   0: "Clear sky", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
   45: "Fog", 48: "Rime fog", 51: "Light drizzle", 53: "Moderate drizzle",
   55: "Dense drizzle", 61: "Slight rain", 63: "Moderate rain", 65: "Heavy rain",
   71: "Slight snow", 73: "Moderate snow", 75: "Heavy snow",
-  80: "Slight showers", 81: "Moderate showers", 82: "Violent showers", 95: "Thunderstorm"
+  80: "Slight showers", 81: "Moderate showers", 82: "Violent showers", 95: "Thunderstorm",
+};
+
+const weatherIcons: Record<number, string> = {
+  0: "☀️", 1: "🌤️", 2: "⛅", 3: "☁️", 45: "🌫️", 48: "🌫️",
+  51: "🌦️", 53: "🌦️", 55: "🌧️", 61: "🌧️", 63: "🌧️", 65: "🌧️",
+  71: "🌨️", 73: "🌨️", 75: "❄️", 80: "🌦️", 81: "🌧️", 82: "⛈️", 95: "⛈️",
 };
 
 function getFieldCenter(field: Field) {
@@ -60,36 +75,32 @@ function getFieldCenter(field: Field) {
 function getFarmerAdvice(weather: LiveWeather, crop: string): string[] {
   const advice: string[] = [];
   if (weather.temperature > 35) {
-    advice.push(`⚠️ Extreme heat detected (${weather.temperature}°C). Increase irrigation for ${crop} and consider shade nets if available.`);
+    advice.push(`⚠️ Extreme heat (${weather.temperature}°C). Increase irrigation for ${crop} and consider shade nets.`);
   } else if (weather.temperature > 30) {
-    advice.push(`🌡️ High temperature (${weather.temperature}°C). Monitor ${crop} for heat stress signs. Water early morning or late evening.`);
+    advice.push(`🌡️ High temperature (${weather.temperature}°C). Monitor ${crop} for heat stress. Water early morning or late evening.`);
   } else if (weather.temperature < 5) {
     advice.push(`❄️ Near-freezing conditions. Protect ${crop} with frost covers if overnight temps drop further.`);
   } else {
     advice.push(`✅ Temperature is favorable (${weather.temperature}°C) for ${crop} growth.`);
   }
-
   if (weather.humidity > 80) {
     advice.push(`💧 High humidity (${weather.humidity}%). Watch for fungal diseases on ${crop}. Ensure good air circulation.`);
   } else if (weather.humidity < 30) {
-    advice.push(`🏜️ Low humidity (${weather.humidity}%). ${crop} may need supplemental irrigation to prevent wilting.`);
+    advice.push(`🏜️ Low humidity (${weather.humidity}%). ${crop} may need supplemental irrigation.`);
   }
-
   if (weather.windSpeed > 40) {
-    advice.push(`💨 Strong winds (${weather.windSpeed} km/h). Postpone any spraying operations. Check ${crop} supports.`);
+    advice.push(`💨 Strong winds (${weather.windSpeed} km/h). Postpone spraying. Check ${crop} supports.`);
   } else if (weather.windSpeed > 20) {
     advice.push(`🌬️ Moderate wind (${weather.windSpeed} km/h). Spray operations may drift — adjust nozzles or wait.`);
   }
-
   const code = weather.weatherCode;
   if (code >= 61 && code <= 67) {
     advice.push(`🌧️ Rain expected. Delay field work and harvesting. Good natural irrigation for ${crop}.`);
   } else if (code >= 95) {
-    advice.push(`⛈️ Thunderstorm warning. Stay indoors and secure equipment. Do not enter fields.`);
+    advice.push(`⛈️ Thunderstorm warning. Stay indoors and secure equipment.`);
   } else if (code === 0 || code === 1) {
     advice.push(`☀️ Clear conditions — ideal for field scouting, spraying, or harvesting ${crop}.`);
   }
-
   return advice;
 }
 
@@ -103,13 +114,15 @@ const WeatherView = ({ selectedFields, onRemoveField }: WeatherViewProps) => {
   const [endDate, setEndDate] = useState<Date>(new Date(2024, 9, 1));
   const [monthlyData, setMonthlyData] = useState<any[]>([]);
   const [dailyData, setDailyData] = useState<any[]>([]);
+  const [soilMoistureData, setSoilMoistureData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [liveWeather, setLiveWeather] = useState<LiveWeather | null>(null);
   const [liveLoading, setLiveLoading] = useState(false);
+  const [forecast, setForecast] = useState<ForecastDay[]>([]);
 
   const activeField = selectedFields[0];
 
-  // Fetch live weather for active field
+  // Fetch live weather + 7-day forecast
   useEffect(() => {
     if (!activeField) return;
     const fetchLive = async () => {
@@ -117,7 +130,7 @@ const WeatherView = ({ selectedFields, onRemoveField }: WeatherViewProps) => {
       try {
         const { lat, lng } = getFieldCenter(activeField);
         const res = await fetch(
-          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,apparent_temperature,weather_code`
+          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,apparent_temperature,weather_code&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code&timezone=auto&forecast_days=7`
         );
         const data = await res.json();
         const c = data.current;
@@ -126,8 +139,19 @@ const WeatherView = ({ selectedFields, onRemoveField }: WeatherViewProps) => {
           humidity: c.relative_humidity_2m,
           windSpeed: Math.round(c.wind_speed_10m),
           weatherCode: c.weather_code,
-          feelsLike: Math.round(c.apparent_temperature)
+          feelsLike: Math.round(c.apparent_temperature),
         });
+        if (data.daily) {
+          const days: ForecastDay[] = data.daily.time.map((date: string, i: number) => ({
+            date,
+            label: format(new Date(date + "T00:00:00"), "EEE"),
+            tempMax: Math.round(data.daily.temperature_2m_max[i]),
+            tempMin: Math.round(data.daily.temperature_2m_min[i]),
+            precipitation: Math.round((data.daily.precipitation_sum[i] || 0) * 10) / 10,
+            weatherCode: data.daily.weather_code[i],
+          }));
+          setForecast(days);
+        }
       } catch {
         setLiveWeather(null);
       } finally {
@@ -137,7 +161,7 @@ const WeatherView = ({ selectedFields, onRemoveField }: WeatherViewProps) => {
     fetchLive();
   }, [activeField]);
 
-  // Fetch historical weather data
+  // Fetch historical weather + soil moisture
   useEffect(() => {
     if (!activeField) return;
     const fetchWeatherData = async () => {
@@ -147,10 +171,17 @@ const WeatherView = ({ selectedFields, onRemoveField }: WeatherViewProps) => {
         const start = format(startDate, "yyyy-MM-dd");
         const end = format(endDate, "yyyy-MM-dd");
 
-        const res = await fetch(
-          `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lng}&start_date=${start}&end_date=${end}&daily=precipitation_sum,temperature_2m_max,temperature_2m_min,et0_fao_evapotranspiration`
-        );
-        const data = await res.json();
+        const [weatherRes, soilRes] = await Promise.all([
+          fetch(
+            `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lng}&start_date=${start}&end_date=${end}&daily=precipitation_sum,temperature_2m_max,temperature_2m_min,et0_fao_evapotranspiration`
+          ),
+          fetch(
+            `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lng}&start_date=${start}&end_date=${end}&daily=soil_moisture_0_to_7cm_mean,soil_moisture_7_to_28cm_mean`
+          ),
+        ]);
+
+        const data = await weatherRes.json();
+        const soilData = await soilRes.json();
 
         if (data.daily) {
           const daily = data.daily.time.map((date: string, i: number) => ({
@@ -159,11 +190,10 @@ const WeatherView = ({ selectedFields, onRemoveField }: WeatherViewProps) => {
             precipitation: data.daily.precipitation_sum[i] || 0,
             tempMax: data.daily.temperature_2m_max[i],
             tempMin: data.daily.temperature_2m_min[i],
-            evap: data.daily.et0_fao_evapotranspiration[i] || 0
+            evap: data.daily.et0_fao_evapotranspiration[i] || 0,
           }));
 
-          // Monthly aggregation
-          const monthMap = new Map<string, {precip: number;count: number;tMax: number;tMin: number;evap: number;}>();
+          const monthMap = new Map<string, { precip: number; count: number; tMax: number; tMin: number; evap: number }>();
           daily.forEach((d: any) => {
             const key = format(new Date(d.date + "T00:00:00"), "MMM yyyy");
             const m = monthMap.get(key) || { precip: 0, count: 0, tMax: -999, tMin: 999, evap: 0 };
@@ -184,12 +214,32 @@ const WeatherView = ({ selectedFields, onRemoveField }: WeatherViewProps) => {
               accumulated: Math.round(accumulated * 10) / 10,
               tempMax: Math.round(v.tMax),
               tempMin: Math.round(v.tMin),
-              evapotranspiration: Math.round(v.evap * 10) / 10
+              evapotranspiration: Math.round(v.evap * 10) / 10,
             };
           });
 
           setMonthlyData(monthly);
           setDailyData(daily.filter((_: any, i: number) => i % 2 === 0));
+        }
+
+        // Soil moisture
+        if (soilData.daily) {
+          const soilMonthMap = new Map<string, { shallow: number; deep: number; count: number }>();
+          soilData.daily.time.forEach((date: string, i: number) => {
+            const key = format(new Date(date + "T00:00:00"), "MMM yyyy");
+            const m = soilMonthMap.get(key) || { shallow: 0, deep: 0, count: 0 };
+            m.shallow += soilData.daily.soil_moisture_0_to_7cm_mean?.[i] || 0;
+            m.deep += soilData.daily.soil_moisture_7_to_28cm_mean?.[i] || 0;
+            m.count++;
+            soilMonthMap.set(key, m);
+          });
+
+          const soilMonthly = Array.from(soilMonthMap.entries()).map(([month, v]) => ({
+            month: month.split(" ")[0],
+            shallow: Math.round((v.shallow / v.count) * 1000) / 10,
+            deep: Math.round((v.deep / v.count) * 1000) / 10,
+          }));
+          setSoilMoistureData(soilMonthly);
         }
       } catch (e) {
         console.error("Failed to fetch weather data", e);
@@ -204,24 +254,58 @@ const WeatherView = ({ selectedFields, onRemoveField }: WeatherViewProps) => {
     <div className="relative w-full h-full flex">
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center px-6 py-3 border-b border-border">
+        {/* Header row: title + field info + date pickers */}
+        <div className="flex items-center gap-4 px-6 py-3 border-b border-border flex-wrap">
           <h1 className="text-lg font-semibold text-foreground">Historical Weather</h1>
-          {activeField &&
-          <div className="ml-4 flex items-center gap-2 text-xs text-muted-foreground">
+          {activeField && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: activeField.color }} />
               {activeField.name} · {activeField.cropEmoji} {activeField.crop} · {activeField.location}
             </div>
-          }
+          )}
+
+          {/* Spacer */}
+          <div className="flex-1" />
+
+          {/* Date pickers in header */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <button className="flex items-center gap-2 border border-border rounded-lg px-3 py-2 hover:bg-accent/30 transition-colors">
+                <div>
+                  <div className="text-xs text-muted-foreground">Start Date</div>
+                  <div className="text-sm text-foreground">{format(startDate, "MMM d, yyyy")}</div>
+                </div>
+                <CalendarArrowUp className="w-4 h-4 text-muted-foreground" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar mode="single" selected={startDate} onSelect={(d) => d && setStartDate(d)} className="pointer-events-auto" />
+            </PopoverContent>
+          </Popover>
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <button className="flex items-center gap-2 border border-border rounded-lg px-3 py-2 hover:bg-accent/30 transition-colors">
+                <div>
+                  <div className="text-xs text-muted-foreground">End Date</div>
+                  <div className="text-sm text-foreground">{format(endDate, "MMM d, yyyy")}</div>
+                </div>
+                <CalendarArrowDown className="w-4 h-4 text-muted-foreground" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar mode="single" selected={endDate} onSelect={(d) => d && setEndDate(d)} className="pointer-events-auto" />
+            </PopoverContent>
+          </Popover>
         </div>
 
         {/* Live Weather Card */}
-        {activeField &&
-        <div className="px-6 py-3 border-b border-border">
-            {liveLoading ?
-          <div className="text-sm text-muted-foreground animate-pulse">Loading live conditions…</div> :
-          liveWeather ?
-          <div className="space-y-3">
+        {activeField && (
+          <div className="px-6 py-3 border-b border-border">
+            {liveLoading ? (
+              <div className="text-sm text-muted-foreground animate-pulse">Loading live conditions…</div>
+            ) : liveWeather ? (
+              <div className="space-y-3">
                 <div className="flex items-center gap-6">
                   <div className="flex items-center gap-3">
                     <div className="text-3xl font-light text-foreground">{liveWeather.temperature}°C</div>
@@ -237,65 +321,54 @@ const WeatherView = ({ selectedFields, onRemoveField }: WeatherViewProps) => {
                 </div>
                 {/* Farmer Advice */}
                 <div className="space-y-1.5">
-                  {getFarmerAdvice(liveWeather, activeField.crop).map((tip, i) => {}
-
-
-
-              )}
+                  {getFarmerAdvice(liveWeather, activeField.crop).map((tip, i) => (
+                    <div key={i} className="text-xs text-muted-foreground leading-relaxed">{tip}</div>
+                  ))}
                 </div>
-              </div> :
-
-          <div className="text-sm text-muted-foreground">Weather unavailable</div>
-          }
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground">Weather unavailable</div>
+            )}
           </div>
-        }
+        )}
 
-        {/* Date controls */}
-        <div className="flex items-center gap-4 px-6 py-3 border-b border-border flex-wrap">
-          <Popover>
-            <PopoverTrigger asChild>
-              <button className="flex items-center gap-2 border border-border rounded-lg px-3 py-2 hover:bg-accent/30 transition-colors">
-                <div>
-                  <div className="text-xs text-muted-foreground">Start Date</div>
-                  <div className="text-sm text-foreground">{format(startDate, "MMM d, yyyy")}</div>
+        {/* 7-Day Forecast */}
+        {activeField && forecast.length > 0 && (
+          <div className="px-6 py-3 border-b border-border">
+            <h3 className="text-sm font-medium text-foreground mb-3">7-Day Forecast</h3>
+            <div className="grid grid-cols-7 gap-2">
+              {forecast.map((day) => (
+                <div key={day.date} className="flex flex-col items-center gap-1 p-2 rounded-lg border border-border bg-secondary/20">
+                  <span className="text-xs font-medium text-foreground">{day.label}</span>
+                  <span className="text-lg">{weatherIcons[day.weatherCode] || "🌤️"}</span>
+                  <div className="flex gap-1 text-xs">
+                    <span style={{ color: CHART_GOLD }}>{day.tempMax}°</span>
+                    <span className="text-muted-foreground">{day.tempMin}°</span>
+                  </div>
+                  {day.precipitation > 0 && (
+                    <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                      <Droplets className="w-2.5 h-2.5" />{day.precipitation}mm
+                    </span>
+                  )}
                 </div>
-                <CalendarArrowUp className="w-4 h-4 text-muted-foreground" />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar mode="single" selected={startDate} onSelect={(d) => d && setStartDate(d)} />
-            </PopoverContent>
-          </Popover>
-
-          <Popover>
-            <PopoverTrigger asChild>
-              <button className="flex items-center gap-2 border border-border rounded-lg px-3 py-2 hover:bg-accent/30 transition-colors">
-                <div>
-                  <div className="text-xs text-muted-foreground">End Date</div>
-                  <div className="text-sm text-foreground">{format(endDate, "MMM d, yyyy")}</div>
-                </div>
-                <CalendarArrowDown className="w-4 h-4 text-muted-foreground" />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar mode="single" selected={endDate} onSelect={(d) => d && setEndDate(d)} />
-            </PopoverContent>
-          </Popover>
-        </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Charts */}
         <div className="flex-1 overflow-y-auto p-6 space-y-8">
-          {!activeField ?
-          <div className="flex flex-col items-center justify-center py-20 text-center">
+          {!activeField ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
               <Sprout className="w-10 h-10 text-muted-foreground mb-3" />
               <p className="text-sm text-muted-foreground">Select a field to view weather data</p>
-            </div> :
-          loading ?
-          <div className="flex items-center justify-center py-20">
+            </div>
+          ) : loading ? (
+            <div className="flex items-center justify-center py-20">
               <div className="text-muted-foreground animate-pulse text-sm">Fetching weather data for {activeField.name}…</div>
-            </div> :
-
-          <>
+            </div>
+          ) : (
+            <>
               {/* Accumulated Precipitation */}
               <div className="animate-fade-in">
                 <div className="flex items-center justify-between mb-4">
@@ -367,15 +440,48 @@ const WeatherView = ({ selectedFields, onRemoveField }: WeatherViewProps) => {
                   </LineChart>
                 </ResponsiveContainer>
               </div>
+
+              {/* Soil Moisture */}
+              {soilMoistureData.length > 0 && (
+                <div className="animate-fade-in" style={{ animationDelay: "300ms" }}>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-medium text-foreground">Soil Moisture, %</h3>
+                    <div className="flex items-center gap-4 text-xs">
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: CHART_GOLD }} />Surface (0-7cm)
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: CHART_CREAM }} />Deep (7-28cm)
+                      </span>
+                    </div>
+                  </div>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <AreaChart data={soilMoistureData}>
+                      <defs>
+                        <linearGradient id="soilGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor={CHART_GOLD} stopOpacity={0.25} />
+                          <stop offset="95%" stopColor={CHART_GOLD} stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(150, 12%, 22%)" />
+                      <XAxis dataKey="month" stroke="hsl(150, 10%, 55%)" fontSize={11} />
+                      <YAxis stroke="hsl(150, 10%, 55%)" fontSize={11} />
+                      <Tooltip contentStyle={tooltipStyle} />
+                      <Area type="monotone" dataKey="shallow" stroke={CHART_GOLD} strokeWidth={2} fill="url(#soilGrad)" dot={{ r: 3, fill: CHART_GOLD }} />
+                      <Line type="monotone" dataKey="deep" stroke={CHART_CREAM} strokeWidth={1.5} dot={false} strokeDasharray="5 5" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
             </>
-          }
+          )}
         </div>
       </div>
 
       {/* Right sidebar - field list */}
       <FieldListPanel fields={selectedFields} onRemoveField={onRemoveField} />
-    </div>);
-
+    </div>
+  );
 };
 
 export default WeatherView;
