@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 const MAP_STYLES = {
   dark: "mapbox://styles/mapbox/dark-v11",
-  satellite: "mapbox://styles/mapbox/satellite-v9",
+  satellite: "mapbox://styles/mapbox/satellite-streets-v12",
 };
 
 interface MapViewProps {
@@ -17,7 +17,6 @@ interface MapViewProps {
   allFields: Field[];
   onRemoveField: (id: string) => void;
   onToggleField: (field: Field) => void;
-  onUpdateField: (field: Field) => void;
   onShowAll: () => void;
   onHideAll: () => void;
 }
@@ -27,7 +26,6 @@ const MapView = ({
   allFields,
   onRemoveField,
   onToggleField,
-  onUpdateField,
   onShowAll,
   onHideAll,
 }: MapViewProps) => {
@@ -48,20 +46,6 @@ const MapView = ({
     };
     fetchToken();
   }, []);
-
-  const flyToField = useCallback((field: Field) => {
-    const map = mapRef.current;
-    if (!map) return;
-    const coords = field.coordinates[0];
-    const lat = coords.reduce((sum, c) => sum + c[1], 0) / coords.length;
-    const lng = coords.reduce((sum, c) => sum + c[0], 0) / coords.length;
-    map.flyTo({ center: [lng, lat], zoom: 16, duration: 1500 });
-  }, []);
-
-  const handleFieldClick = useCallback((field: Field) => {
-    setSelectedField(field);
-    flyToField(field);
-  }, [flyToField]);
 
   const addFieldLayers = useCallback(
     (map: mapboxgl.Map, selected: Field[]) => {
@@ -99,9 +83,7 @@ const MapView = ({
 
         map.on("click", fillLayerId, () => {
           const clicked = allFieldsData.find((f) => f.id === field.id);
-          if (clicked) {
-            setSelectedField(clicked);
-          }
+          if (clicked) setSelectedField(clicked);
         });
 
         map.on("mouseenter", fillLayerId, () => {
@@ -191,11 +173,10 @@ const MapView = ({
         selectedFields={selectedFields}
         allFields={allFields}
         selectedField={selectedField}
-        onFieldClick={handleFieldClick}
+        onFieldClick={setSelectedField}
         onDeselectField={() => setSelectedField(null)}
         onRemoveField={onRemoveField}
         onToggleField={onToggleField}
-        onUpdateField={onUpdateField}
         onShowAll={onShowAll}
         onHideAll={onHideAll}
       />

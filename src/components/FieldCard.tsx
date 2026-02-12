@@ -1,16 +1,15 @@
-import { X, MoreHorizontal, MapPin } from "lucide-react";
+import { X, MoreHorizontal } from "lucide-react";
 import { Field } from "@/data/fields";
 import { useState } from "react";
 
 interface FieldCardProps {
   field: Field;
   onRemove: (id: string) => void;
-  onClick?: (field: Field) => void;
   variant?: "select" | "list";
   style?: React.CSSProperties;
 }
 
-const FieldCard = ({ field, onRemove, onClick, variant = "select", style }: FieldCardProps) => {
+const FieldCard = ({ field, onRemove, variant = "select", style }: FieldCardProps) => {
   const isListVariant = variant === "list";
   const [isHovered, setIsHovered] = useState(false);
 
@@ -19,14 +18,17 @@ const FieldCard = ({ field, onRemove, onClick, variant = "select", style }: Fiel
       className="flex items-center gap-3 p-3 rounded-lg border border-border transition-all duration-300 ease-out cursor-pointer group"
       style={{
         ...style,
-        backgroundColor: isHovered ? "hsl(150, 15%, 18%)" : "hsl(150, 15%, 14%)",
+        backgroundColor: isHovered
+          ? "hsl(150, 15%, 18%)"
+          : "hsl(150, 15%, 14%)",
         transform: isHovered ? "translateX(-2px) scale(1.01)" : "translateX(0) scale(1)",
-        boxShadow: isHovered ? `0 4px 20px -4px ${field.color}33, inset 0 0 0 1px ${field.color}44` : "none",
+        boxShadow: isHovered
+          ? `0 4px 20px -4px ${field.color}33, inset 0 0 0 1px ${field.color}44`
+          : "none",
         borderColor: isHovered ? field.color + "66" : undefined,
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      onClick={() => onClick?.(field)}
     >
       {/* Field shape thumbnail */}
       <div
@@ -53,7 +55,9 @@ const FieldCard = ({ field, onRemove, onClick, variant = "select", style }: Fiel
           {isListVariant && field.ndviChange !== undefined && (
             <span
               className="text-xs font-semibold"
-              style={{ color: field.ndviChange >= 0 ? "hsl(120, 50%, 50%)" : "hsl(0, 62%, 50%)" }}
+              style={{
+                color: field.ndviChange >= 0 ? "hsl(120, 50%, 50%)" : "hsl(0, 62%, 50%)",
+              }}
             >
               {field.ndviChange >= 0 ? "+" : ""}{field.ndviChange.toFixed(2)}
             </span>
@@ -66,7 +70,7 @@ const FieldCard = ({ field, onRemove, onClick, variant = "select", style }: Fiel
           <div className="text-xs text-muted-foreground">📁 {field.group}</div>
         )}
         <div className="text-xs text-muted-foreground flex items-center gap-1">
-          <MapPin className="w-3 h-3 text-muted-foreground" /> {field.location}
+          <span style={{ color: "hsl(0, 70%, 60%)" }}>📍</span> {field.location}
         </div>
       </div>
 
@@ -77,7 +81,9 @@ const FieldCard = ({ field, onRemove, onClick, variant = "select", style }: Fiel
           onRemove(field.id);
         }}
         className="text-muted-foreground hover:text-foreground transition-all duration-200 flex-shrink-0 opacity-60 group-hover:opacity-100"
-        style={{ transform: isHovered ? "scale(1.15)" : "scale(1)" }}
+        style={{
+          transform: isHovered ? "scale(1.15)" : "scale(1)",
+        }}
       >
         {isListVariant ? <MoreHorizontal className="w-4 h-4" /> : <X className="w-4 h-4" />}
       </button>
