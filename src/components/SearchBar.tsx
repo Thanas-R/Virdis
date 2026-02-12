@@ -76,7 +76,7 @@ const SearchBar = ({ onSearch, mapToken, onLocationSelect }: SearchBarProps) => 
       </div>
 
       {showResults && results.length > 0 &&
-      <div className="absolute top-full mt-1 w-72 rounded-lg border border-border overflow-hidden shadow-xl opacity-85" style={{ backgroundColor: "#041009" }}>
+      <div className="absolute top-full mt-1 w-72 rounded-lg border border-border overflow-hidden shadow-xl opacity-90" style={{ backgroundColor: "#041009" }}>
           {results.map((r) =>
         <button
           key={r.id}
