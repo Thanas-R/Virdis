@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { X, Trash2 } from "lucide-react";
 import { Field } from "@/data/fields";
+import LocationAutocomplete from "./LocationAutocomplete";
 
 const PRESET_COLORS = [
   "#D4A853", "#C75B7A", "#5BB8C7", "#8B9A5B", "#7BC75B",
@@ -9,14 +10,14 @@ const PRESET_COLORS = [
 ];
 
 const CROP_OPTIONS = [
-  { name: "Maize", emoji: "🌾" },
-  { name: "Grapes", emoji: "🍇" },
-  { name: "Sunflower", emoji: "🌻" },
-  { name: "Apple", emoji: "🍏" },
-  { name: "Wheat", emoji: "🌾" },
-  { name: "Rice", emoji: "🌾" },
-  { name: "Soybean", emoji: "🫘" },
-  { name: "Cotton", emoji: "🏵️" },
+  { name: "Maize" },
+  { name: "Grapes" },
+  { name: "Sunflower" },
+  { name: "Apple" },
+  { name: "Wheat" },
+  { name: "Rice" },
+  { name: "Soybean" },
+  { name: "Cotton" },
 ];
 
 interface FieldEditDialogProps {
@@ -29,24 +30,17 @@ interface FieldEditDialogProps {
 const FieldEditDialog = ({ field, onSave, onDelete, onClose }: FieldEditDialogProps) => {
   const [name, setName] = useState(field.name);
   const [crop, setCrop] = useState(field.crop);
-  const [cropEmoji, setCropEmoji] = useState(field.cropEmoji);
   const [area, setArea] = useState(String(field.area));
   const [location, setLocation] = useState(field.location);
   const [color, setColor] = useState(field.color);
   const [group, setGroup] = useState(field.group || "");
-
-  const handleCropChange = (cropName: string) => {
-    setCrop(cropName);
-    const found = CROP_OPTIONS.find(c => c.name === cropName);
-    if (found) setCropEmoji(found.emoji);
-  };
 
   const handleSave = () => {
     onSave({
       ...field,
       name,
       crop,
-      cropEmoji,
+      cropEmoji: "",
       area: parseFloat(area) || field.area,
       location,
       color,
@@ -81,16 +75,16 @@ const FieldEditDialog = ({ field, onSave, onDelete, onClose }: FieldEditDialogPr
           <label className="text-xs text-muted-foreground block mb-1">Crop</label>
           <select
             value={crop}
-            onChange={e => handleCropChange(e.target.value)}
+            onChange={e => setCrop(e.target.value)}
             className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           >
             {CROP_OPTIONS.map(c => (
-              <option key={c.name} value={c.name}>{c.emoji} {c.name}</option>
+              <option key={c.name} value={c.name}>{c.name}</option>
             ))}
           </select>
         </div>
 
-        {/* Area + Location row */}
+        {/* Area + Group */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="text-xs text-muted-foreground block mb-1">Area (ha)</label>
@@ -108,19 +102,18 @@ const FieldEditDialog = ({ field, onSave, onDelete, onClose }: FieldEditDialogPr
               type="text"
               value={group}
               onChange={e => setGroup(e.target.value)}
-              className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
         </div>
 
-        {/* Location */}
+        {/* Location with geocoding */}
         <div>
           <label className="text-xs text-muted-foreground block mb-1">Location</label>
-          <input
-            type="text"
+          <LocationAutocomplete
             value={location}
-            onChange={e => setLocation(e.target.value)}
-            className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            onChange={setLocation}
+            placeholder="Search location…"
           />
         </div>
 

@@ -10,6 +10,7 @@ interface MapToolbarProps {
   onToggleLayers?: () => void;
   onToggleDraw?: () => void;
   isDrawing?: boolean;
+  showFields?: boolean;
   defaultStyle?: MapStyle;
 }
 
@@ -20,6 +21,7 @@ const MapToolbar = ({
   onToggleLayers,
   onToggleDraw,
   isDrawing,
+  showFields = true,
   defaultStyle = "dark",
 }: MapToolbarProps) => {
   const [currentStyle, setCurrentStyle] = useState<MapStyle>(defaultStyle);
@@ -31,7 +33,7 @@ const MapToolbar = ({
   };
 
   const items = [
-    { icon: Layers, onClick: onToggleLayers ?? (() => {}), label: "Layers" },
+    { icon: Layers, onClick: onToggleLayers ?? (() => {}), label: showFields ? "Hide Fields" : "Show Fields", active: showFields },
     { icon: Plus, onClick: onZoomIn, label: "Zoom In" },
     { icon: Minus, onClick: onZoomOut, label: "Zoom Out" },
     { icon: Map, onClick: handleStyleToggle, label: currentStyle === "dark" ? "Satellite" : "Dark Mode", active: currentStyle === "satellite" },

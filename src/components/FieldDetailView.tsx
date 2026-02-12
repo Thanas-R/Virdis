@@ -11,12 +11,15 @@ import {
   TrendingDown,
   BarChart3,
   Leaf,
+  Move,
 } from "lucide-react";
 import { Field } from "@/data/fields";
+import { supabase } from "@/integrations/supabase/client";
 
 interface FieldDetailViewProps {
   field: Field;
   onBack: () => void;
+  onEditBoundary?: () => void;
 }
 
 interface FieldWeather {
@@ -34,7 +37,6 @@ const weatherCodes: Record<number, string> = {
   80: "Slight showers", 81: "Moderate showers", 82: "Violent showers", 95: "Thunderstorm",
 };
 
-// Crop growth stages based on crop type
 const cropGrowthStages: Record<string, { stages: string[]; currentStage: number }> = {
   Maize: { stages: ["Germination", "Seedling", "Vegetative", "Tasseling", "Grain Fill", "Maturity"], currentStage: 3 },
   Grapes: { stages: ["Dormancy", "Bud Break", "Flowering", "Fruit Set", "Veraison", "Harvest"], currentStage: 4 },
@@ -42,7 +44,6 @@ const cropGrowthStages: Record<string, { stages: string[]; currentStage: number 
   Apple: { stages: ["Dormancy", "Silver Tip", "Bloom", "Petal Fall", "Fruit Dev", "Harvest"], currentStage: 4 },
 };
 
-// Historical yield data (mock per crop)
 const historicalYield: Record<string, { year: string; yield: number }[]> = {
   Maize: [
     { year: "2020", yield: 8.2 }, { year: "2021", yield: 9.1 }, { year: "2022", yield: 7.8 },
@@ -79,9 +80,10 @@ function getScoutingTasks(crop: string): ScoutingTask[] {
   return baseTasks;
 }
 
-const FieldDetailView = ({ field, onBack }: FieldDetailViewProps) => {
+const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps) => {
   const [weather, setWeather] = useState<FieldWeather | null>(null);
   const [loading, setLoading] = useState(true);
+  const [regionType, setRegionType] = useState<"field" | "urban" | "unknown">("unknown");
 
   useEffect(() => {
     const fetchWeather = async () => {
@@ -104,10 +106,39 @@ const FieldDetailView = ({ field, onBack }: FieldDetailViewProps) => {
     fetchWeather();
   }, [field]);
 
+  // Detect region type via reverse geocoding
+  useEffect(() => {
+    const detect = async () => {
+      try {
+        const { data } = await supabase.functions.invoke("get-mapbox-token");
+        if (!data?.token) return;
+        const coords = field.coordinates[0];
+        const lat = coords.reduce((sum, c) => sum + c[1], 0) / coords.length;
+        const lng = coords.reduce((sum, c) => sum + c[0], 0) / coords.length;
+        const res = await fetch(
+          `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${data.token}&limit=1&types=poi,address,neighborhood,place,locality,region`
+        );
+        const geoData = await res.json();
+        if (geoData.features?.[0]) {
+          const types = geoData.features[0].place_type;
+          if (types.includes("poi") || types.includes("address")) {
+            setRegionType("urban");
+          } else {
+            setRegionType("field");
+          }
+        }
+      } catch {
+        setRegionType("unknown");
+      }
+    };
+    detect();
+  }, [field]);
+
   const growth = cropGrowthStages[field.crop] || { stages: ["N/A"], currentStage: 0 };
   const yields = historicalYield[field.crop] || [];
   const scoutingTasks = getScoutingTasks(field.crop);
   const lastYield = yields.length >= 2 ? yields[yields.length - 1].yield - yields[yields.length - 2].yield : 0;
+  const isUrban = regionType === "urban";
 
   return (
     <div className="flex flex-col h-full">
@@ -118,7 +149,7 @@ const FieldDetailView = ({ field, onBack }: FieldDetailViewProps) => {
         </button>
         <div className="flex items-center gap-3 flex-1">
           <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: field.color + "20" }}>
-            <span className="text-lg">{field.cropEmoji}</span>
+            <div className="w-5 h-5 rounded" style={{ backgroundColor: field.color + "66", border: `2px solid ${field.color}` }} />
           </div>
           <div>
             <h2 className="text-sm font-semibold text-foreground">{field.name}</h2>
@@ -128,6 +159,13 @@ const FieldDetailView = ({ field, onBack }: FieldDetailViewProps) => {
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-5">
+        {/* Region warning */}
+        {isUrban && (
+          <div className="p-3 rounded-lg border text-xs text-foreground" style={{ borderColor: "#EAB94755", backgroundColor: "#EAB94710" }}>
+            This region appears to be in an urban or built-up area, not agricultural land. Consider selecting a proper field region for accurate agricultural data.
+          </div>
+        )}
+
         {/* 1. Field Info Grid */}
         <div className="p-4 rounded-xl border border-border bg-accent/15">
           <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Field Info</h3>
@@ -138,7 +176,7 @@ const FieldDetailView = ({ field, onBack }: FieldDetailViewProps) => {
             </div>
             <div>
               <span className="text-xs text-muted-foreground">Crop</span>
-              <div className="text-foreground font-medium">{field.cropEmoji} {field.crop}</div>
+              <div className="text-foreground font-medium">{field.crop}</div>
             </div>
             <div>
               <span className="text-xs text-muted-foreground">Location</span>
@@ -156,6 +194,14 @@ const FieldDetailView = ({ field, onBack }: FieldDetailViewProps) => {
               </div>
             )}
           </div>
+          {onEditBoundary && (
+            <button
+              onClick={onEditBoundary}
+              className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Move className="w-3.5 h-3.5" /> Edit boundary
+            </button>
+          )}
         </div>
 
         {/* 2. Current Weather */}
@@ -166,107 +212,119 @@ const FieldDetailView = ({ field, onBack }: FieldDetailViewProps) => {
               <div className="text-sm text-muted-foreground animate-pulse">Loading…</div>
             </div>
           ) : weather ? (
-            <div className="p-4 rounded-xl border border-border bg-accent/15 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-3xl font-light text-foreground">{Math.round(weather.temperature_2m)}°C</span>
-                <span className="text-sm text-muted-foreground">{weatherCodes[weather.weather_code] || "Unknown"}</span>
+            isUrban ? (
+              <div className="p-4 rounded-xl border border-border bg-accent/15 flex items-center gap-3">
+                <span className="text-2xl font-light text-foreground">{Math.round(weather.temperature_2m)}°C</span>
+                <span className="text-xs text-muted-foreground">{weatherCodes[weather.weather_code] || "Unknown"}</span>
               </div>
-              <div className="flex gap-4 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1.5"><Droplets className="w-3.5 h-3.5" />{weather.relative_humidity_2m}%</span>
-                <span className="flex items-center gap-1.5"><Wind className="w-3.5 h-3.5" />{Math.round(weather.wind_speed_10m)} km/h</span>
+            ) : (
+              <div className="p-4 rounded-xl border border-border bg-accent/15 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-2xl font-light text-foreground">{Math.round(weather.temperature_2m)}°C</span>
+                  <span className="text-xs text-muted-foreground">{weatherCodes[weather.weather_code] || "Unknown"}</span>
+                </div>
+                <div className="flex gap-4 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1.5"><Droplets className="w-3.5 h-3.5" />{weather.relative_humidity_2m}%</span>
+                  <span className="flex items-center gap-1.5"><Wind className="w-3.5 h-3.5" />{Math.round(weather.wind_speed_10m)} km/h</span>
+                </div>
               </div>
-            </div>
+            )
           ) : (
             <div className="p-4 rounded-xl border border-border bg-accent/10 text-sm text-muted-foreground">Weather unavailable</div>
           )}
         </div>
 
-        {/* 3. Growth Stage */}
-        <div>
-          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
-            <Leaf className="w-3.5 h-3.5" /> Growth Stage
-          </h3>
-          <div className="p-4 rounded-xl border border-border bg-accent/15">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-sm font-medium text-foreground">{growth.stages[growth.currentStage]}</span>
-              <span className="text-xs text-muted-foreground">({growth.currentStage + 1}/{growth.stages.length})</span>
-            </div>
-            <div className="flex gap-1">
-              {growth.stages.map((stage, i) => (
-                <div key={stage} className="flex-1 flex flex-col items-center gap-1">
-                  <div
-                    className="w-full h-2 rounded-full transition-all duration-500"
-                    style={{
-                      backgroundColor: i <= growth.currentStage ? "#EAB947" : "hsl(150, 12%, 22%)",
-                      opacity: i <= growth.currentStage ? 1 : 0.4,
-                    }}
-                  />
-                  <span className="text-[9px] text-muted-foreground text-center leading-tight">{stage}</span>
+        {/* Skip growth/yield/scouting for urban regions */}
+        {!isUrban && (
+          <>
+            {/* 3. Growth Stage */}
+            <div>
+              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                <Leaf className="w-3.5 h-3.5" /> Growth Stage
+              </h3>
+              <div className="p-4 rounded-xl border border-border bg-accent/15">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-sm font-medium text-foreground">{growth.stages[growth.currentStage]}</span>
+                  <span className="text-xs text-muted-foreground">({growth.currentStage + 1}/{growth.stages.length})</span>
                 </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* 4. Historical Yield */}
-        {yields.length > 0 && (
-          <div>
-            <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
-              <BarChart3 className="w-3.5 h-3.5" /> Historical Yield (t/ha)
-            </h3>
-            <div className="p-4 rounded-xl border border-border bg-accent/15">
-              <div className="flex items-end gap-2 h-24">
-                {yields.map((y) => {
-                  const maxY = Math.max(...yields.map((yy) => yy.yield));
-                  const heightPct = (y.yield / maxY) * 100;
-                  return (
-                    <div key={y.year} className="flex-1 flex flex-col items-center gap-1">
-                      <span className="text-[10px] text-foreground font-medium">{y.yield}</span>
+                <div className="flex gap-1">
+                  {growth.stages.map((stage, i) => (
+                    <div key={stage} className="flex-1 flex flex-col items-center gap-1">
                       <div
-                        className="w-full rounded-t-md transition-all duration-500"
-                        style={{ height: `${heightPct}%`, backgroundColor: "#EAB947", minHeight: 4 }}
+                        className="w-full h-2 rounded-full transition-all duration-500"
+                        style={{
+                          backgroundColor: i <= growth.currentStage ? "#EAB947" : "hsl(150, 12%, 22%)",
+                          opacity: i <= growth.currentStage ? 1 : 0.4,
+                        }}
                       />
-                      <span className="text-[10px] text-muted-foreground">{y.year}</span>
+                      <span className="text-[9px] text-muted-foreground text-center leading-tight">{stage}</span>
                     </div>
-                  );
-                })}
-              </div>
-              <div className="mt-3 flex items-center gap-1 text-xs text-muted-foreground">
-                {lastYield >= 0 ? <TrendingUp className="w-3.5 h-3.5 text-field-green" /> : <TrendingDown className="w-3.5 h-3.5 text-destructive" />}
-                <span>{lastYield >= 0 ? "+" : ""}{lastYield.toFixed(1)} t/ha vs last year</span>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-        )}
 
-        {/* 5. Scouting Tasks */}
-        <div>
-          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Scouting Tasks</h3>
-          <div className="space-y-2">
-            {scoutingTasks.map((task) => (
-              <div
-                key={task.id}
-                className="flex items-center gap-3 p-3 rounded-lg border border-border bg-accent/10 transition-all duration-200 hover:bg-accent/20"
-              >
-                {task.status === "done" ? (
-                  <CheckCircle className="w-4 h-4 text-field-green flex-shrink-0" />
-                ) : task.priority === "high" ? (
-                  <AlertTriangle className="w-4 h-4 flex-shrink-0" style={{ color: "#EAB947" }} />
-                ) : (
-                  <Sprout className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                )}
-                <span className={`text-sm flex-1 ${task.status === "done" ? "text-muted-foreground line-through" : "text-foreground"}`}>
-                  {task.label}
-                </span>
-                {task.priority === "high" && task.status !== "done" && (
-                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full border" style={{ borderColor: "#EAB94766", color: "#EAB947" }}>
-                    Urgent
-                  </span>
-                )}
+            {/* 4. Historical Yield */}
+            {yields.length > 0 && (
+              <div>
+                <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                  <BarChart3 className="w-3.5 h-3.5" /> Historical Yield (t/ha)
+                </h3>
+                <div className="p-4 rounded-xl border border-border bg-accent/15">
+                  <div className="flex items-end gap-2 h-24">
+                    {yields.map((y) => {
+                      const maxY = Math.max(...yields.map((yy) => yy.yield));
+                      const heightPct = (y.yield / maxY) * 100;
+                      return (
+                        <div key={y.year} className="flex-1 flex flex-col items-center gap-1">
+                          <span className="text-[10px] text-foreground font-medium">{y.yield}</span>
+                          <div
+                            className="w-full rounded-t-md transition-all duration-500"
+                            style={{ height: `${heightPct}%`, backgroundColor: "#EAB947", minHeight: 4 }}
+                          />
+                          <span className="text-[10px] text-muted-foreground">{y.year}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-3 flex items-center gap-1 text-xs text-muted-foreground">
+                    {lastYield >= 0 ? <TrendingUp className="w-3.5 h-3.5 text-field-green" /> : <TrendingDown className="w-3.5 h-3.5 text-destructive" />}
+                    <span>{lastYield >= 0 ? "+" : ""}{lastYield.toFixed(1)} t/ha vs last year</span>
+                  </div>
+                </div>
               </div>
-            ))}
-          </div>
-        </div>
+            )}
+
+            {/* 5. Scouting Tasks */}
+            <div>
+              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Scouting Tasks</h3>
+              <div className="space-y-2">
+                {scoutingTasks.map((task) => (
+                  <div
+                    key={task.id}
+                    className="flex items-center gap-3 p-3 rounded-lg border border-border bg-accent/10 transition-all duration-200 hover:bg-accent/20"
+                  >
+                    {task.status === "done" ? (
+                      <CheckCircle className="w-4 h-4 text-field-green flex-shrink-0" />
+                    ) : task.priority === "high" ? (
+                      <AlertTriangle className="w-4 h-4 flex-shrink-0" style={{ color: "#EAB947" }} />
+                    ) : (
+                      <Sprout className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                    )}
+                    <span className={`text-sm flex-1 ${task.status === "done" ? "text-muted-foreground line-through" : "text-foreground"}`}>
+                      {task.label}
+                    </span>
+                    {task.priority === "high" && task.status !== "done" && (
+                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full border" style={{ borderColor: "#EAB94766", color: "#EAB947" }}>
+                        Urgent
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X } from "lucide-react";
+import LocationAutocomplete from "./LocationAutocomplete";
+import { supabase } from "@/integrations/supabase/client";
 
 const PRESET_COLORS = [
   "#D4A853", "#C75B7A", "#5BB8C7", "#8B9A5B", "#7BC75B",
@@ -8,14 +10,14 @@ const PRESET_COLORS = [
 ];
 
 const CROP_OPTIONS = [
-  { name: "Maize", emoji: "🌾" },
-  { name: "Grapes", emoji: "🍇" },
-  { name: "Sunflower", emoji: "🌻" },
-  { name: "Apple", emoji: "🍏" },
-  { name: "Wheat", emoji: "🌾" },
-  { name: "Rice", emoji: "🌾" },
-  { name: "Soybean", emoji: "🫘" },
-  { name: "Cotton", emoji: "🏵️" },
+  { name: "Maize" },
+  { name: "Grapes" },
+  { name: "Sunflower" },
+  { name: "Apple" },
+  { name: "Wheat" },
+  { name: "Rice" },
+  { name: "Soybean" },
+  { name: "Cotton" },
 ];
 
 function calculateArea(coords: [number, number][]): number {
@@ -27,13 +29,13 @@ function calculateArea(coords: [number, number][]): number {
     area -= coords[j][0] * coords[i][1];
   }
   area = Math.abs(area) / 2;
-  // degrees² to hectares at ~40°N (111km lat, 85km lon)
   area = (area * 111000 * 85000) / 10000;
   return Math.round(area * 10) / 10;
 }
 
 interface NewFieldDialogProps {
   coordinates: [number, number][];
+  mapToken?: string;
   onSave: (field: {
     name: string;
     crop: string;
@@ -47,20 +49,40 @@ interface NewFieldDialogProps {
   onCancel: () => void;
 }
 
-const NewFieldDialog = ({ coordinates, onSave, onCancel }: NewFieldDialogProps) => {
+const NewFieldDialog = ({ coordinates, mapToken, onSave, onCancel }: NewFieldDialogProps) => {
   const [name, setName] = useState("");
   const [crop, setCrop] = useState("Maize");
-  const [cropEmoji, setCropEmoji] = useState("🌾");
   const [color, setColor] = useState("#EAB947");
   const [group, setGroup] = useState("");
+  const [location, setLocation] = useState("");
 
   const estimatedArea = calculateArea(coordinates);
 
-  const handleCropChange = (cropName: string) => {
-    setCrop(cropName);
-    const found = CROP_OPTIONS.find(c => c.name === cropName);
-    if (found) setCropEmoji(found.emoji);
-  };
+  // Reverse geocode the center of the drawn polygon
+  useEffect(() => {
+    const reverseGeocode = async () => {
+      let token = mapToken;
+      if (!token) {
+        const { data } = await supabase.functions.invoke("get-mapbox-token");
+        token = data?.token;
+      }
+      if (!token || !coordinates.length) return;
+      const center = coordinates.reduce(
+        (acc, c) => [acc[0] + c[0] / coordinates.length, acc[1] + c[1] / coordinates.length],
+        [0, 0]
+      );
+      try {
+        const res = await fetch(
+          `https://api.mapbox.com/geocoding/v5/mapbox.places/${center[0]},${center[1]}.json?access_token=${token}&limit=1`
+        );
+        const geoData = await res.json();
+        if (geoData.features?.[0]) {
+          setLocation(geoData.features[0].place_name);
+        }
+      } catch {}
+    };
+    reverseGeocode();
+  }, [coordinates, mapToken]);
 
   const handleSave = () => {
     if (!name.trim()) return;
@@ -68,10 +90,10 @@ const NewFieldDialog = ({ coordinates, onSave, onCancel }: NewFieldDialogProps) 
     onSave({
       name: name.trim(),
       crop,
-      cropEmoji,
+      cropEmoji: "",
       area: estimatedArea,
       color,
-      location: `${coordinates[0][1].toFixed(3)}°N, ${coordinates[0][0].toFixed(3)}°E`,
+      location: location || `${coordinates[0][1].toFixed(3)}°N, ${coordinates[0][0].toFixed(3)}°E`,
       group: group || undefined,
       coordinates: [closed],
     });
@@ -103,11 +125,11 @@ const NewFieldDialog = ({ coordinates, onSave, onCancel }: NewFieldDialogProps) 
           <label className="text-xs text-muted-foreground block mb-1">Crop</label>
           <select
             value={crop}
-            onChange={e => handleCropChange(e.target.value)}
+            onChange={e => setCrop(e.target.value)}
             className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           >
             {CROP_OPTIONS.map(c => (
-              <option key={c.name} value={c.name}>{c.emoji} {c.name}</option>
+              <option key={c.name} value={c.name}>{c.name}</option>
             ))}
           </select>
         </div>
@@ -129,6 +151,17 @@ const NewFieldDialog = ({ coordinates, onSave, onCancel }: NewFieldDialogProps) 
               className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
+        </div>
+
+        {/* Location with geocoding */}
+        <div>
+          <label className="text-xs text-muted-foreground block mb-1">Location</label>
+          <LocationAutocomplete
+            value={location}
+            onChange={setLocation}
+            placeholder="Search location…"
+            mapToken={mapToken}
+          />
         </div>
 
         {/* Color picker */}

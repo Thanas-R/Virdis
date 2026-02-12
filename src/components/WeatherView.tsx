@@ -21,7 +21,7 @@ import {
   PopoverContent,
   PopoverTrigger } from
 "@/components/ui/popover";
-import FieldListPanel from "./FieldListPanel";
+
 
 const CHART_GOLD = "#EAB947";
 const CHART_CREAM = "#F7F4E4";
@@ -223,7 +223,7 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
           {effectiveField &&
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: effectiveField.color }} />
-              {effectiveField.name} · {effectiveField.cropEmoji} {effectiveField.crop} · {effectiveField.location}
+              {effectiveField.name} · {effectiveField.crop} · {effectiveField.location}
             </div>
           }
           <div className="flex-1" />
@@ -278,12 +278,6 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
                     <span className="flex items-center gap-1.5"><Droplets className="w-3.5 h-3.5" />{liveWeather.humidity}%</span>
                     <span className="flex items-center gap-1.5"><Wind className="w-3.5 h-3.5" />{liveWeather.windSpeed} km/h</span>
                   </div>
-                </div>
-                {/* Farmer Advice */}
-                <div className="flex flex-wrap gap-2">
-                  {getFarmerAdvice(liveWeather, effectiveField.crop).map((tip, i) => (
-                    <div key={i} className="text-xs text-muted-foreground bg-accent/20 rounded-lg px-3 py-1.5">{tip}</div>
-                  ))}
                 </div>
               </div> :
           <div className="text-sm text-muted-foreground">Weather unavailable</div>

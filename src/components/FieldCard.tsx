@@ -2,6 +2,28 @@ import { X, MoreHorizontal, MapPin } from "lucide-react";
 import { Field } from "@/data/fields";
 import { useState } from "react";
 
+function getPolygonPoints(coordinates: [number, number][][]): string {
+  const coords = coordinates[0];
+  if (!coords || coords.length < 3) return "10,30 20,8 35,25 25,35";
+  const lngs = coords.map(c => c[0]);
+  const lats = coords.map(c => c[1]);
+  const minLng = Math.min(...lngs);
+  const maxLng = Math.max(...lngs);
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  const rX = maxLng - minLng || 0.001;
+  const rY = maxLat - minLat || 0.001;
+  // Skip closing coordinate (last = first)
+  const unique = coords.length > 3 && coords[0][0] === coords[coords.length - 1][0] && coords[0][1] === coords[coords.length - 1][1]
+    ? coords.slice(0, -1)
+    : coords;
+  return unique.map(c => {
+    const x = 4 + ((c[0] - minLng) / rX) * 32;
+    const y = 36 - ((c[1] - minLat) / rY) * 32;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(" ");
+}
+
 interface FieldCardProps {
   field: Field;
   onRemove: (id: string) => void;
@@ -13,6 +35,7 @@ interface FieldCardProps {
 const FieldCard = ({ field, onRemove, variant = "select", isActive = false, style }: FieldCardProps) => {
   const isListVariant = variant === "list";
   const [isHovered, setIsHovered] = useState(false);
+  const svgPoints = getPolygonPoints(field.coordinates);
 
   return (
     <div
@@ -39,7 +62,7 @@ const FieldCard = ({ field, onRemove, variant = "select", isActive = false, styl
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Field shape thumbnail */}
+      {/* Field shape thumbnail - actual polygon */}
       <div
         className="w-12 h-12 rounded-md flex items-center justify-center flex-shrink-0 overflow-hidden transition-transform duration-300"
         style={{
@@ -49,7 +72,7 @@ const FieldCard = ({ field, onRemove, variant = "select", isActive = false, styl
       >
         <svg viewBox="0 0 40 40" className="w-8 h-8">
           <polygon
-            points="10,30 20,8 35,25 25,35"
+            points={svgPoints}
             fill={field.color + "44"}
             stroke={field.color}
             strokeWidth="2"
@@ -73,10 +96,10 @@ const FieldCard = ({ field, onRemove, variant = "select", isActive = false, styl
           )}
         </div>
         <div className="text-xs text-muted-foreground">
-          {field.cropEmoji} {field.crop}
+          {field.crop}
         </div>
         {isListVariant && field.group && (
-          <div className="text-xs text-muted-foreground">📁 {field.group}</div>
+          <div className="text-xs text-muted-foreground">{field.group}</div>
         )}
         <div className="text-xs text-muted-foreground flex items-center gap-1">
           <MapPin className="w-3 h-3 text-muted-foreground flex-shrink-0" /> {field.location}
