@@ -1,50 +1,90 @@
 import { useState, useEffect, useCallback } from "react";
 import MapView from "@/components/MapView";
 import WeatherView from "@/components/WeatherView";
-import { fields as allFieldsData, Field } from "@/data/fields";
+import { fields as initialFieldsData, Field } from "@/data/fields";
+import SidePanel from "@/components/SidePanel";
 
-const STORAGE_KEY = "farm-selected-fields";
+const ALL_FIELDS_KEY = "farm-all-fields";
+const SELECTED_IDS_KEY = "farm-selected-fields";
 
-function loadSavedFields(): Field[] {
+function loadAllFields(): Field[] {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = localStorage.getItem(ALL_FIELDS_KEY);
     if (saved) {
-      const ids: string[] = JSON.parse(saved);
-      const result = ids.map((id) => allFieldsData.find((f) => f.id === id)).filter(Boolean) as Field[];
-      return result.length > 0 ? result : allFieldsData;
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
     }
   } catch {}
-  return allFieldsData;
+  return initialFieldsData;
 }
 
-function saveFieldIds(fields: Field[]) {
+function loadSelectedIds(allFields: Field[]): string[] {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(fields.map((f) => f.id)));
+    const saved = localStorage.getItem(SELECTED_IDS_KEY);
+    if (saved) {
+      const ids = JSON.parse(saved);
+      if (Array.isArray(ids)) return ids.filter((id: string) => allFields.some(f => f.id === id));
+    }
   } catch {}
+  return allFields.map(f => f.id);
 }
 
 const Index = () => {
   const [view, setView] = useState<"map" | "weather">("map");
-  const [selectedFields, setSelectedFields] = useState<Field[]>(loadSavedFields);
+  const [allFields, setAllFields] = useState<Field[]>(loadAllFields);
+  const [selectedIds, setSelectedIds] = useState<string[]>(() => loadSelectedIds(loadAllFields()));
+  const [activeField, setActiveField] = useState<Field | null>(null);
+  const [detailField, setDetailField] = useState<Field | null>(null);
   const [flyToField, setFlyToField] = useState<Field | null>(null);
 
+  const selectedFields = allFields.filter(f => selectedIds.includes(f.id));
+
   useEffect(() => {
-    saveFieldIds(selectedFields);
-  }, [selectedFields]);
+    localStorage.setItem(ALL_FIELDS_KEY, JSON.stringify(allFields));
+  }, [allFields]);
 
-  const handleRemoveField = (id: string) =>
-    setSelectedFields((prev) => prev.filter((f) => f.id !== id));
-
-  const handleToggleField = (field: Field) => {
-    setSelectedFields((prev) => {
-      const exists = prev.some((f) => f.id === field.id);
-      return exists ? prev.filter((f) => f.id !== field.id) : [...prev, field];
-    });
-  };
+  useEffect(() => {
+    localStorage.setItem(SELECTED_IDS_KEY, JSON.stringify(selectedIds));
+  }, [selectedIds]);
 
   const handleFieldClick = useCallback((field: Field) => {
+    setActiveField(field);
     setFlyToField(field);
-    setView("map");
+  }, []);
+
+  const handleFieldDoubleClick = useCallback((field: Field) => {
+    setActiveField(field);
+    setDetailField(field);
+  }, []);
+
+  const handleToggleField = useCallback((field: Field) => {
+    setSelectedIds(prev =>
+      prev.includes(field.id)
+        ? prev.filter(id => id !== field.id)
+        : [...prev, field.id]
+    );
+  }, []);
+
+  const handleAddField = useCallback((field: Field) => {
+    setAllFields(prev => [...prev, field]);
+    setSelectedIds(prev => [...prev, field.id]);
+  }, []);
+
+  const handleUpdateField = useCallback((updated: Field) => {
+    setAllFields(prev => prev.map(f => f.id === updated.id ? updated : f));
+    if (detailField?.id === updated.id) setDetailField(updated);
+    if (activeField?.id === updated.id) setActiveField(updated);
+  }, [detailField, activeField]);
+
+  const handleDeleteField = useCallback((id: string) => {
+    setAllFields(prev => prev.filter(f => f.id !== id));
+    setSelectedIds(prev => prev.filter(fid => fid !== id));
+    if (detailField?.id === id) setDetailField(null);
+    if (activeField?.id === id) setActiveField(null);
+  }, [detailField, activeField]);
+
+  const handleApplySelection = useCallback((ids: string[]) => {
+    setSelectedIds(ids);
   }, []);
 
   return (
@@ -52,42 +92,62 @@ const Index = () => {
       <div className="w-full h-full max-w-[1400px] max-h-[900px] rounded-2xl overflow-hidden bg-background shadow-2xl relative border-[#041009] border-2">
         {/* View toggle */}
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex gap-1 bg-card/80 backdrop-blur-sm rounded-lg border border-border p-1">
-          {(["map", "weather"] as const).map((v) =>
-          <button
-            key={v}
-            onClick={() => setView(v)}
-            className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all duration-300 ${
-            view === v ?
-            "bg-primary text-primary-foreground shadow-sm" :
-            "text-muted-foreground hover:text-foreground"}`
-            }>
+          {(["map", "weather"] as const).map((v) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all duration-300 ${
+                view === v
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
               {v === "map" ? "Map" : "Weather"}
             </button>
-          )}
+          ))}
         </div>
 
-        {/* Both views always mounted, toggled via CSS */}
-        <div
-          className="w-full h-full absolute inset-0 transition-opacity duration-200"
-          style={{ opacity: view === "map" ? 1 : 0, pointerEvents: view === "map" ? "auto" : "none" }}>
-          <MapView
+        <div className="flex w-full h-full">
+          {/* Main content */}
+          <div className="flex-1 relative">
+            <div
+              className="absolute inset-0 transition-opacity duration-200"
+              style={{ opacity: view === "map" ? 1 : 0, pointerEvents: view === "map" ? "auto" : "none" }}
+            >
+              <MapView
+                allFields={allFields}
+                selectedFields={selectedFields}
+                activeField={activeField}
+                flyToField={flyToField}
+                onFlyToDone={() => setFlyToField(null)}
+                onFieldClickOnMap={(field) => {
+                  setActiveField(field);
+                  setDetailField(field);
+                }}
+                onAddField={handleAddField}
+              />
+            </div>
+            <div
+              className="absolute inset-0 transition-opacity duration-200"
+              style={{ opacity: view === "weather" ? 1 : 0, pointerEvents: view === "weather" ? "auto" : "none" }}
+            >
+              <WeatherView activeField={activeField} selectedFields={selectedFields} />
+            </div>
+          </div>
+
+          {/* Shared side panel */}
+          <SidePanel
+            allFields={allFields}
             selectedFields={selectedFields}
-            allFields={allFieldsData}
-            onRemoveField={handleRemoveField}
-            onToggleField={handleToggleField}
-            onShowAll={() => setSelectedFields(allFieldsData)}
-            onHideAll={() => setSelectedFields([])}
-            flyToField={flyToField}
-            onFlyToDone={() => setFlyToField(null)}
-          />
-        </div>
-        <div
-          className="w-full h-full absolute inset-0 transition-opacity duration-200"
-          style={{ opacity: view === "weather" ? 1 : 0, pointerEvents: view === "weather" ? "auto" : "none" }}>
-          <WeatherView
-            selectedFields={selectedFields}
-            onRemoveField={handleRemoveField}
+            activeField={activeField}
+            detailField={detailField}
             onFieldClick={handleFieldClick}
+            onFieldDoubleClick={handleFieldDoubleClick}
+            onBackFromDetail={() => setDetailField(null)}
+            onToggleField={handleToggleField}
+            onApplySelection={handleApplySelection}
+            onUpdateField={handleUpdateField}
+            onDeleteField={handleDeleteField}
           />
         </div>
       </div>

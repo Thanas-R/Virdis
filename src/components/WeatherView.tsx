@@ -82,12 +82,11 @@ function getFarmerAdvice(weather: LiveWeather, crop: string): string[] {
 }
 
 interface WeatherViewProps {
+  activeField: Field | null;
   selectedFields: Field[];
-  onRemoveField: (id: string) => void;
-  onFieldClick?: (field: Field) => void;
 }
 
-const WeatherView = ({ selectedFields, onRemoveField, onFieldClick }: WeatherViewProps) => {
+const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
   const [startDate, setStartDate] = useState<Date>(new Date(2024, 3, 1));
   const [endDate, setEndDate] = useState<Date>(new Date(2024, 9, 1));
   const [monthlyData, setMonthlyData] = useState<any[]>([]);
@@ -97,15 +96,15 @@ const WeatherView = ({ selectedFields, onRemoveField, onFieldClick }: WeatherVie
   const [liveWeather, setLiveWeather] = useState<LiveWeather | null>(null);
   const [liveLoading, setLiveLoading] = useState(false);
 
-  const activeField = selectedFields[0];
+  const effectiveField = activeField || selectedFields[0];
 
   // Fetch live weather
   useEffect(() => {
-    if (!activeField) return;
+    if (!effectiveField) return;
     const fetchLive = async () => {
       setLiveLoading(true);
       try {
-        const { lat, lng } = getFieldCenter(activeField);
+        const { lat, lng } = getFieldCenter(effectiveField);
         const res = await fetch(
           `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,apparent_temperature,weather_code&timezone=auto`
         );
@@ -125,15 +124,15 @@ const WeatherView = ({ selectedFields, onRemoveField, onFieldClick }: WeatherVie
       }
     };
     fetchLive();
-  }, [activeField]);
+  }, [effectiveField]);
 
   // Fetch historical weather + soil moisture
   useEffect(() => {
-    if (!activeField) return;
+    if (!effectiveField) return;
     const fetchWeatherData = async () => {
       setLoading(true);
       try {
-        const { lat, lng } = getFieldCenter(activeField);
+        const { lat, lng } = getFieldCenter(effectiveField);
         const start = format(startDate, "yyyy-MM-dd");
         const end = format(endDate, "yyyy-MM-dd");
 
@@ -214,19 +213,17 @@ const WeatherView = ({ selectedFields, onRemoveField, onFieldClick }: WeatherVie
       }
     };
     fetchWeatherData();
-  }, [startDate, endDate, activeField]);
+  }, [startDate, endDate, effectiveField]);
 
   return (
-    <div className="relative w-full h-full flex">
-      {/* Main content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="relative w-full h-full flex flex-col overflow-hidden">
         {/* Header row */}
         <div className="flex items-center gap-4 px-6 py-3 border-b border-border flex-wrap">
           <h1 className="text-lg font-semibold text-foreground">Historical Weather</h1>
-          {activeField &&
+          {effectiveField &&
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: activeField.color }} />
-              {activeField.name} · {activeField.cropEmoji} {activeField.crop} · {activeField.location}
+              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: effectiveField.color }} />
+              {effectiveField.name} · {effectiveField.cropEmoji} {effectiveField.crop} · {effectiveField.location}
             </div>
           }
           <div className="flex-1" />
@@ -263,7 +260,7 @@ const WeatherView = ({ selectedFields, onRemoveField, onFieldClick }: WeatherVie
         </div>
 
         {/* Live Weather Card */}
-        {activeField &&
+        {effectiveField &&
         <div className="px-6 py-3 border-b border-border">
             {liveLoading ?
           <div className="text-sm text-muted-foreground animate-pulse">Loading live conditions…</div> :
@@ -284,7 +281,7 @@ const WeatherView = ({ selectedFields, onRemoveField, onFieldClick }: WeatherVie
                 </div>
                 {/* Farmer Advice */}
                 <div className="flex flex-wrap gap-2">
-                  {getFarmerAdvice(liveWeather, activeField.crop).map((tip, i) => (
+                  {getFarmerAdvice(liveWeather, effectiveField.crop).map((tip, i) => (
                     <div key={i} className="text-xs text-muted-foreground bg-accent/20 rounded-lg px-3 py-1.5">{tip}</div>
                   ))}
                 </div>
@@ -296,14 +293,14 @@ const WeatherView = ({ selectedFields, onRemoveField, onFieldClick }: WeatherVie
 
         {/* Charts */}
         <div className="flex-1 overflow-y-auto p-6 space-y-8">
-          {!activeField ?
+          {!effectiveField ?
           <div className="flex flex-col items-center justify-center py-20 text-center">
               <Sprout className="w-10 h-10 text-muted-foreground mb-3" />
               <p className="text-sm text-muted-foreground">Select a field to view weather data</p>
             </div> :
           loading ?
           <div className="flex items-center justify-center py-20">
-              <div className="text-muted-foreground animate-pulse text-sm">Fetching weather data for {activeField.name}…</div>
+              <div className="text-muted-foreground animate-pulse text-sm">Fetching weather data for {effectiveField.name}…</div>
             </div> :
           <>
               {/* Accumulated Precipitation */}
@@ -412,11 +409,7 @@ const WeatherView = ({ selectedFields, onRemoveField, onFieldClick }: WeatherVie
             }
             </>
           }
-        </div>
       </div>
-
-      {/* Right sidebar - field list */}
-      <FieldListPanel fields={selectedFields} onRemoveField={onRemoveField} onFieldClick={onFieldClick} />
     </div>
   );
 };
