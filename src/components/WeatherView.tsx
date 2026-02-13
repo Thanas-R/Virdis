@@ -272,19 +272,19 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
           }
 
             {/* Water Stress */}
-            {vegetationIndices.length > 0 &&
-          <div className="animate-fade-in" style={{ animationDelay: "50ms" }}>
-                <h3 className="text-sm font-medium text-foreground mb-4">Water Stress Index</h3>
-                <ResponsiveContainer width="100%" height={180}>
-                  <BarChart data={vegetationIndices}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(150, 12%, 22%)" />
-                    <XAxis dataKey="month" stroke="hsl(150, 10%, 55%)" fontSize={11} />
-                    <YAxis stroke="hsl(150, 10%, 55%)" fontSize={11} unit="%" />
-                    <Tooltip contentStyle={tooltipStyle} />
-                    <Bar dataKey="waterStress" fill="#e74c3c" radius={[3, 3, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+            {vegetationIndices.length > 0
+
+
+
+
+
+
+
+
+
+
+
+
           }
 
             {/* Land Use / Suitability side by side */}
