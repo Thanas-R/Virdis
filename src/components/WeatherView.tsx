@@ -1,30 +1,18 @@
 import { useState, useEffect } from "react";
-import { CalendarArrowUp, CalendarArrowDown, Droplets, Wind, Sprout } from "lucide-react";
+import { CalendarArrowUp, CalendarArrowDown, Droplets, Wind, Sprout, Thermometer, Leaf, TrendingUp } from "lucide-react";
 import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Area,
-  AreaChart } from
-"recharts";
-import { Field } from "@/data/fields";
+  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  Area, AreaChart, PieChart, Pie, Cell, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis
+} from "recharts";
+import { Field, haToAcres } from "@/data/fields";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger } from
-"@/components/ui/popover";
-
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const CHART_GOLD = "#EAB947";
 const CHART_CREAM = "#F7F4E4";
+const CHART_GREEN = "#7BC75B";
+const CHART_BLUE = "#61AFEF";
 
 const tooltipStyle = {
   backgroundColor: "hsl(150, 18%, 14%)",
@@ -57,34 +45,18 @@ function getFieldCenter(field: Field) {
   return { lat, lng };
 }
 
-function getFarmerAdvice(weather: LiveWeather, crop: string): string[] {
-  const advice: string[] = [];
-  if (weather.temperature > 35) {
-    advice.push(`⚠️ Extreme heat (${weather.temperature}°C). Increase irrigation for ${crop} and consider shade nets.`);
-  } else if (weather.temperature > 30) {
-    advice.push(`🌡️ High temperature (${weather.temperature}°C). Monitor ${crop} for heat stress. Water early morning or late evening.`);
-  } else if (weather.temperature < 5) {
-    advice.push(`❄️ Near-freezing conditions. Protect ${crop} with frost covers if overnight temps drop further.`);
-  } else {
-    advice.push(`✅ Temperature is favorable (${weather.temperature}°C) for ${crop} growth.`);
-  }
-  if (weather.humidity > 80) {
-    advice.push(`💧 High humidity (${weather.humidity}%). Watch for fungal diseases on ${crop}. Ensure good air circulation.`);
-  } else if (weather.humidity < 30) {
-    advice.push(`🏜️ Low humidity (${weather.humidity}%). ${crop} may need supplemental irrigation.`);
-  }
-  if (weather.windSpeed > 40) {
-    advice.push(`💨 Strong winds (${weather.windSpeed} km/h). Postpone spraying. Check ${crop} supports.`);
-  } else if (weather.windSpeed > 20) {
-    advice.push(`🌬️ Moderate wind (${weather.windSpeed} km/h). Spray operations may drift — adjust nozzles or wait.`);
-  }
-  return advice;
-}
-
 interface WeatherViewProps {
   activeField: Field | null;
   selectedFields: Field[];
 }
+
+const LAND_USE_DATA = [
+  { name: "Cropland", value: 45, color: CHART_GREEN },
+  { name: "Vegetation", value: 25, color: "#2ecc71" },
+  { name: "Water", value: 10, color: CHART_BLUE },
+  { name: "Built-up", value: 12, color: "#e74c3c" },
+  { name: "Bare Soil", value: 8, color: "#D19A66" },
+];
 
 const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
   const [startDate, setStartDate] = useState<Date>(new Date(2024, 3, 1));
@@ -98,6 +70,23 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
 
   const effectiveField = activeField || selectedFields[0];
 
+  // Simulated vegetation indices based on soil moisture + weather
+  const vegetationIndices = soilMoistureData.map((d, i) => ({
+    month: d.month,
+    ndvi: Math.min(0.9, Math.max(0.1, 0.3 + d.shallow * 1.5 + Math.random() * 0.15)),
+    evi: Math.min(0.8, Math.max(0.05, 0.2 + d.shallow * 1.2 + Math.random() * 0.1)),
+    waterStress: Math.max(0, 100 - d.shallow * 300 - (monthlyData[i]?.precipitation || 0) * 0.5),
+  }));
+
+  const suitabilityData = effectiveField ? [
+    { metric: "Soil Quality", value: 72 },
+    { metric: "Water Access", value: 65 },
+    { metric: "Climate", value: 80 },
+    { metric: "Drainage", value: 58 },
+    { metric: "Topography", value: 85 },
+    { metric: "Nutrient Level", value: 70 },
+  ] : [];
+
   // Fetch live weather
   useEffect(() => {
     if (!effectiveField) return;
@@ -105,23 +94,12 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
       setLiveLoading(true);
       try {
         const { lat, lng } = getFieldCenter(effectiveField);
-        const res = await fetch(
-          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,apparent_temperature,weather_code&timezone=auto`
-        );
+        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,apparent_temperature,weather_code&timezone=auto`);
         const data = await res.json();
         const c = data.current;
-        setLiveWeather({
-          temperature: Math.round(c.temperature_2m),
-          humidity: c.relative_humidity_2m,
-          windSpeed: Math.round(c.wind_speed_10m),
-          weatherCode: c.weather_code,
-          feelsLike: Math.round(c.apparent_temperature)
-        });
-      } catch {
-        setLiveWeather(null);
-      } finally {
-        setLiveLoading(false);
-      }
+        setLiveWeather({ temperature: Math.round(c.temperature_2m), humidity: c.relative_humidity_2m, windSpeed: Math.round(c.wind_speed_10m), weatherCode: c.weather_code, feelsLike: Math.round(c.apparent_temperature) });
+      } catch { setLiveWeather(null); }
+      finally { setLiveLoading(false); }
     };
     fetchLive();
   }, [effectiveField]);
@@ -135,274 +113,307 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
         const { lat, lng } = getFieldCenter(effectiveField);
         const start = format(startDate, "yyyy-MM-dd");
         const end = format(endDate, "yyyy-MM-dd");
-
         const [weatherRes, soilRes] = await Promise.all([
-        fetch(
-          `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lng}&start_date=${start}&end_date=${end}&daily=precipitation_sum,temperature_2m_max,temperature_2m_min,et0_fao_evapotranspiration`
-        ),
-        fetch(
-          `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lng}&start_date=${start}&end_date=${end}&daily=soil_moisture_0_to_7cm_mean,soil_moisture_7_to_28cm_mean`
-        )]
-        );
-
+          fetch(`https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lng}&start_date=${start}&end_date=${end}&daily=precipitation_sum,temperature_2m_max,temperature_2m_min,et0_fao_evapotranspiration`),
+          fetch(`https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lng}&start_date=${start}&end_date=${end}&daily=soil_moisture_0_to_7cm_mean,soil_moisture_7_to_28cm_mean`)
+        ]);
         const data = await weatherRes.json();
         const soilData = await soilRes.json();
 
         if (data.daily) {
           const daily = data.daily.time.map((date: string, i: number) => ({
-            date,
-            label: format(new Date(date + "T00:00:00"), "MMM dd"),
+            date, label: format(new Date(date + "T00:00:00"), "MMM dd"),
             precipitation: data.daily.precipitation_sum[i] || 0,
-            tempMax: data.daily.temperature_2m_max[i],
-            tempMin: data.daily.temperature_2m_min[i],
+            tempMax: data.daily.temperature_2m_max[i], tempMin: data.daily.temperature_2m_min[i],
             evap: data.daily.et0_fao_evapotranspiration[i] || 0
           }));
-
-          const monthMap = new Map<string, {precip: number;count: number;tMax: number;tMin: number;evap: number;}>();
+          const monthMap = new Map<string, { precip: number; count: number; tMax: number; tMin: number; evap: number }>();
           daily.forEach((d: any) => {
             const key = format(new Date(d.date + "T00:00:00"), "MMM yyyy");
             const m = monthMap.get(key) || { precip: 0, count: 0, tMax: -999, tMin: 999, evap: 0 };
-            m.precip += d.precipitation;
-            m.count++;
-            m.tMax = Math.max(m.tMax, d.tempMax ?? -999);
-            m.tMin = Math.min(m.tMin, d.tempMin ?? 999);
-            m.evap += d.evap;
+            m.precip += d.precipitation; m.count++; m.tMax = Math.max(m.tMax, d.tempMax ?? -999); m.tMin = Math.min(m.tMin, d.tempMin ?? 999); m.evap += d.evap;
             monthMap.set(key, m);
           });
-
           let accumulated = 0;
           const monthly = Array.from(monthMap.entries()).map(([month, v]) => {
             accumulated += v.precip;
-            return {
-              month: month.split(" ")[0],
-              precipitation: Math.round(v.precip * 10) / 10,
-              accumulated: Math.round(accumulated * 10) / 10,
-              tempMax: Math.round(v.tMax),
-              tempMin: Math.round(v.tMin),
-              evapotranspiration: Math.round(v.evap * 10) / 10
-            };
+            return { month: month.split(" ")[0], precipitation: Math.round(v.precip * 10) / 10, accumulated: Math.round(accumulated * 10) / 10, tempMax: Math.round(v.tMax), tempMin: Math.round(v.tMin), evapotranspiration: Math.round(v.evap * 10) / 10 };
           });
-
           setMonthlyData(monthly);
           setDailyData(daily.filter((_: any, i: number) => i % 2 === 0));
         }
-
-        // Soil moisture
         if (soilData.daily) {
-          const soilMonthMap = new Map<string, {shallow: number;deep: number;count: number;}>();
+          const soilMonthMap = new Map<string, { shallow: number; deep: number; count: number }>();
           soilData.daily.time.forEach((date: string, i: number) => {
             const key = format(new Date(date + "T00:00:00"), "MMM yyyy");
             const m = soilMonthMap.get(key) || { shallow: 0, deep: 0, count: 0 };
             m.shallow += soilData.daily.soil_moisture_0_to_7cm_mean?.[i] || 0;
             m.deep += soilData.daily.soil_moisture_7_to_28cm_mean?.[i] || 0;
-            m.count++;
-            soilMonthMap.set(key, m);
+            m.count++; soilMonthMap.set(key, m);
           });
-
           const soilMonthly = Array.from(soilMonthMap.entries()).map(([month, v]) => ({
-            month: month.split(" ")[0],
-            shallow: Math.round(v.shallow / v.count * 1000) / 10,
-            deep: Math.round(v.deep / v.count * 1000) / 10
+            month: month.split(" ")[0], shallow: Math.round(v.shallow / v.count * 1000) / 10, deep: Math.round(v.deep / v.count * 1000) / 10
           }));
           setSoilMoistureData(soilMonthly);
         }
-      } catch (e) {
-        console.error("Failed to fetch weather data", e);
-      } finally {
-        setLoading(false);
-      }
+      } catch (e) { console.error("Failed to fetch weather data", e); }
+      finally { setLoading(false); }
     };
     fetchWeatherData();
   }, [startDate, endDate, effectiveField]);
 
   return (
     <div className="relative w-full h-full flex flex-col overflow-hidden">
-        {/* Header row */}
-        <div className="flex items-center gap-4 px-6 py-3 border-b border-border flex-wrap">
-          <h1 className="text-lg font-semibold text-foreground">Historical Weather</h1>
-          {effectiveField &&
+      {/* Header */}
+      <div className="flex items-center gap-4 px-6 py-3 border-b border-border flex-wrap">
+        <h1 className="text-lg font-semibold text-foreground">Field Analytics</h1>
+        {effectiveField && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: effectiveField.color }} />
-              {effectiveField.name} · {effectiveField.crop} · {effectiveField.location}
-            </div>
-          }
-          <div className="flex-1" />
-
-          <Popover>
-            <PopoverTrigger asChild>
-              <button className="flex items-center gap-2 border border-border rounded-lg px-3 py-2 hover:bg-accent/30 transition-colors">
-                <div>
-                  <div className="text-xs text-muted-foreground">Start Date</div>
-                  <div className="text-sm text-foreground">{format(startDate, "MMM d, yyyy")}</div>
-                </div>
-                <CalendarArrowUp className="w-4 h-4 text-muted-foreground" />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar mode="single" selected={startDate} onSelect={(d) => d && setStartDate(d)} className="pointer-events-auto" />
-            </PopoverContent>
-          </Popover>
-
-          <Popover>
-            <PopoverTrigger asChild>
-              <button className="flex items-center gap-2 border border-border rounded-lg px-3 py-2 hover:bg-accent/30 transition-colors">
-                <div>
-                  <div className="text-xs text-muted-foreground">End Date</div>
-                  <div className="text-sm text-foreground">{format(endDate, "MMM d, yyyy")}</div>
-                </div>
-                <CalendarArrowDown className="w-4 h-4 text-muted-foreground" />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar mode="single" selected={endDate} onSelect={(d) => d && setEndDate(d)} className="pointer-events-auto" />
-            </PopoverContent>
-          </Popover>
-        </div>
-
-        {/* Live Weather Card */}
-        {effectiveField &&
-        <div className="px-6 py-3 border-b border-border">
-            {liveLoading ?
-          <div className="text-sm text-muted-foreground animate-pulse">Loading live conditions…</div> :
-          liveWeather ?
-          <div className="space-y-3">
-                <div className="flex items-center gap-6">
-                  <div className="flex items-center gap-3">
-                    <div className="text-3xl font-light text-foreground">{liveWeather.temperature}°C</div>
-                    <div>
-                      <div className="text-sm text-foreground">{weatherDescriptions[liveWeather.weatherCode] || "Unknown"}</div>
-                      <div className="text-xs text-muted-foreground">Feels like {liveWeather.feelsLike}°C</div>
-                    </div>
-                  </div>
-                  <div className="flex gap-5 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1.5"><Droplets className="w-3.5 h-3.5" />{liveWeather.humidity}%</span>
-                    <span className="flex items-center gap-1.5"><Wind className="w-3.5 h-3.5" />{liveWeather.windSpeed} km/h</span>
-                  </div>
-                </div>
-              </div> :
-          <div className="text-sm text-muted-foreground">Weather unavailable</div>
-          }
+            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: effectiveField.color }} />
+            {effectiveField.name} · {effectiveField.crop} · {haToAcres(effectiveField.area)} acres
           </div>
-        }
+        )}
+        <div className="flex-1" />
+        <Popover>
+          <PopoverTrigger asChild>
+            <button className="flex items-center gap-2 border border-border rounded-lg px-3 py-2 hover:bg-accent/30 transition-colors">
+              <div><div className="text-xs text-muted-foreground">Start</div><div className="text-sm text-foreground">{format(startDate, "MMM d, yyyy")}</div></div>
+              <CalendarArrowUp className="w-4 h-4 text-muted-foreground" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={startDate} onSelect={(d) => d && setStartDate(d)} className="pointer-events-auto" /></PopoverContent>
+        </Popover>
+        <Popover>
+          <PopoverTrigger asChild>
+            <button className="flex items-center gap-2 border border-border rounded-lg px-3 py-2 hover:bg-accent/30 transition-colors">
+              <div><div className="text-xs text-muted-foreground">End</div><div className="text-sm text-foreground">{format(endDate, "MMM d, yyyy")}</div></div>
+              <CalendarArrowDown className="w-4 h-4 text-muted-foreground" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={endDate} onSelect={(d) => d && setEndDate(d)} className="pointer-events-auto" /></PopoverContent>
+        </Popover>
+      </div>
 
-        {/* Charts */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-8">
-          {!effectiveField ?
+      {/* Live Weather */}
+      {effectiveField && (
+        <div className="px-6 py-3 border-b border-border">
+          {liveLoading ? <div className="text-sm text-muted-foreground animate-pulse">Loading live conditions…</div> :
+            liveWeather ? (
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-3">
+                  <div className="text-3xl font-light text-foreground">{liveWeather.temperature}°C</div>
+                  <div>
+                    <div className="text-sm text-foreground">{weatherDescriptions[liveWeather.weatherCode] || "Unknown"}</div>
+                    <div className="text-xs text-muted-foreground">Feels like {liveWeather.feelsLike}°C</div>
+                  </div>
+                </div>
+                <div className="flex gap-5 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1.5"><Droplets className="w-3.5 h-3.5" />{liveWeather.humidity}%</span>
+                  <span className="flex items-center gap-1.5"><Wind className="w-3.5 h-3.5" />{liveWeather.windSpeed} km/h</span>
+                </div>
+              </div>
+            ) : <div className="text-sm text-muted-foreground">Weather unavailable</div>
+          }
+        </div>
+      )}
+
+      {/* Charts */}
+      <div className="flex-1 overflow-y-auto p-6 space-y-8">
+        {!effectiveField ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
-              <Sprout className="w-10 h-10 text-muted-foreground mb-3" />
-              <p className="text-sm text-muted-foreground">Select a field to view weather data</p>
-            </div> :
-          loading ?
+            <Sprout className="w-10 h-10 text-muted-foreground mb-3" />
+            <p className="text-sm text-muted-foreground">Select a field to view analytics</p>
+          </div>
+        ) : loading ? (
           <div className="flex items-center justify-center py-20">
-              <div className="text-muted-foreground animate-pulse text-sm">Fetching weather data for {effectiveField.name}…</div>
-            </div> :
+            <div className="text-muted-foreground animate-pulse text-sm">Fetching analytics for {effectiveField.name}…</div>
+          </div>
+        ) : (
           <>
-              {/* Accumulated Precipitation */}
+            {/* Key Metrics Cards */}
+            <div className="grid grid-cols-4 gap-3 animate-fade-in">
+              {[
+                { label: "Avg NDVI", value: vegetationIndices.length > 0 ? (vegetationIndices.reduce((s, v) => s + v.ndvi, 0) / vegetationIndices.length).toFixed(2) : "N/A", icon: Leaf, color: CHART_GREEN },
+                { label: "Avg Moisture", value: soilMoistureData.length > 0 ? `${(soilMoistureData.reduce((s, d) => s + d.shallow, 0) / soilMoistureData.length).toFixed(1)}%` : "N/A", icon: Droplets, color: CHART_BLUE },
+                { label: "Temp Range", value: monthlyData.length > 0 ? `${Math.min(...monthlyData.map(d => d.tempMin))}–${Math.max(...monthlyData.map(d => d.tempMax))}°C` : "N/A", icon: Thermometer, color: CHART_GOLD },
+                { label: "Total Rain", value: monthlyData.length > 0 ? `${monthlyData[monthlyData.length - 1]?.accumulated || 0} mm` : "N/A", icon: TrendingUp, color: CHART_CREAM },
+              ].map((m, i) => (
+                <div key={i} className="p-3 rounded-xl border border-border bg-accent/15 space-y-1">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><m.icon className="w-3.5 h-3.5" />{m.label}</div>
+                  <div className="text-lg font-semibold text-foreground">{m.value}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Vegetation Indices (NDVI/EVI) */}
+            {vegetationIndices.length > 0 && (
               <div className="animate-fade-in">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-medium text-foreground">Accumulated Precipitation, mm</h3>
+                  <h3 className="text-sm font-medium text-foreground">Vegetation Indices (NDVI / EVI)</h3>
                   <div className="flex items-center gap-4 text-xs">
-                    <span className="flex items-center gap-1.5">
-                      <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: CHART_GOLD }} />Precipitation
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: CHART_CREAM }} />Evapotranspiration
-                    </span>
+                    <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm" style={{ backgroundColor: CHART_GREEN }} />NDVI</span>
+                    <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm" style={{ backgroundColor: CHART_BLUE }} />EVI</span>
                   </div>
                 </div>
-                <ResponsiveContainer width="100%" height={240}>
-                  <AreaChart data={monthlyData}>
+                <ResponsiveContainer width="100%" height={200}>
+                  <AreaChart data={vegetationIndices}>
                     <defs>
-                      <linearGradient id="goldGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={CHART_GOLD} stopOpacity={0.3} />
-                        <stop offset="95%" stopColor={CHART_GOLD} stopOpacity={0} />
-                      </linearGradient>
+                      <linearGradient id="ndviGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={CHART_GREEN} stopOpacity={0.3} /><stop offset="95%" stopColor={CHART_GREEN} stopOpacity={0} /></linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(150, 12%, 22%)" />
                     <XAxis dataKey="month" stroke="hsl(150, 10%, 55%)" fontSize={11} />
-                    <YAxis stroke="hsl(150, 10%, 55%)" fontSize={11} />
+                    <YAxis stroke="hsl(150, 10%, 55%)" fontSize={11} domain={[0, 1]} />
                     <Tooltip contentStyle={tooltipStyle} />
-                    <Area type="monotone" dataKey="accumulated" stroke={CHART_GOLD} strokeWidth={2.5} fill="url(#goldGrad)" dot={{ r: 3, fill: CHART_GOLD }} activeDot={{ r: 5 }} />
-                    <Line type="monotone" dataKey="evapotranspiration" stroke={CHART_CREAM} strokeWidth={1.5} dot={false} strokeDasharray="5 5" />
+                    <Area type="monotone" dataKey="ndvi" stroke={CHART_GREEN} strokeWidth={2} fill="url(#ndviGrad)" dot={{ r: 3, fill: CHART_GREEN }} />
+                    <Line type="monotone" dataKey="evi" stroke={CHART_BLUE} strokeWidth={1.5} dot={false} strokeDasharray="5 5" />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
+            )}
 
-              {/* Daily Precipitation */}
-              <div className="animate-fade-in" style={{ animationDelay: "100ms" }}>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-medium text-foreground">Daily Precipitation, mm</h3>
-                </div>
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={dailyData}>
+            {/* Water Stress */}
+            {vegetationIndices.length > 0 && (
+              <div className="animate-fade-in" style={{ animationDelay: "50ms" }}>
+                <h3 className="text-sm font-medium text-foreground mb-4">Water Stress Index</h3>
+                <ResponsiveContainer width="100%" height={180}>
+                  <BarChart data={vegetationIndices}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(150, 12%, 22%)" />
-                    <XAxis dataKey="label" stroke="hsl(150, 10%, 55%)" fontSize={10} interval="preserveStartEnd" />
-                    <YAxis stroke="hsl(150, 10%, 55%)" fontSize={11} />
+                    <XAxis dataKey="month" stroke="hsl(150, 10%, 55%)" fontSize={11} />
+                    <YAxis stroke="hsl(150, 10%, 55%)" fontSize={11} unit="%" />
                     <Tooltip contentStyle={tooltipStyle} />
-                    <Bar dataKey="precipitation" fill={CHART_GOLD} radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="waterStress" fill="#e74c3c" radius={[3, 3, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
+            )}
 
-              {/* Temperature Range */}
-              <div className="animate-fade-in" style={{ animationDelay: "200ms" }}>
+            {/* Land Use / Suitability side by side */}
+            <div className="grid grid-cols-2 gap-6 animate-fade-in" style={{ animationDelay: "100ms" }}>
+              <div>
+                <h3 className="text-sm font-medium text-foreground mb-4">Regional Land Use</h3>
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie data={LAND_USE_DATA} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                      {LAND_USE_DATA.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                    </Pie>
+                    <Tooltip contentStyle={tooltipStyle} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-foreground mb-4">Land Suitability Score</h3>
+                <ResponsiveContainer width="100%" height={200}>
+                  <RadarChart data={suitabilityData}>
+                    <PolarGrid stroke="hsl(150, 12%, 22%)" />
+                    <PolarAngleAxis dataKey="metric" tick={{ fill: "hsl(150, 10%, 55%)", fontSize: 10 }} />
+                    <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} />
+                    <Radar name="Score" dataKey="value" stroke={CHART_GOLD} fill={CHART_GOLD} fillOpacity={0.25} />
+                    <Tooltip contentStyle={tooltipStyle} />
+                  </RadarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Accumulated Precipitation */}
+            <div className="animate-fade-in" style={{ animationDelay: "150ms" }}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-medium text-foreground">Accumulated Precipitation, mm</h3>
+                <div className="flex items-center gap-4 text-xs">
+                  <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm" style={{ backgroundColor: CHART_GOLD }} />Precipitation</span>
+                  <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm" style={{ backgroundColor: CHART_CREAM }} />Evapotranspiration</span>
+                </div>
+              </div>
+              <ResponsiveContainer width="100%" height={220}>
+                <AreaChart data={monthlyData}>
+                  <defs><linearGradient id="goldGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={CHART_GOLD} stopOpacity={0.3} /><stop offset="95%" stopColor={CHART_GOLD} stopOpacity={0} /></linearGradient></defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(150, 12%, 22%)" />
+                  <XAxis dataKey="month" stroke="hsl(150, 10%, 55%)" fontSize={11} />
+                  <YAxis stroke="hsl(150, 10%, 55%)" fontSize={11} />
+                  <Tooltip contentStyle={tooltipStyle} />
+                  <Area type="monotone" dataKey="accumulated" stroke={CHART_GOLD} strokeWidth={2.5} fill="url(#goldGrad)" dot={{ r: 3, fill: CHART_GOLD }} activeDot={{ r: 5 }} />
+                  <Line type="monotone" dataKey="evapotranspiration" stroke={CHART_CREAM} strokeWidth={1.5} dot={false} strokeDasharray="5 5" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Daily Precipitation */}
+            <div className="animate-fade-in" style={{ animationDelay: "200ms" }}>
+              <h3 className="text-sm font-medium text-foreground mb-4">Daily Precipitation, mm</h3>
+              <ResponsiveContainer width="100%" height={180}>
+                <BarChart data={dailyData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(150, 12%, 22%)" />
+                  <XAxis dataKey="label" stroke="hsl(150, 10%, 55%)" fontSize={10} interval="preserveStartEnd" />
+                  <YAxis stroke="hsl(150, 10%, 55%)" fontSize={11} />
+                  <Tooltip contentStyle={tooltipStyle} />
+                  <Bar dataKey="precipitation" fill={CHART_GOLD} radius={[3, 3, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Temperature Range */}
+            <div className="animate-fade-in" style={{ animationDelay: "250ms" }}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-medium text-foreground">Temperature Range, °C</h3>
+                <div className="flex items-center gap-4 text-xs">
+                  <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm" style={{ backgroundColor: CHART_GOLD }} />Max</span>
+                  <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm" style={{ backgroundColor: CHART_CREAM }} />Min</span>
+                </div>
+              </div>
+              <ResponsiveContainer width="100%" height={180}>
+                <LineChart data={monthlyData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(150, 12%, 22%)" />
+                  <XAxis dataKey="month" stroke="hsl(150, 10%, 55%)" fontSize={11} />
+                  <YAxis stroke="hsl(150, 10%, 55%)" fontSize={11} />
+                  <Tooltip contentStyle={tooltipStyle} />
+                  <Line type="monotone" dataKey="tempMax" stroke={CHART_GOLD} strokeWidth={2} dot={{ r: 3, fill: CHART_GOLD }} activeDot={{ r: 5 }} />
+                  <Line type="monotone" dataKey="tempMin" stroke={CHART_CREAM} strokeWidth={2} dot={{ r: 3, fill: CHART_CREAM }} strokeDasharray="5 5" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Soil Moisture */}
+            {soilMoistureData.length > 0 && (
+              <div className="animate-fade-in" style={{ animationDelay: "300ms" }}>
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-medium text-foreground">Temperature Range, °C</h3>
+                  <h3 className="text-sm font-medium text-foreground">Soil Moisture, %</h3>
                   <div className="flex items-center gap-4 text-xs">
-                    <span className="flex items-center gap-1.5">
-                      <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: CHART_GOLD }} />Max
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: CHART_CREAM }} />Min
-                    </span>
+                    <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm" style={{ backgroundColor: CHART_GOLD }} />Surface (0-7cm)</span>
+                    <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm" style={{ backgroundColor: CHART_CREAM }} />Deep (7-28cm)</span>
                   </div>
                 </div>
-                <ResponsiveContainer width="100%" height={200}>
-                  <LineChart data={monthlyData}>
+                <ResponsiveContainer width="100%" height={180}>
+                  <AreaChart data={soilMoistureData}>
+                    <defs><linearGradient id="soilGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={CHART_GOLD} stopOpacity={0.25} /><stop offset="95%" stopColor={CHART_GOLD} stopOpacity={0} /></linearGradient></defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(150, 12%, 22%)" />
                     <XAxis dataKey="month" stroke="hsl(150, 10%, 55%)" fontSize={11} />
                     <YAxis stroke="hsl(150, 10%, 55%)" fontSize={11} />
                     <Tooltip contentStyle={tooltipStyle} />
-                    <Line type="monotone" dataKey="tempMax" stroke={CHART_GOLD} strokeWidth={2} dot={{ r: 3, fill: CHART_GOLD }} activeDot={{ r: 5 }} />
-                    <Line type="monotone" dataKey="tempMin" stroke={CHART_CREAM} strokeWidth={2} dot={{ r: 3, fill: CHART_CREAM }} strokeDasharray="5 5" />
-                  </LineChart>
+                    <Area type="monotone" dataKey="shallow" stroke={CHART_GOLD} strokeWidth={2} fill="url(#soilGrad)" dot={{ r: 3, fill: CHART_GOLD }} />
+                    <Line type="monotone" dataKey="deep" stroke={CHART_CREAM} strokeWidth={1.5} dot={false} strokeDasharray="5 5" />
+                  </AreaChart>
                 </ResponsiveContainer>
               </div>
+            )}
 
-              {/* Soil Moisture */}
-              {soilMoistureData.length > 0 &&
-            <div className="animate-fade-in" style={{ animationDelay: "300ms" }}>
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-sm font-medium text-foreground">Soil Moisture, %</h3>
-                    <div className="flex items-center gap-4 text-xs">
-                      <span className="flex items-center gap-1.5">
-                        <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: CHART_GOLD }} />Surface (0-7cm)
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: CHART_CREAM }} />Deep (7-28cm)
-                      </span>
-                    </div>
+            {/* Crop Growth Data */}
+            <div className="animate-fade-in" style={{ animationDelay: "350ms" }}>
+              <h3 className="text-sm font-medium text-foreground mb-4">Crop Growth Indicators</h3>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { label: "Growth Rate", value: "Good", detail: "Above average for season", color: CHART_GREEN },
+                  { label: "Canopy Cover", value: "72%", detail: "Healthy leaf area index", color: CHART_GREEN },
+                  { label: "Biomass Est.", value: "4.2 t/acre", detail: "Based on NDVI correlation", color: CHART_GOLD },
+                ].map((item, i) => (
+                  <div key={i} className="p-3 rounded-xl border border-border bg-accent/10">
+                    <div className="text-xs text-muted-foreground mb-1">{item.label}</div>
+                    <div className="text-sm font-semibold" style={{ color: item.color }}>{item.value}</div>
+                    <div className="text-[10px] text-muted-foreground mt-1">{item.detail}</div>
                   </div>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <AreaChart data={soilMoistureData}>
-                      <defs>
-                        <linearGradient id="soilGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor={CHART_GOLD} stopOpacity={0.25} />
-                          <stop offset="95%" stopColor={CHART_GOLD} stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(150, 12%, 22%)" />
-                      <XAxis dataKey="month" stroke="hsl(150, 10%, 55%)" fontSize={11} />
-                      <YAxis stroke="hsl(150, 10%, 55%)" fontSize={11} />
-                      <Tooltip contentStyle={tooltipStyle} />
-                      <Area type="monotone" dataKey="shallow" stroke={CHART_GOLD} strokeWidth={2} fill="url(#soilGrad)" dot={{ r: 3, fill: CHART_GOLD }} />
-                      <Line type="monotone" dataKey="deep" stroke={CHART_CREAM} strokeWidth={1.5} dot={false} strokeDasharray="5 5" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-            }
-            </>
-          }
+                ))}
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
