@@ -14,52 +14,43 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    const prompt = `You are an expert agricultural analyst. Analyze this field and provide actionable insights.
+    const prompt = `You are a concise agricultural analyst. Give a SHORT, pin-point analysis for this field. Use simple language.
 
-**Field Data:**
-- Name: ${fieldName}
-- Crop: ${crop}
-- Area: ${area} acres
-- Location: ${location}
-- Current Temperature: ${temperature}°C
-- Humidity: ${humidity}%
-- Wind Speed: ${windSpeed} km/h
-- Estimated Soil Moisture: ${soilMoisture || "N/A"}%
-- Estimated NDVI: ${ndviEstimate || "0.55"}
+**Field:** ${fieldName} | **Crop:** ${crop} | **Area:** ${area} acres | **Location:** ${location}
+**Weather:** ${temperature}°C, ${humidity}% humidity, ${windSpeed} km/h wind
+**Soil Moisture:** ${soilMoisture || "N/A"}% | **NDVI Estimate:** ${ndviEstimate || "0.55"}
 
-Provide analysis in this EXACT markdown format:
+Respond in this EXACT format (keep each section to 1-2 sentences max):
 
-## Vegetation Health (NDVI/EVI Analysis)
-[2-3 sentences about vegetation health based on NDVI estimate, what the value means for ${crop}]
+## Vegetation Health
+[Quick assessment of NDVI ${ndviEstimate || "0.55"} for ${crop}. Is it healthy or concerning?]
 
-## Water Stress Assessment
-[2-3 sentences about water stress risk based on humidity, temperature, soil moisture]
+## Water Stress
+[Low/Medium/High risk? One sentence why.]
 
-## Growth Stage Classification
-[Estimate current growth stage for ${crop} based on season and conditions]
+## Growth Stage
+[Estimated current stage for ${crop} this time of year]
 
-## Land Suitability Score
-**Score: X/10**
-[Brief justification. Consider soil, climate, crop match]
+## Land Suitability
+**Score: X/10** — [One line justification]
 
-## Alternative Crop Recommendations
-[List 3-4 crops that could also thrive in this region with brief reasoning]
+## Alternative Crops
+- [Crop 1] — [why]
+- [Crop 2] — [why]
+- [Crop 3] — [why]
 
-## Risk Factors
+## Rainfall Forecast Risk
+[Which days this week have highest rain probability? Any extreme weather alerts? Tips for farmers to prevent crop loss.]
+
+## Key Risks
 - [Risk 1]
 - [Risk 2]
-- [Risk 3]
 
-## Opportunities
-- [Opportunity 1]
-- [Opportunity 2]
-
-## Key Metrics Summary
+## Summary Table
 | Metric | Value | Status |
 |--------|-------|--------|
 | NDVI | ${ndviEstimate || "0.55"} | [Good/Fair/Poor] |
-| Water Stress | [Low/Medium/High] | [emoji] |
-| Growth Rate | [estimate] | [status] |
+| Water Stress | [Low/Med/High] | [emoji] |
 | Yield Potential | [estimate] | [status] |`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {

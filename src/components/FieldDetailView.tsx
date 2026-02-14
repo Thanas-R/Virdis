@@ -164,10 +164,19 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
               <span className="text-xs text-muted-foreground">Crop</span>
               <div className="text-foreground font-medium">{field.crop}</div>
             </div>
-            <div>
+            <div className="col-span-2">
               <span className="text-xs text-muted-foreground">Location</span>
-              <div className="text-foreground font-medium text-xs truncate flex items-center gap-1">
-                <MapPin className="w-3 h-3 flex-shrink-0" />{field.location}
+              <div className="text-foreground font-medium text-xs flex items-start gap-1 mt-0.5">
+                <MapPin className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                <span className="break-words">{field.location}</span>
+              </div>
+              <div className="text-[10px] text-muted-foreground mt-1 font-mono">
+                {(() => {
+                  const coords = field.coordinates[0];
+                  const lat = (coords.reduce((s, c) => s + c[1], 0) / coords.length).toFixed(5);
+                  const lng = (coords.reduce((s, c) => s + c[0], 0) / coords.length).toFixed(5);
+                  return `${lat}°N, ${lng}°E`;
+                })()}
               </div>
             </div>
             {field.ndviChange !== undefined && (
@@ -281,7 +290,17 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
                   Generating field analysis...
                 </div>
               ) : (
-                <div className="prose prose-sm prose-invert max-w-none text-foreground [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:text-foreground [&_h2]:mt-4 [&_h2]:mb-2 [&_p]:text-xs [&_p]:text-muted-foreground [&_p]:leading-relaxed [&_li]:text-xs [&_li]:text-muted-foreground [&_table]:text-xs [&_th]:text-foreground [&_td]:text-muted-foreground [&_th]:px-2 [&_th]:py-1 [&_td]:px-2 [&_td]:py-1 [&_strong]:text-foreground">
+                <div className="prose prose-sm prose-invert max-w-none text-foreground
+                  [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:text-foreground [&_h2]:mt-4 [&_h2]:mb-2
+                  [&_h3]:text-xs [&_h3]:font-semibold [&_h3]:text-foreground [&_h3]:mt-3 [&_h3]:mb-1
+                  [&_p]:text-xs [&_p]:text-muted-foreground [&_p]:leading-relaxed
+                  [&_li]:text-xs [&_li]:text-muted-foreground
+                  [&_strong]:text-foreground
+                  [&_table]:text-xs [&_table]:w-full [&_table]:border-collapse [&_table]:mt-2 [&_table]:mb-3
+                  [&_th]:text-foreground [&_th]:px-2 [&_th]:py-1.5 [&_th]:text-left [&_th]:border [&_th]:border-border [&_th]:bg-accent/20 [&_th]:font-medium
+                  [&_td]:text-muted-foreground [&_td]:px-2 [&_td]:py-1.5 [&_td]:border [&_td]:border-border
+                  [&_tr:hover_td]:bg-accent/10
+                  [&_hr]:border-border [&_hr]:my-3">
                   <ReactMarkdown>{aiAnalysis}</ReactMarkdown>
                 </div>
               )}

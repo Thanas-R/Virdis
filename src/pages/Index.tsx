@@ -4,8 +4,8 @@ import WeatherView from "@/components/WeatherView";
 import { fields as initialFieldsData, Field } from "@/data/fields";
 import SidePanel from "@/components/SidePanel";
 
-const ALL_FIELDS_KEY = "farm-fields-v5";
-const SELECTED_IDS_KEY = "farm-sel-v5";
+const ALL_FIELDS_KEY = "farm-fields-v6";
+const SELECTED_IDS_KEY = "farm-sel-v6";
 
 function loadAllFields(): Field[] {
   try {
