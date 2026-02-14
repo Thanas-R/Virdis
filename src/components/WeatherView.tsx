@@ -51,7 +51,7 @@ interface WeatherViewProps {
 }
 
 const LAND_USE_DATA = [
-  { name: "Cropland", value: 45, color: "#2E5335" },
+  { name: "Cropland", value: 45, color: "#317039" },
   { name: "Vegetation", value: 25, color: "#7BC75B" },
   { name: "Water", value: 10, color: "#61AFEF" },
   { name: "Built-up", value: 12, color: "#E74C3C" },
