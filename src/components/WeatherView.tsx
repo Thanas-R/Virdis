@@ -322,7 +322,7 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
                               y={y}
                               textAnchor={x > cxVal ? "start" : "end"}
                               dominantBaseline="central"
-                              fontSize={12}
+                              fontSize={14}
                               fontWeight={700}
                             >
                               <tspan fill={payload.color}>{`${name} `}</tspan>
