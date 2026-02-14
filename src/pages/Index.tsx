@@ -4,8 +4,8 @@ import WeatherView from "@/components/WeatherView";
 import { fields as initialFieldsData, Field } from "@/data/fields";
 import SidePanel from "@/components/SidePanel";
 
-const ALL_FIELDS_KEY = "farm-fields-v6";
-const SELECTED_IDS_KEY = "farm-sel-v6";
+const ALL_FIELDS_KEY = "farm-fields-v7";
+const SELECTED_IDS_KEY = "farm-sel-v7";
 
 function loadAllFields(): Field[] {
   try {
@@ -69,7 +69,7 @@ const Index = () => {
     <div className="h-screen w-screen bg-surface-outer flex items-center justify-center p-6">
       <div className="w-full h-full max-w-[1400px] max-h-[900px] rounded-2xl overflow-hidden bg-background shadow-2xl relative border-[#041009] border-2">
         {/* View toggle */}
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex gap-1 bg-card/80 backdrop-blur-sm rounded-lg border border-border p-1">
+        <div className="absolute top-4 z-20 flex gap-1 bg-card/80 backdrop-blur-sm rounded-lg border border-border p-1" style={{ left: "calc(50% - 15px)", transform: "translateX(-50%)" }}>
           {(["map", "analytics"] as const).map((v) => (
             <button key={v} onClick={() => setView(v)}
               className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all duration-300 ${view === v ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>

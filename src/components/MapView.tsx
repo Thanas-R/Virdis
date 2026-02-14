@@ -96,7 +96,7 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
     if (!mapContainer.current || !mapToken) return;
     mapboxgl.accessToken = mapToken;
     const map = new mapboxgl.Map({
-      container: mapContainer.current, style: MAP_STYLES.satellite, center: [0.722, 40.719], zoom: 14, pitch: 0, attributionControl: false, doubleClickZoom: false
+      container: mapContainer.current, style: MAP_STYLES.satellite, center: [0.722, 40.719], zoom: 13, pitch: 0, attributionControl: false, doubleClickZoom: false
     });
     mapRef.current = map;
     map.on("load", () => { hideExtraLabels(map); setMapLoaded(true); refreshFieldLayers(map, allFieldsRef.current, allFieldsRef.current); });

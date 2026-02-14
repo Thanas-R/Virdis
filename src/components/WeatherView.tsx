@@ -51,10 +51,10 @@ interface WeatherViewProps {
 }
 
 const LAND_USE_DATA = [
-  { name: "Cropland", value: 45, color: "#98C379" },
+  { name: "Cropland", value: 45, color: "#2E5335" },
   { name: "Vegetation", value: 25, color: "#7BC75B" },
-  { name: "Water", value: 10, color: "#5BB8C7" },
-  { name: "Built-up", value: 12, color: "#BE5046" },
+  { name: "Water", value: 10, color: "#61AFEF" },
+  { name: "Built-up", value: 12, color: "#E74C3C" },
   { name: "Bare Soil", value: 8, color: "#EAB947" },
 ];
 
@@ -294,44 +294,48 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
 
             {/* Land Use / Suitability side by side */}
             <div className="grid grid-cols-2 gap-6 animate-fade-in" style={{ animationDelay: "100ms" }}>
-              <div>
-                <h3 className="text-sm font-medium text-foreground mb-4">Regional Land Use</h3>
-                <ResponsiveContainer width="100%" height={240}>
-                  <PieChart>
-                    <Pie
-                      data={LAND_USE_DATA}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={40}
-                      outerRadius={65}
-                      paddingAngle={3}
-                      dataKey="value"
-                      label={({ name, percent, cx, cy, midAngle, outerRadius: oR }) => {
-                        const RADIAN = Math.PI / 180;
-                        const radius = oR + 18;
-                        const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                        const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                        return (
-                          <text x={x} y={y} fill="hsl(60, 20%, 85%)" textAnchor={x > cx ? "start" : "end"} dominantBaseline="central" fontSize={10}>
-                            {`${name} ${(percent * 100).toFixed(0)}%`}
-                          </text>
-                        );
-                      }}
-                      stroke="none"
-                      fillOpacity={0.9}
-                    >
-                      {LAND_USE_DATA.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{
-                        ...tooltipStyle,
-                        backdropFilter: "blur(8px)",
-                        background: "hsla(150, 18%, 14%, 0.9)",
-                      }}
-                      itemStyle={{ color: "hsl(60, 20%, 85%)" }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
+              <div className="flex flex-col items-center">
+                <h3 className="text-sm font-medium text-foreground mb-4 self-start">Regional Land Use</h3>
+                <div className="rounded-2xl border border-border/40 p-4 w-full" style={{ background: "hsla(150, 18%, 14%, 0.6)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)" }}>
+                  <ResponsiveContainer width="100%" height={260}>
+                    <PieChart>
+                      <Pie
+                        data={LAND_USE_DATA}
+                        cx="50%"
+                        cy="45%"
+                        innerRadius={50}
+                        outerRadius={75}
+                        paddingAngle={3}
+                        dataKey="value"
+                        label={({ name, percent, cx: cxVal, cy: cyVal, midAngle, outerRadius: oR }) => {
+                          const RADIAN = Math.PI / 180;
+                          const radius = oR + 22;
+                          const x = cxVal + radius * Math.cos(-midAngle * RADIAN);
+                          const y = cyVal + radius * Math.sin(-midAngle * RADIAN);
+                          return (
+                            <text x={x} y={y} fill="hsl(60, 20%, 85%)" textAnchor={x > cxVal ? "start" : "end"} dominantBaseline="central" fontSize={11} fontWeight={500}>
+                              {`${name} ${(percent * 100).toFixed(0)}%`}
+                            </text>
+                          );
+                        }}
+                        stroke="hsla(150, 12%, 22%, 0.5)"
+                        strokeWidth={1}
+                        fillOpacity={0.9}
+                      >
+                        {LAND_USE_DATA.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{
+                          ...tooltipStyle,
+                          backdropFilter: "blur(12px)",
+                          background: "hsla(150, 18%, 14%, 0.92)",
+                          border: "1px solid hsla(150, 12%, 30%, 0.5)",
+                        }}
+                        itemStyle={{ color: "hsl(60, 20%, 85%)" }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
               <div>
                 <h3 className="text-sm font-medium text-foreground mb-4">Land Suitability Score</h3>

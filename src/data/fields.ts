@@ -16,29 +16,8 @@ export function haToAcres(ha: number): number {
   return Math.round(ha * 2.47105 * 10) / 10;
 }
 
-// Single default field in Deltebre – actual farmland along Tv-3401
-export const fields: Field[] = [
-  {
-    id: "default-1",
-    name: "Default Field in Deltebre",
-    area: 9.3,
-    crop: "Wheat",
-    cropEmoji: "",
-    location: "Tv-3401, 43580 Deltebre, Tarragona, Spain",
-    color: "#7BC75B",
-    ndviChange: 0.18,
-    group: "Agroloop",
-    coordinates: [[
-      [0.7260, 40.7170],
-      [0.7310, 40.7190],
-      [0.7340, 40.7180],
-      [0.7350, 40.7160],
-      [0.7330, 40.7145],
-      [0.7280, 40.7145],
-      [0.7260, 40.7170],
-    ]],
-  },
-];
+// No default fields – users create their own
+export const fields: Field[] = [];
 
 // Legacy data exports for compatibility
 export const accumulatedPrecipitation = [
