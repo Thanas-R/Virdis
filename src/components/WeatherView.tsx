@@ -51,16 +51,21 @@ interface WeatherViewProps {
 }
 
 const LAND_USE_DATA = [
-{ name: "Cropland", value: 45, color: CHART_GREEN },
-{ name: "Vegetation", value: 25, color: "#2ecc71" },
-{ name: "Water", value: 10, color: CHART_BLUE },
-{ name: "Built-up", value: 12, color: "#e74c3c" },
-{ name: "Bare Soil", value: 8, color: "#D19A66" }];
+  { name: "Cropland", value: 45, color: "#98C379" },
+  { name: "Vegetation", value: 25, color: "#7BC75B" },
+  { name: "Water", value: 10, color: "#5BB8C7" },
+  { name: "Built-up", value: 12, color: "#BE5046" },
+  { name: "Bare Soil", value: 8, color: "#EAB947" },
+];
 
 
 const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
-  const [startDate, setStartDate] = useState<Date>(new Date(2024, 3, 1));
-  const [endDate, setEndDate] = useState<Date>(new Date(2024, 9, 1));
+  const [endDate, setEndDate] = useState<Date>(new Date());
+  const [startDate, setStartDate] = useState<Date>(() => {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() - 1);
+    return d;
+  });
   const [monthlyData, setMonthlyData] = useState<any[]>([]);
   const [dailyData, setDailyData] = useState<any[]>([]);
   const [soilMoistureData, setSoilMoistureData] = useState<any[]>([]);
@@ -291,12 +296,40 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
             <div className="grid grid-cols-2 gap-6 animate-fade-in" style={{ animationDelay: "100ms" }}>
               <div>
                 <h3 className="text-sm font-medium text-foreground mb-4">Regional Land Use</h3>
-                <ResponsiveContainer width="100%" height={200}>
+                <ResponsiveContainer width="100%" height={240}>
                   <PieChart>
-                    <Pie data={LAND_USE_DATA} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                    <Pie
+                      data={LAND_USE_DATA}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={40}
+                      outerRadius={65}
+                      paddingAngle={3}
+                      dataKey="value"
+                      label={({ name, percent, cx, cy, midAngle, outerRadius: oR }) => {
+                        const RADIAN = Math.PI / 180;
+                        const radius = oR + 18;
+                        const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                        const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                        return (
+                          <text x={x} y={y} fill="hsl(60, 20%, 85%)" textAnchor={x > cx ? "start" : "end"} dominantBaseline="central" fontSize={10}>
+                            {`${name} ${(percent * 100).toFixed(0)}%`}
+                          </text>
+                        );
+                      }}
+                      stroke="none"
+                      fillOpacity={0.9}
+                    >
                       {LAND_USE_DATA.map((entry, i) => <Cell key={i} fill={entry.color} />)}
                     </Pie>
-                    <Tooltip contentStyle={tooltipStyle} />
+                    <Tooltip
+                      contentStyle={{
+                        ...tooltipStyle,
+                        backdropFilter: "blur(8px)",
+                        background: "hsla(150, 18%, 14%, 0.9)",
+                      }}
+                      itemStyle={{ color: "hsl(60, 20%, 85%)" }}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -400,9 +433,9 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
               <h3 className="text-sm font-medium text-foreground mb-4">Crop Growth Indicators</h3>
               <div className="grid grid-cols-3 gap-3">
                 {[
-              { label: "Growth Rate", value: "Good", detail: "Above average for season", color: CHART_GREEN },
-              { label: "Canopy Cover", value: "72%", detail: "Healthy leaf area index", color: CHART_GREEN },
-              { label: "Biomass Est.", value: "4.2 t/acre", detail: "Based on NDVI correlation", color: CHART_GOLD }].
+              { label: "Growth Rate", value: "N/A", detail: "Satellite data not available", color: "hsl(150, 10%, 55%)" },
+              { label: "Canopy Cover", value: "N/A", detail: "Satellite data not available", color: "hsl(150, 10%, 55%)" },
+              { label: "Biomass Est.", value: "N/A", detail: "Satellite data not available", color: "hsl(150, 10%, 55%)" }].
               map((item, i) =>
               <div key={i} className="p-3 rounded-xl border border-border bg-accent/10">
                     <div className="text-xs text-muted-foreground mb-1">{item.label}</div>
