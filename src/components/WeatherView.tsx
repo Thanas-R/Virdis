@@ -293,18 +293,21 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
           }
 
             {/* Land Use / Suitability side by side */}
-            <div className="grid grid-cols-2 gap-6 animate-fade-in" style={{ animationDelay: "100ms" }}>
-              <div className="flex flex-col items-center">
-                <h3 className="text-sm font-medium text-foreground mb-4 self-start">Regional Land Use</h3>
-                <div className="rounded-2xl border border-border/40 p-4 w-full" style={{ background: "hsla(150, 18%, 14%, 0.6)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)" }}>
-                  <ResponsiveContainer width="100%" height={260}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in" style={{ animationDelay: "100ms" }}>
+              <div className="flex flex-col">
+                <h3 className="text-sm font-medium text-foreground mb-4">Regional Land Use</h3>
+                <div
+                  className="rounded-2xl border border-border/40 p-4 w-full h-[290px] flex items-center justify-center"
+                  style={{ background: "hsla(150, 18%, 14%, 0.6)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)" }}
+                >
+                  <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
                         data={LAND_USE_DATA}
                         cx="50%"
-                        cy="45%"
-                        innerRadius={50}
-                        outerRadius={75}
+                        cy="50%"
+                        innerRadius={42}
+                        outerRadius={64}
                         paddingAngle={3}
                         dataKey="value"
                         label={({ name, percent, cx: cxVal, cy: cyVal, midAngle, outerRadius: oR }) => {
@@ -337,17 +340,19 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
                   </ResponsiveContainer>
                 </div>
               </div>
-              <div>
+              <div className="flex flex-col">
                 <h3 className="text-sm font-medium text-foreground mb-4">Land Suitability Score</h3>
-                <ResponsiveContainer width="100%" height={200}>
-                  <RadarChart data={suitabilityData}>
-                    <PolarGrid stroke="hsl(150, 12%, 22%)" />
-                    <PolarAngleAxis dataKey="metric" tick={{ fill: "hsl(150, 10%, 55%)", fontSize: 10 }} />
-                    <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} />
-                    <Radar name="Score" dataKey="value" stroke={CHART_GOLD} fill={CHART_GOLD} fillOpacity={0.25} />
-                    <Tooltip contentStyle={tooltipStyle} />
-                  </RadarChart>
-                </ResponsiveContainer>
+                <div className="rounded-2xl border border-border/40 p-4 w-full h-[290px] flex items-center justify-center" style={{ background: "hsla(150, 18%, 14%, 0.6)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)" }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadarChart data={suitabilityData}>
+                      <PolarGrid stroke="hsl(150, 12%, 22%)" />
+                      <PolarAngleAxis dataKey="metric" tick={{ fill: "hsl(150, 10%, 55%)", fontSize: 10 }} />
+                      <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} />
+                      <Radar name="Score" dataKey="value" stroke={CHART_GOLD} fill={CHART_GOLD} fillOpacity={0.25} />
+                      <Tooltip contentStyle={tooltipStyle} />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
             </div>
 
