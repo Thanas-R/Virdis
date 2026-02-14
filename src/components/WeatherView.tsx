@@ -306,17 +306,29 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
                         data={LAND_USE_DATA}
                         cx="50%"
                         cy="50%"
-                        innerRadius={42}
-                        outerRadius={64}
+                        innerRadius={58}
+                        outerRadius={90}
                         paddingAngle={3}
                         dataKey="value"
-                        label={({ name, percent, cx: cxVal, cy: cyVal, midAngle, outerRadius: oR }) => {
+                        labelLine={false}
+                        label={({ name, percent, cx: cxVal, cy: cyVal, midAngle, outerRadius: oR, payload }) => {
                           const RADIAN = Math.PI / 180;
-                          const radius = oR + 22;
+                          const radius = oR + 18;
                           const x = cxVal + radius * Math.cos(-midAngle * RADIAN);
                           const y = cyVal + radius * Math.sin(-midAngle * RADIAN);
                           return (
-                            <text x={x} y={y} fill="hsl(60, 20%, 85%)" textAnchor={x > cxVal ? "start" : "end"} dominantBaseline="central" fontSize={11} fontWeight={500}>
+                            <text
+                              x={x}
+                              y={y}
+                              fill={payload.color}
+                              stroke="hsla(0, 0%, 100%, 0.85)"
+                              strokeWidth={2.2}
+                              paintOrder="stroke"
+                              textAnchor={x > cxVal ? "start" : "end"}
+                              dominantBaseline="central"
+                              fontSize={12}
+                              fontWeight={700}
+                            >
                               {`${name} ${(percent * 100).toFixed(0)}%`}
                             </text>
                           );
