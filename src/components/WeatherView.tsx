@@ -321,9 +321,6 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
                               x={x}
                               y={y}
                               fill={payload.color}
-                              stroke="hsla(0, 0%, 100%, 0.85)"
-                              strokeWidth={2.2}
-                              paintOrder="stroke"
                               textAnchor={x > cxVal ? "start" : "end"}
                               dominantBaseline="central"
                               fontSize={12}
