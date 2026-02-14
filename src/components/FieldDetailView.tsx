@@ -301,7 +301,16 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
                   [&_td]:text-muted-foreground [&_td]:px-2 [&_td]:py-1.5 [&_td]:border [&_td]:border-border
                   [&_tr:hover_td]:bg-accent/10
                   [&_hr]:border-border [&_hr]:my-3">
-                  <ReactMarkdown>{aiAnalysis}</ReactMarkdown>
+                  <ReactMarkdown
+                    components={{
+                      table: ({ children }) => <table className="w-full border-collapse text-xs mt-2 mb-3">{children}</table>,
+                      thead: ({ children }) => <thead>{children}</thead>,
+                      tbody: ({ children }) => <tbody>{children}</tbody>,
+                      tr: ({ children }) => <tr className="hover:bg-accent/10">{children}</tr>,
+                      th: ({ children }) => <th className="text-foreground px-2 py-1.5 text-left border border-border bg-accent/20 font-medium">{children}</th>,
+                      td: ({ children }) => <td className="text-muted-foreground px-2 py-1.5 border border-border">{children}</td>,
+                    }}
+                  >{aiAnalysis}</ReactMarkdown>
                 </div>
               )}
             </div>

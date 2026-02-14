@@ -131,13 +131,38 @@ const SidePanel = ({
       </div>
 
       {/* Field list */}
-      <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-2">
-        {filtered.map(field => (
+      <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-2 pt-1">
+        {filtered.length === 0 && allFields.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-12 px-4 text-center space-y-4">
+            <div className="w-14 h-14 rounded-full border-2 border-dashed border-muted-foreground/40 flex items-center justify-center">
+              <MapPin className="w-6 h-6 text-muted-foreground/60" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-sm font-semibold text-foreground">No fields yet</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">Create your first field to get started:</p>
+            </div>
+            <div className="text-left space-y-2 w-full">
+              <div className="flex items-start gap-2.5 p-2.5 rounded-lg bg-accent/15 border border-border/50">
+                <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-semibold">1</span>
+                <span className="text-xs text-muted-foreground">Click the <strong className="text-foreground">pen icon</strong> on the map toolbar to enter drawing mode</span>
+              </div>
+              <div className="flex items-start gap-2.5 p-2.5 rounded-lg bg-accent/15 border border-border/50">
+                <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-semibold">2</span>
+                <span className="text-xs text-muted-foreground"><strong className="text-foreground">Click on the map</strong> to place boundary points around your field</span>
+              </div>
+              <div className="flex items-start gap-2.5 p-2.5 rounded-lg bg-accent/15 border border-border/50">
+                <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-semibold">3</span>
+                <span className="text-xs text-muted-foreground">Press <strong className="text-foreground">Enter</strong> to save or <strong className="text-foreground">Esc</strong> to cancel</span>
+              </div>
+            </div>
+          </div>
+        )}
+        {filtered.map((field, index) => (
           <div
             key={field.id}
             onClick={() => onFieldClick(field)}
             onDoubleClick={(e) => { e.preventDefault(); onFieldDoubleClick(field); }}
-            className="cursor-pointer"
+            className={`cursor-pointer ${index === 0 ? "mt-1" : ""}`}
           >
             <FieldCard
               field={field}
@@ -147,7 +172,7 @@ const SidePanel = ({
             />
           </div>
         ))}
-        {filtered.length === 0 && (
+        {filtered.length === 0 && allFields.length > 0 && (
           <div className="text-center py-8 text-sm text-muted-foreground">No fields match</div>
         )}
       </div>
