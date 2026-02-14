@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   ArrowLeft, Droplets, Wind, Sprout, CheckCircle, MapPin,
   TrendingUp, TrendingDown, BarChart3, Leaf, Move, Brain, Loader2,
@@ -46,6 +46,63 @@ const historicalYield: Record<string, { year: string; yield: number }[]> = {
 };
 
 const ANALYSIS_CACHE_KEY = "field-ai-analysis-cache";
+
+type AnalysisBlock =
+  | { type: "markdown"; content: string }
+  | { type: "table"; rows: string[][] };
+
+const isTableRow = (line: string) => /^\s*\|.*\|\s*$/.test(line);
+
+const parseTableRow = (line: string) =>
+  line
+    .trim()
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map((cell) => cell.trim());
+
+const isSeparatorCell = (cell: string) => /^:?-{3,}:?$/.test(cell.trim());
+
+function splitAnalysisBlocks(rawText: string): AnalysisBlock[] {
+  const text = rawText.replace(/\\n/g, "\n");
+  const lines = text.split("\n");
+  const blocks: AnalysisBlock[] = [];
+  let markdownBuffer: string[] = [];
+
+  const flushMarkdown = () => {
+    if (!markdownBuffer.length) return;
+    blocks.push({ type: "markdown", content: markdownBuffer.join("\n") });
+    markdownBuffer = [];
+  };
+
+  for (let i = 0; i < lines.length; i += 1) {
+    if (!isTableRow(lines[i])) {
+      markdownBuffer.push(lines[i]);
+      continue;
+    }
+
+    flushMarkdown();
+    const tableRows: string[][] = [];
+    while (i < lines.length && isTableRow(lines[i])) {
+      tableRows.push(parseTableRow(lines[i]));
+      i += 1;
+    }
+
+    const hasSeparator = tableRows[1]?.every(isSeparatorCell);
+    if (hasSeparator) tableRows.splice(1, 1);
+
+    if (tableRows.length >= 2) {
+      blocks.push({ type: "table", rows: tableRows });
+    } else {
+      markdownBuffer.push(...tableRows.map((row) => `| ${row.join(" | ")} |`));
+    }
+
+    i -= 1;
+  }
+
+  flushMarkdown();
+  return blocks;
+}
 
 function getAnalysisCache(): Record<string, { analysis: string; timestamp: number }> {
   try {
@@ -133,6 +190,7 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
   const growth = cropGrowthStages[field.crop] || { stages: ["Germination", "Growth", "Maturity"], currentStage: 1 };
   const yields = historicalYield[field.crop] || [];
   const lastYield = yields.length >= 2 ? yields[yields.length - 1].yield - yields[yields.length - 2].yield : 0;
+  const analysisBlocks = useMemo(() => splitAnalysisBlocks(aiAnalysis), [aiAnalysis]);
 
   return (
     <div className="flex flex-col h-full">
@@ -301,16 +359,34 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
                   [&_td]:text-muted-foreground [&_td]:px-2 [&_td]:py-1.5 [&_td]:border [&_td]:border-border
                   [&_tr:hover_td]:bg-accent/10
                   [&_hr]:border-border [&_hr]:my-3">
-                  <ReactMarkdown
-                    components={{
-                      table: ({ children }) => <table className="w-full border-collapse text-xs mt-2 mb-3">{children}</table>,
-                      thead: ({ children }) => <thead>{children}</thead>,
-                      tbody: ({ children }) => <tbody>{children}</tbody>,
-                      tr: ({ children }) => <tr className="hover:bg-accent/10">{children}</tr>,
-                      th: ({ children }) => <th className="text-foreground px-2 py-1.5 text-left border border-border bg-accent/20 font-medium">{children}</th>,
-                      td: ({ children }) => <td className="text-muted-foreground px-2 py-1.5 border border-border">{children}</td>,
-                    }}
-                  >{aiAnalysis}</ReactMarkdown>
+                  {analysisBlocks.map((block, blockIndex) => {
+                    if (block.type === "markdown") {
+                      if (!block.content.trim()) return null;
+                      return <ReactMarkdown key={`md-${blockIndex}`}>{block.content}</ReactMarkdown>;
+                    }
+
+                    const [header, ...bodyRows] = block.rows;
+                    return (
+                      <table key={`table-${blockIndex}`} className="w-full border-collapse text-xs mt-2 mb-3">
+                        <thead>
+                          <tr className="hover:bg-accent/10">
+                            {header.map((cell, i) => (
+                              <th key={`${blockIndex}-h-${i}`} className="text-foreground px-2 py-1.5 text-left border border-border bg-accent/20 font-medium">{cell}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {bodyRows.map((row, rowIndex) => (
+                            <tr key={`${blockIndex}-r-${rowIndex}`} className="hover:bg-accent/10">
+                              {row.map((cell, colIndex) => (
+                                <td key={`${blockIndex}-r-${rowIndex}-c-${colIndex}`} className="text-muted-foreground px-2 py-1.5 border border-border">{cell}</td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    );
+                  })}
                 </div>
               )}
             </div>
