@@ -5,72 +5,20 @@ import { DayPicker } from "react-day-picker";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 
-export type CalendarProps = React.ComponentProps<typeof DayPicker> & {
-  onMonthYearChange?: (date: Date) => void;
-};
-
-function MonthYearCaption({ calendarMonth, onMonthChange }: { calendarMonth: { date: Date }; onMonthChange?: (date: Date) => void }) {
-  const date = calendarMonth.date;
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 11 }, (_, i) => currentYear - 5 + i);
-
-  return (
-    <div className="flex items-center gap-1 justify-center">
-      <select
-        value={date.getMonth()}
-        onChange={(e) => {
-          const newDate = new Date(date);
-          newDate.setMonth(parseInt(e.target.value));
-          onMonthChange?.(newDate);
-        }}
-        className="bg-transparent text-sm font-medium text-foreground border-none outline-none cursor-pointer appearance-none px-1 hover:text-primary transition-colors"
-      >
-        {months.map((m, i) => (
-          <option key={m} value={i} className="bg-card text-foreground">{m}</option>
-        ))}
-      </select>
-      <select
-        value={date.getFullYear()}
-        onChange={(e) => {
-          const newDate = new Date(date);
-          newDate.setFullYear(parseInt(e.target.value));
-          onMonthChange?.(newDate);
-        }}
-        className="bg-transparent text-sm font-medium text-foreground border-none outline-none cursor-pointer appearance-none px-1 hover:text-primary transition-colors"
-      >
-        {years.map((y) => (
-          <option key={y} value={y} className="bg-card text-foreground">{y}</option>
-        ))}
-      </select>
-    </div>
-  );
-}
+export type CalendarProps = React.ComponentProps<typeof DayPicker>;
 
 function Calendar({
   className,
   classNames,
   showOutsideDays = true,
   components: userComponents,
-  onMonthYearChange,
-  month: controlledMonth,
-  onMonthChange: controlledOnMonthChange,
   ...props
 }: CalendarProps) {
-  const [internalMonth, setInternalMonth] = React.useState(controlledMonth || new Date());
-  const activeMonth = controlledMonth || internalMonth;
-
-  const handleMonthChange = (date: Date) => {
-    setInternalMonth(date);
-    controlledOnMonthChange?.(date);
-    onMonthYearChange?.(date);
-  };
-
   const defaultClassNames = {
     months: "relative flex flex-col sm:flex-row gap-4",
     month: "w-full",
     month_caption: "relative mx-10 mb-1 flex h-9 items-center justify-center z-20",
-    caption_label: "hidden",
+    caption_label: "text-sm font-medium",
     nav: "absolute top-0 flex w-full justify-between z-10",
     button_previous: cn(
       buttonVariants({ variant: "ghost" }),
@@ -121,9 +69,6 @@ function Calendar({
         <ChevronRight size={16} strokeWidth={2} {...props} aria-hidden="true" />
       );
     },
-    MonthCaption: (captionProps: any) => (
-      <MonthYearCaption calendarMonth={captionProps.calendarMonth} onMonthChange={handleMonthChange} />
-    ),
   };
 
   const mergedComponents = {
@@ -137,8 +82,6 @@ function Calendar({
       className={cn("w-fit pointer-events-auto", className)}
       classNames={mergedClassNames}
       components={mergedComponents}
-      month={activeMonth}
-      onMonthChange={handleMonthChange}
       {...props}
     />
   );
