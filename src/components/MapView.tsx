@@ -12,6 +12,24 @@ const MAP_STYLES = {
   satellite: "mapbox://styles/mapbox/satellite-streets-v12"
 };
 
+const MAP_POS_KEY = "map-last-position";
+
+function saveMapPosition(map: mapboxgl.Map) {
+  const center = map.getCenter();
+  const zoom = map.getZoom();
+  const bearing = map.getBearing();
+  const pitch = map.getPitch();
+  localStorage.setItem(MAP_POS_KEY, JSON.stringify({ lng: center.lng, lat: center.lat, zoom, bearing, pitch }));
+}
+
+function loadMapPosition(): { lng: number; lat: number; zoom: number; bearing: number; pitch: number } {
+  try {
+    const saved = localStorage.getItem(MAP_POS_KEY);
+    if (saved) return JSON.parse(saved);
+  } catch {}
+  return { lng: 0.722, lat: 40.719, zoom: 13, bearing: 0, pitch: 0 };
+}
+
 function hideExtraLabels(map: mapboxgl.Map) {
   const style = map.getStyle();
   if (!style?.layers) return;
@@ -95,11 +113,16 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
   useEffect(() => {
     if (!mapContainer.current || !mapToken) return;
     mapboxgl.accessToken = mapToken;
+    const pos = loadMapPosition();
     const map = new mapboxgl.Map({
-      container: mapContainer.current, style: MAP_STYLES.satellite, center: [0.722, 40.719], zoom: 13, pitch: 0, attributionControl: false, doubleClickZoom: false
+      container: mapContainer.current, style: MAP_STYLES.satellite,
+      center: [pos.lng, pos.lat], zoom: pos.zoom, bearing: pos.bearing, pitch: pos.pitch,
+      attributionControl: false, doubleClickZoom: false
     });
     mapRef.current = map;
     map.on("load", () => { hideExtraLabels(map); setMapLoaded(true); refreshFieldLayers(map, allFieldsRef.current, allFieldsRef.current); });
+    // Save position on move
+    map.on("moveend", () => saveMapPosition(map));
     map.on("click", (e) => {
       if (drawModeRef.current) return;
       const fieldLayers = allFieldsRef.current.map((f) => `field-fill-${f.id}`).filter((id) => { try { return !!map.getLayer(id); } catch { return false; } });
@@ -297,13 +320,26 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
     }
   };
 
+  const handleResetNorth = () => {
+    mapRef.current?.easeTo({ bearing: 0, pitch: 0, duration: 500 });
+  };
+
+  const handleLocateUser = () => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { mapRef.current?.flyTo({ center: [pos.coords.longitude, pos.coords.latitude], zoom: 15, duration: 2000 }); },
+      (err) => { console.warn("Geolocation error:", err.message); }
+    );
+  };
+
   return (
     <div className="relative w-full h-full">
       {!mapToken && <div className="absolute inset-0 flex items-center justify-center bg-background z-10"><div className="text-muted-foreground text-sm animate-pulse">Loading map…</div></div>}
       <div ref={mapContainer} className="w-full h-full" />
       <SearchBar onSearch={() => {}} mapToken={mapToken} onLocationSelect={handleLocationSelect} />
       <MapToolbar onZoomIn={() => mapRef.current?.zoomIn()} onZoomOut={() => mapRef.current?.zoomOut()} onStyleChange={handleStyleChange}
-        onToggleLayers={() => setShowFields((prev) => !prev)} onToggleDraw={handleToggleDraw} isDrawing={drawMode} showFields={showFields} defaultStyle="satellite" />
+        onToggleLayers={() => setShowFields((prev) => !prev)} onToggleDraw={handleToggleDraw} isDrawing={drawMode} showFields={showFields} defaultStyle="satellite"
+        onResetNorth={handleResetNorth} onLocateUser={handleLocateUser} />
 
       {drawMode && (
         <div className="absolute bottom-6 left-4 z-10 bg-card/90 backdrop-blur-sm rounded-lg border border-border px-4 py-2.5 text-xs text-foreground space-y-1">
