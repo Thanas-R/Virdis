@@ -6,6 +6,7 @@ import SidePanel from "@/components/SidePanel";
 import { useIsMobile } from "@/hooks/use-mobile";
 import MobileBottomNav from "@/components/MobileBottomNav";
 import MobileFieldSheet from "@/components/MobileFieldSheet";
+import { useSwipe } from "@/hooks/use-swipe";
 
 const ALL_FIELDS_KEY = "farm-fields-v7";
 const SELECTED_IDS_KEY = "farm-sel-v7";
@@ -76,12 +77,26 @@ const Index = () => {
     if (isMobile) setMobileTab("map");
   }, [isMobile]);
 
+  const tabOrder: ("map" | "fields" | "analytics")[] = ["map", "fields", "analytics"];
+  const swipeHandlers = useSwipe({
+    onSwipeLeft: () => {
+      if (mobileTab === "detail") return;
+      const idx = tabOrder.indexOf(mobileTab);
+      if (idx < tabOrder.length - 1) setMobileTab(tabOrder[idx + 1]);
+    },
+    onSwipeRight: () => {
+      if (mobileTab === "detail") return;
+      const idx = tabOrder.indexOf(mobileTab);
+      if (idx > 0) setMobileTab(tabOrder[idx - 1]);
+    },
+  });
+
   // MOBILE LAYOUT
   if (isMobile) {
     return (
-      <div className="h-screen w-screen bg-background flex flex-col relative overflow-hidden">
+      <div className="h-screen w-screen bg-background flex flex-col relative overflow-hidden" {...swipeHandlers}>
         {/* Full-screen map always rendered behind */}
-        <div className="absolute inset-0" style={{ bottom: 56 }}>
+        <div className="absolute inset-0" style={{ bottom: 0 }}>
           <MapView allFields={allFields} selectedFields={selectedFields} activeField={activeField} flyToField={flyToField}
             onFlyToDone={() => setFlyToField(null)} onFieldClickOnMap={(field) => { setActiveField(field); setDetailField(field); setMobileTab("detail"); }}
             onAddField={handleAddField} editBoundaryFieldId={editBoundaryFieldId} onUpdateField={handleUpdateField} onCancelEditBoundary={() => setEditBoundaryFieldId(null)} />
@@ -102,13 +117,13 @@ const Index = () => {
         )}
 
         {mobileTab === "analytics" && (
-          <div className="absolute inset-0 z-30 bg-background overflow-y-auto" style={{ bottom: 56 }}>
+          <div className="absolute inset-0 z-30 bg-background overflow-y-auto pb-20">
             <WeatherView activeField={activeField} selectedFields={selectedFields} />
           </div>
         )}
 
         {mobileTab === "detail" && detailField && (
-          <div className="absolute inset-0 z-30 bg-card overflow-y-auto" style={{ bottom: 56 }}>
+          <div className="absolute inset-0 z-30 bg-card overflow-y-auto pb-20">
             <SidePanel allFields={allFields} selectedFields={selectedFields} activeField={activeField} detailField={detailField}
               onFieldClick={handleFieldClick} onFieldDoubleClick={handleFieldDoubleClick}
               onBackFromDetail={() => { setDetailField(null); setMobileTab("map"); }}
@@ -117,7 +132,7 @@ const Index = () => {
           </div>
         )}
 
-        {/* Bottom Navigation */}
+        {/* Floating Bottom Navigation */}
         <MobileBottomNav activeTab={mobileTab === "detail" ? "fields" : mobileTab} onTabChange={(tab) => {
           if (tab === "map") { setMobileTab("map"); }
           else if (tab === "fields") { setMobileTab("fields"); }

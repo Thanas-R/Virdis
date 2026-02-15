@@ -13,16 +13,20 @@ const tabs = [
 
 const MobileBottomNav = ({ activeTab, onTabChange }: MobileBottomNavProps) => {
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-md border-t border-border flex items-center justify-around h-14 safe-area-bottom">
+    <div className="fixed bottom-3 left-4 right-4 z-50 flex items-center justify-around h-14 rounded-2xl bg-card/80 backdrop-blur-xl border border-border/60 shadow-lg shadow-black/20 safe-area-bottom">
       {tabs.map(({ id, icon: Icon, label }) => (
         <button
           key={id}
           onClick={() => onTabChange(id)}
-          className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors ${
-            activeTab === id ? "text-primary" : "text-muted-foreground"
+          className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-all duration-200 ${
+            activeTab === id
+              ? "text-primary"
+              : "text-muted-foreground"
           }`}
         >
-          <Icon className="w-5 h-5" />
+          <div className={`p-1 rounded-xl transition-all duration-200 ${activeTab === id ? "bg-primary/15" : ""}`}>
+            <Icon className="w-5 h-5" />
+          </div>
           <span className="text-[10px] font-medium">{label}</span>
         </button>
       ))}
