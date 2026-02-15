@@ -1,4 +1,4 @@
-import { Layers, Plus, Minus, Map, PenTool } from "lucide-react";
+import { Layers, Plus, Minus, Map, PenTool, Compass, LocateFixed } from "lucide-react";
 import { useState } from "react";
 
 type MapStyle = "dark" | "satellite";
@@ -9,6 +9,8 @@ interface MapToolbarProps {
   onStyleChange?: (style: MapStyle) => void;
   onToggleLayers?: () => void;
   onToggleDraw?: () => void;
+  onResetNorth?: () => void;
+  onLocateUser?: () => void;
   isDrawing?: boolean;
   showFields?: boolean;
   defaultStyle?: MapStyle;
@@ -20,6 +22,8 @@ const MapToolbar = ({
   onStyleChange,
   onToggleLayers,
   onToggleDraw,
+  onResetNorth,
+  onLocateUser,
   isDrawing,
   showFields = true,
   defaultStyle = "dark",
@@ -38,6 +42,8 @@ const MapToolbar = ({
     { icon: Minus, onClick: onZoomOut, label: "Zoom Out" },
     { icon: Map, onClick: handleStyleToggle, label: currentStyle === "dark" ? "Satellite" : "Dark Mode", active: currentStyle === "satellite" },
     { icon: PenTool, onClick: onToggleDraw ?? (() => {}), label: "Draw Field", active: isDrawing },
+    { icon: Compass, onClick: onResetNorth ?? (() => {}), label: "Reset North" },
+    { icon: LocateFixed, onClick: onLocateUser ?? (() => {}), label: "My Location" },
   ];
 
   return (

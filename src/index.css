@@ -87,3 +87,16 @@
   background: hsl(var(--border));
   border-radius: 3px;
 }
+
+/* Safe area for mobile bottom nav */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Mobile: hide MapToolbar left positioning on small screens */
+@media (max-width: 767px) {
+  .mapboxgl-ctrl-top-right,
+  .mapboxgl-ctrl-top-left {
+    display: none !important;
+  }
+}
