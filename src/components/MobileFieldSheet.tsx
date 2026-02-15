@@ -47,7 +47,7 @@ const MobileFieldSheet = ({
   const sortLabel = sortBy === "name" ? "Name" : sortBy === "area" ? "Area" : "NDVI";
 
   return (
-    <div className="absolute inset-0 z-30 bg-background flex flex-col" style={{ bottom: 56 }}>
+    <div className="absolute inset-0 z-30 bg-background flex flex-col pb-20">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <h2 className="text-lg font-semibold text-foreground">Fields</h2>

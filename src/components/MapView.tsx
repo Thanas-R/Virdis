@@ -5,6 +5,8 @@ import { Field } from "@/data/fields";
 import SearchBar from "./SearchBar";
 import MapToolbar from "./MapToolbar";
 import NewFieldDialog from "./NewFieldDialog";
+import MobileDrawPrompt from "./MobileDrawPrompt";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
 
 const MAP_STYLES = {
@@ -54,6 +56,7 @@ interface MapViewProps {
 }
 
 const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDone, onFieldClickOnMap, onAddField, editBoundaryFieldId, onUpdateField, onCancelEditBoundary }: MapViewProps) => {
+  const isMobile = useIsMobile();
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const [mapToken, setMapToken] = useState("");
@@ -341,7 +344,20 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
         onToggleLayers={() => setShowFields((prev) => !prev)} onToggleDraw={handleToggleDraw} isDrawing={drawMode} showFields={showFields} defaultStyle="satellite"
         onResetNorth={handleResetNorth} onLocateUser={handleLocateUser} />
 
-      {drawMode && (
+      {drawMode && isMobile && (
+        <MobileDrawPrompt
+          vertexCount={drawVertices.length}
+          onSave={() => {
+            if (drawVertices.length >= 3) {
+              setDrawMode(false);
+              setShowNewFieldDialog(true);
+            }
+          }}
+          onCancel={() => { setDrawMode(false); setDrawVertices([]); }}
+        />
+      )}
+
+      {drawMode && !isMobile && (
         <div className="absolute bottom-6 left-4 z-10 bg-card/90 backdrop-blur-sm rounded-lg border border-border px-4 py-2.5 text-xs text-foreground space-y-1">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: "#EAB947" }} />
