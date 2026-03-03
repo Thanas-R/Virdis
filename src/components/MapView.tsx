@@ -6,8 +6,10 @@ import SearchBar from "./SearchBar";
 import MapToolbar from "./MapToolbar";
 import NewFieldDialog from "./NewFieldDialog";
 import MobileDrawPrompt from "./MobileDrawPrompt";
+import DetectedFieldsReview from "./DetectedFieldsReview";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const MAP_STYLES = {
   dark: "mapbox://styles/mapbox/dark-v11",
@@ -18,17 +20,11 @@ const MAP_POS_KEY = "map-last-position";
 
 function saveMapPosition(map: mapboxgl.Map) {
   const center = map.getCenter();
-  const zoom = map.getZoom();
-  const bearing = map.getBearing();
-  const pitch = map.getPitch();
-  localStorage.setItem(MAP_POS_KEY, JSON.stringify({ lng: center.lng, lat: center.lat, zoom, bearing, pitch }));
+  localStorage.setItem(MAP_POS_KEY, JSON.stringify({ lng: center.lng, lat: center.lat, zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch() }));
 }
 
-function loadMapPosition(): { lng: number; lat: number; zoom: number; bearing: number; pitch: number } {
-  try {
-    const saved = localStorage.getItem(MAP_POS_KEY);
-    if (saved) return JSON.parse(saved);
-  } catch {}
+function loadMapPosition() {
+  try { const s = localStorage.getItem(MAP_POS_KEY); if (s) return JSON.parse(s); } catch {}
   return { lng: 0.722, lat: 40.719, zoom: 13, bearing: 0, pitch: 0 };
 }
 
@@ -55,6 +51,15 @@ interface MapViewProps {
   onCancelEditBoundary?: () => void;
 }
 
+interface DetectedFieldData {
+  name: string;
+  crop: string;
+  cropEmoji: string;
+  ndviEstimate: number;
+  color: string;
+  coordinates: [number, number][];
+}
+
 const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDone, onFieldClickOnMap, onAddField, editBoundaryFieldId, onUpdateField, onCancelEditBoundary }: MapViewProps) => {
   const isMobile = useIsMobile();
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -65,6 +70,10 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
   const [drawVertices, setDrawVertices] = useState<[number, number][]>([]);
   const [showNewFieldDialog, setShowNewFieldDialog] = useState(false);
   const [showFields, setShowFields] = useState(true);
+  const [showNdvi, setShowNdvi] = useState(false);
+  const [isDetecting, setIsDetecting] = useState(false);
+  const [detectedFields, setDetectedFields] = useState<DetectedFieldData[] | null>(null);
+  const [detectionSummary, setDetectionSummary] = useState("");
   const editMarkersRef = useRef<mapboxgl.Marker[]>([]);
   const drawModeRef = useRef(false);
   const allFieldsRef = useRef(allFields);
@@ -124,7 +133,6 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
     });
     mapRef.current = map;
     map.on("load", () => { hideExtraLabels(map); setMapLoaded(true); refreshFieldLayers(map, allFieldsRef.current, allFieldsRef.current); });
-    // Save position on move
     map.on("moveend", () => saveMapPosition(map));
     map.on("click", (e) => {
       if (drawModeRef.current) return;
@@ -165,6 +173,74 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
       } catch {}
     });
   }, [showFields, mapLoaded, allFields]);
+
+  // NDVI overlay layer
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapLoaded) return;
+    const ndviSourceId = "ndvi-sentinel";
+    const ndviLayerId = "ndvi-layer";
+
+    if (!showNdvi) {
+      try { if (map.getLayer(ndviLayerId)) map.removeLayer(ndviLayerId); } catch {}
+      try { if (map.getSource(ndviSourceId)) map.removeSource(ndviSourceId); } catch {}
+      return;
+    }
+
+    // Use Sentinel-2 NDVI visualization from Sentinel Hub EO Browser (free WMS)
+    // Fallback: use a color-coded NDVI raster from public tile services
+    if (!map.getSource(ndviSourceId)) {
+      map.addSource(ndviSourceId, {
+        type: "raster",
+        tiles: [
+          "https://services.sentinel-hub.com/ogc/wms/1748e5b5-4266-4c6e-8983-3aa4c6eb0e5e?SERVICE=WMS&REQUEST=GetMap&LAYERS=NDVI&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&SRS=EPSG:3857&FORMAT=image/png&TRANSPARENT=true&TIME=2024-01-01/2025-12-31&MAXCC=30"
+        ],
+        tileSize: 256,
+      });
+    }
+    if (!map.getLayer(ndviLayerId)) {
+      map.addLayer({
+        id: ndviLayerId,
+        type: "raster",
+        source: ndviSourceId,
+        paint: { "raster-opacity": 0.6 },
+      }, allFields.length > 0 ? `field-fill-${allFields[0].id}` : undefined);
+    }
+  }, [showNdvi, mapLoaded, allFields]);
+
+  // Show detected field previews on map
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapLoaded) return;
+
+    // Clean previous detection layers
+    const style = map.getStyle();
+    if (style?.layers) {
+      style.layers.filter(l => l.id.startsWith("detected-")).forEach(l => { try { map.removeLayer(l.id); } catch {} });
+    }
+    if (style?.sources) {
+      Object.keys(style.sources).filter(s => s.startsWith("detected-")).forEach(s => { try { map.removeSource(s); } catch {} });
+    }
+
+    if (!detectedFields || detectedFields.length === 0) return;
+
+    detectedFields.forEach((field, idx) => {
+      const sourceId = `detected-${idx}`;
+      const coords: [number, number][] = [...field.coordinates, field.coordinates[0]];
+      map.addSource(sourceId, {
+        type: "geojson",
+        data: { type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [coords] } }
+      });
+      map.addLayer({
+        id: `detected-fill-${idx}`, type: "fill", source: sourceId,
+        paint: { "fill-color": field.color, "fill-opacity": 0.25 }
+      });
+      map.addLayer({
+        id: `detected-line-${idx}`, type: "line", source: sourceId,
+        paint: { "line-color": field.color, "line-width": 2, "line-dasharray": [3, 2] }
+      });
+    });
+  }, [detectedFields, mapLoaded]);
 
   // Drawing mode
   useEffect(() => {
@@ -222,74 +298,45 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
     }
   }, [drawVertices, mapLoaded]);
 
-  // Boundary editing with draggable markers + dynamic lines + Enter/Escape
+  // Boundary editing
   useEffect(() => {
     editMarkersRef.current.forEach((m) => m.remove());
     editMarkersRef.current = [];
     if (!editBoundaryFieldId || !mapRef.current || !mapLoaded) return;
-
     const field = allFields.find((f) => f.id === editBoundaryFieldId);
     if (!field) return;
     const map = mapRef.current;
     const coords = field.coordinates[0];
-    const currentCoords = [...coords]; // mutable copy for live updates
+    const currentCoords = [...coords];
 
     const updateLivePolygon = () => {
-      const sourceId = `field-${field.id}`;
-      const source = map.getSource(sourceId) as mapboxgl.GeoJSONSource | undefined;
-      if (source) {
-        source.setData({
-          type: "Feature",
-          properties: { id: field.id },
-          geometry: { type: "Polygon", coordinates: [currentCoords] }
-        });
-      }
+      const source = map.getSource(`field-${field.id}`) as mapboxgl.GeoJSONSource | undefined;
+      if (source) source.setData({ type: "Feature", properties: { id: field.id }, geometry: { type: "Polygon", coordinates: [currentCoords] } });
     };
 
     coords.slice(0, -1).forEach((coord, i) => {
       const el = document.createElement("div");
-      el.style.width = "14px";
-      el.style.height = "14px";
-      el.style.borderRadius = "50%";
-      el.style.border = "2px solid white";
-      el.style.backgroundColor = field.color;
-      el.style.cursor = "grab";
-      el.style.boxShadow = "0 2px 6px rgba(0,0,0,0.4)";
-
+      Object.assign(el.style, { width: "14px", height: "14px", borderRadius: "50%", border: "2px solid white", backgroundColor: field.color, cursor: "grab", boxShadow: "0 2px 6px rgba(0,0,0,0.4)" });
       const marker = new mapboxgl.Marker({ element: el, draggable: true }).setLngLat(coord).addTo(map);
-
-      // Dynamic line update on drag
       marker.on("drag", () => {
-        const lngLat = marker.getLngLat();
-        currentCoords[i] = [lngLat.lng, lngLat.lat];
-        if (i === 0) currentCoords[currentCoords.length - 1] = [lngLat.lng, lngLat.lat];
+        const ll = marker.getLngLat();
+        currentCoords[i] = [ll.lng, ll.lat];
+        if (i === 0) currentCoords[currentCoords.length - 1] = [ll.lng, ll.lat];
         updateLivePolygon();
       });
-
       marker.on("dragend", () => {
-        const lngLat = marker.getLngLat();
-        const newCoords = [...currentCoords];
-        newCoords[i] = [lngLat.lng, lngLat.lat];
-        if (i === 0) newCoords[newCoords.length - 1] = [lngLat.lng, lngLat.lat];
-        onUpdateFieldRef.current?.({ ...field, coordinates: [newCoords] as [number, number][][] });
+        const ll = marker.getLngLat();
+        const nc = [...currentCoords];
+        nc[i] = [ll.lng, ll.lat];
+        if (i === 0) nc[nc.length - 1] = [ll.lng, ll.lat];
+        onUpdateFieldRef.current?.({ ...field, coordinates: [nc] as [number, number][][] });
       });
-
       editMarkersRef.current.push(marker);
     });
 
-    // Enter to save, Escape to cancel
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Enter" || e.key === "Escape") {
-        onCancelEditBoundary?.();
-      }
-    };
+    const handleKeyDown = (e: KeyboardEvent) => { if (e.key === "Enter" || e.key === "Escape") onCancelEditBoundary?.(); };
     document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      editMarkersRef.current.forEach((m) => m.remove());
-      editMarkersRef.current = [];
-      document.removeEventListener("keydown", handleKeyDown);
-    };
+    return () => { editMarkersRef.current.forEach((m) => m.remove()); editMarkersRef.current = []; document.removeEventListener("keydown", handleKeyDown); };
   }, [editBoundaryFieldId, mapLoaded, allFields, onCancelEditBoundary]);
 
   const handleStyleChange = (style: "dark" | "satellite") => {
@@ -323,16 +370,69 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
     }
   };
 
-  const handleResetNorth = () => {
-    mapRef.current?.easeTo({ bearing: 0, pitch: 0, duration: 500 });
-  };
-
+  const handleResetNorth = () => { mapRef.current?.easeTo({ bearing: 0, pitch: 0, duration: 500 }); };
   const handleLocateUser = () => {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
       (pos) => { mapRef.current?.flyTo({ center: [pos.coords.longitude, pos.coords.latitude], zoom: 15, duration: 2000 }); },
       (err) => { console.warn("Geolocation error:", err.message); }
     );
+  };
+
+  // AI Field Detection
+  const handleDetectFields = async () => {
+    const map = mapRef.current;
+    if (!map) return;
+    setIsDetecting(true);
+    setDetectedFields(null);
+    toast.info("Capturing map view and analyzing with AI…");
+
+    try {
+      // Capture map canvas as base64
+      const canvas = map.getCanvas();
+      const dataUrl = canvas.toDataURL("image/png");
+      const imageBase64 = dataUrl.replace(/^data:image\/png;base64,/, "");
+
+      // Get current bounds
+      const bounds = map.getBounds();
+      const boundsData = {
+        north: bounds.getNorth(),
+        south: bounds.getSouth(),
+        east: bounds.getEast(),
+        west: bounds.getWest(),
+      };
+
+      const { data, error } = await supabase.functions.invoke("detect-fields", {
+        body: { imageBase64, bounds: boundsData, zoom: Math.round(map.getZoom()) },
+      });
+
+      if (error) throw error;
+
+      if (data?.fields && data.fields.length > 0) {
+        setDetectedFields(data.fields);
+        setDetectionSummary(data.summary || `${data.fields.length} fields detected`);
+        toast.success(`Detected ${data.fields.length} field boundaries`);
+      } else {
+        toast.info(data?.summary || "No field boundaries detected in this view. Try zooming into an agricultural area.");
+      }
+    } catch (err: any) {
+      console.error("Detection error:", err);
+      toast.error(err?.message || "Field detection failed. Please try again.");
+    } finally {
+      setIsDetecting(false);
+    }
+  };
+
+  const handleAcceptDetected = (fields: Field[]) => {
+    fields.forEach(f => onAddField(f));
+    setDetectedFields(null);
+    setDetectionSummary("");
+    toast.success(`Added ${fields.length} detected fields`);
+  };
+
+  const handleDismissDetected = () => {
+    setDetectedFields(null);
+    setDetectionSummary("");
   };
 
   return (
@@ -342,19 +442,14 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
       <SearchBar onSearch={() => {}} mapToken={mapToken} onLocationSelect={handleLocationSelect} />
       <MapToolbar onZoomIn={() => mapRef.current?.zoomIn()} onZoomOut={() => mapRef.current?.zoomOut()} onStyleChange={handleStyleChange}
         onToggleLayers={() => setShowFields((prev) => !prev)} onToggleDraw={handleToggleDraw} isDrawing={drawMode} showFields={showFields} defaultStyle="satellite"
-        onResetNorth={handleResetNorth} onLocateUser={handleLocateUser} />
+        onResetNorth={handleResetNorth} onLocateUser={handleLocateUser}
+        onDetectFields={handleDetectFields} isDetecting={isDetecting}
+        onToggleNdvi={() => setShowNdvi(prev => !prev)} showNdvi={showNdvi} />
 
       {drawMode && isMobile && (
-        <MobileDrawPrompt
-          vertexCount={drawVertices.length}
-          onSave={() => {
-            if (drawVertices.length >= 3) {
-              setDrawMode(false);
-              setShowNewFieldDialog(true);
-            }
-          }}
-          onCancel={() => { setDrawMode(false); setDrawVertices([]); }}
-        />
+        <MobileDrawPrompt vertexCount={drawVertices.length}
+          onSave={() => { if (drawVertices.length >= 3) { setDrawMode(false); setShowNewFieldDialog(true); } }}
+          onCancel={() => { setDrawMode(false); setDrawVertices([]); }} />
       )}
 
       {drawMode && !isMobile && (
@@ -378,6 +473,16 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
           <div className="text-muted-foreground">Enter or Esc to finish</div>
           <button onClick={onCancelEditBoundary} className="mt-1 px-3 py-1 rounded-md bg-primary text-primary-foreground text-xs">Done</button>
         </div>
+      )}
+
+      {/* AI Detection Results Review */}
+      {detectedFields && detectedFields.length > 0 && (
+        <DetectedFieldsReview
+          detectedFields={detectedFields}
+          summary={detectionSummary}
+          onAccept={handleAcceptDetected}
+          onDismiss={handleDismissDetected}
+        />
       )}
 
       {showNewFieldDialog && drawVertices.length >= 3 && (
