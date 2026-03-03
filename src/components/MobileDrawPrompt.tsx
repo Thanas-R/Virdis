@@ -1,12 +1,13 @@
-import { Check, X } from "lucide-react";
+import { Check, X, Undo2 } from "lucide-react";
 
 interface MobileDrawPromptProps {
   vertexCount: number;
   onSave: () => void;
   onCancel: () => void;
+  onUndo?: () => void;
 }
 
-const MobileDrawPrompt = ({ vertexCount, onSave, onCancel }: MobileDrawPromptProps) => {
+const MobileDrawPrompt = ({ vertexCount, onSave, onCancel, onUndo }: MobileDrawPromptProps) => {
   return (
     <div className="absolute bottom-20 left-4 right-4 z-20 animate-fade-in">
       <div className="bg-card/90 backdrop-blur-xl rounded-2xl border border-border/60 shadow-lg shadow-black/20 p-4 space-y-3">
@@ -23,6 +24,15 @@ const MobileDrawPrompt = ({ vertexCount, onSave, onCancel }: MobileDrawPromptPro
           >
             <X className="w-4 h-4" /> Cancel
           </button>
+          {onUndo && (
+            <button
+              onClick={onUndo}
+              disabled={vertexCount === 0}
+              className="flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl border border-border text-sm text-foreground hover:bg-accent transition-colors disabled:opacity-40"
+            >
+              <Undo2 className="w-4 h-4" />
+            </button>
+          )}
           <button
             onClick={onSave}
             disabled={vertexCount < 3}
