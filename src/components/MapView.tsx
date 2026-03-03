@@ -10,6 +10,7 @@ import DetectedFieldsReview from "./DetectedFieldsReview";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { detectFieldBoundaries, assignFieldColor } from "@/lib/field-segmentation";
 
 const MAP_STYLES = {
   dark: "mapbox://styles/mapbox/dark-v11",
@@ -17,6 +18,8 @@ const MAP_STYLES = {
 };
 
 const MAP_POS_KEY = "map-last-position";
+const MIN_DETECT_ZOOM = 16;
+const MAX_DETECT_SPAN_KM = 10;
 
 function saveMapPosition(map: mapboxgl.Map) {
   const center = map.getCenter();
@@ -36,6 +39,14 @@ function hideExtraLabels(map: mapboxgl.Map) {
       try { map.setLayoutProperty(layer.id, "visibility", "none"); } catch {}
     }
   });
+}
+
+function haversineDist(lng1: number, lat1: number, lng2: number, lat2: number): number {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 interface MapViewProps {
@@ -129,7 +140,7 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
     const map = new mapboxgl.Map({
       container: mapContainer.current, style: MAP_STYLES.satellite,
       center: [pos.lng, pos.lat], zoom: pos.zoom, bearing: pos.bearing, pitch: pos.pitch,
-      attributionControl: false, doubleClickZoom: false
+      attributionControl: false, doubleClickZoom: false, preserveDrawingBuffer: true, // needed for canvas capture
     });
     mapRef.current = map;
     map.on("load", () => { hideExtraLabels(map); setMapLoaded(true); refreshFieldLayers(map, allFieldsRef.current, allFieldsRef.current); });
@@ -174,37 +185,27 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
     });
   }, [showFields, mapLoaded, allFields]);
 
-  // NDVI overlay layer
+  // NDVI overlay
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapLoaded) return;
     const ndviSourceId = "ndvi-sentinel";
     const ndviLayerId = "ndvi-layer";
-
     if (!showNdvi) {
       try { if (map.getLayer(ndviLayerId)) map.removeLayer(ndviLayerId); } catch {}
       try { if (map.getSource(ndviSourceId)) map.removeSource(ndviSourceId); } catch {}
       return;
     }
-
-    // Use Sentinel-2 NDVI visualization from Sentinel Hub EO Browser (free WMS)
-    // Fallback: use a color-coded NDVI raster from public tile services
     if (!map.getSource(ndviSourceId)) {
       map.addSource(ndviSourceId, {
         type: "raster",
-        tiles: [
-          "https://services.sentinel-hub.com/ogc/wms/1748e5b5-4266-4c6e-8983-3aa4c6eb0e5e?SERVICE=WMS&REQUEST=GetMap&LAYERS=NDVI&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&SRS=EPSG:3857&FORMAT=image/png&TRANSPARENT=true&TIME=2024-01-01/2025-12-31&MAXCC=30"
-        ],
+        tiles: ["https://services.sentinel-hub.com/ogc/wms/1748e5b5-4266-4c6e-8983-3aa4c6eb0e5e?SERVICE=WMS&REQUEST=GetMap&LAYERS=NDVI&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&SRS=EPSG:3857&FORMAT=image/png&TRANSPARENT=true&TIME=2024-01-01/2025-12-31&MAXCC=30"],
         tileSize: 256,
       });
     }
     if (!map.getLayer(ndviLayerId)) {
-      map.addLayer({
-        id: ndviLayerId,
-        type: "raster",
-        source: ndviSourceId,
-        paint: { "raster-opacity": 0.6 },
-      }, allFields.length > 0 ? `field-fill-${allFields[0].id}` : undefined);
+      map.addLayer({ id: ndviLayerId, type: "raster", source: ndviSourceId, paint: { "raster-opacity": 0.6 } },
+        allFields.length > 0 ? `field-fill-${allFields[0].id}` : undefined);
     }
   }, [showNdvi, mapLoaded, allFields]);
 
@@ -212,8 +213,6 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapLoaded) return;
-
-    // Clean previous detection layers
     const style = map.getStyle();
     if (style?.layers) {
       style.layers.filter(l => l.id.startsWith("detected-")).forEach(l => { try { map.removeLayer(l.id); } catch {} });
@@ -221,28 +220,17 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
     if (style?.sources) {
       Object.keys(style.sources).filter(s => s.startsWith("detected-")).forEach(s => { try { map.removeSource(s); } catch {} });
     }
-
     if (!detectedFields || detectedFields.length === 0) return;
-
     detectedFields.forEach((field, idx) => {
       const sourceId = `detected-${idx}`;
       const coords: [number, number][] = [...field.coordinates, field.coordinates[0]];
-      map.addSource(sourceId, {
-        type: "geojson",
-        data: { type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [coords] } }
-      });
-      map.addLayer({
-        id: `detected-fill-${idx}`, type: "fill", source: sourceId,
-        paint: { "fill-color": field.color, "fill-opacity": 0.25 }
-      });
-      map.addLayer({
-        id: `detected-line-${idx}`, type: "line", source: sourceId,
-        paint: { "line-color": field.color, "line-width": 2, "line-dasharray": [3, 2] }
-      });
+      map.addSource(sourceId, { type: "geojson", data: { type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [coords] } } });
+      map.addLayer({ id: `detected-fill-${idx}`, type: "fill", source: sourceId, paint: { "fill-color": field.color, "fill-opacity": 0.25 } });
+      map.addLayer({ id: `detected-line-${idx}`, type: "line", source: sourceId, paint: { "line-color": field.color, "line-width": 2, "line-dasharray": [3, 2] } });
     });
   }, [detectedFields, mapLoaded]);
 
-  // Drawing mode
+  // Drawing mode with Backspace undo
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapLoaded) return;
@@ -261,6 +249,10 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
     const handleClick = (e: mapboxgl.MapMouseEvent) => { setDrawVertices((prev) => [...prev, [e.lngLat.lng, e.lngLat.lat]]); };
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") { setDrawMode(false); setDrawVertices([]); }
+      if (e.key === "Backspace") {
+        e.preventDefault();
+        setDrawVertices((prev) => prev.length > 0 ? prev.slice(0, -1) : prev);
+      }
       if (e.key === "Enter") {
         setDrawVertices((prev) => {
           if (prev.length >= 3) { setDrawMode(false); setShowNewFieldDialog(true); }
@@ -276,7 +268,31 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
   // Draw preview
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !mapLoaded || drawVertices.length < 2) return;
+    if (!map || !mapLoaded) return;
+    // Clear if no vertices
+    if (drawVertices.length < 2) {
+      try {
+        if (map.getLayer("draw-fill")) map.removeLayer("draw-fill");
+        if (map.getLayer("draw-line")) map.removeLayer("draw-line");
+        if (map.getLayer("draw-points")) map.removeLayer("draw-points");
+        if (map.getSource("draw-preview")) map.removeSource("draw-preview");
+        if (map.getSource("draw-points")) map.removeSource("draw-points");
+      } catch {}
+      // Still show single point
+      if (drawVertices.length === 1) {
+        const pointData: GeoJSON.FeatureCollection = {
+          type: "FeatureCollection",
+          features: [{ type: "Feature", properties: {}, geometry: { type: "Point", coordinates: drawVertices[0] } }]
+        };
+        if (map.getSource("draw-points")) {
+          (map.getSource("draw-points") as mapboxgl.GeoJSONSource).setData(pointData);
+        } else {
+          map.addSource("draw-points", { type: "geojson", data: pointData });
+          map.addLayer({ id: "draw-points", type: "circle", source: "draw-points", paint: { "circle-radius": 5, "circle-color": "#EAB947", "circle-stroke-width": 2, "circle-stroke-color": "#fff" } });
+        }
+      }
+      return;
+    }
     const coords = [...drawVertices, drawVertices[0]];
     const polyData: GeoJSON.Feature = { type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [coords] } };
     const pointData: GeoJSON.FeatureCollection = {
@@ -308,12 +324,10 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
     const map = mapRef.current;
     const coords = field.coordinates[0];
     const currentCoords = [...coords];
-
     const updateLivePolygon = () => {
       const source = map.getSource(`field-${field.id}`) as mapboxgl.GeoJSONSource | undefined;
       if (source) source.setData({ type: "Feature", properties: { id: field.id }, geometry: { type: "Polygon", coordinates: [currentCoords] } });
     };
-
     coords.slice(0, -1).forEach((coord, i) => {
       const el = document.createElement("div");
       Object.assign(el.style, { width: "14px", height: "14px", borderRadius: "50%", border: "2px solid white", backgroundColor: field.color, cursor: "grab", boxShadow: "0 2px 6px rgba(0,0,0,0.4)" });
@@ -333,7 +347,6 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
       });
       editMarkersRef.current.push(marker);
     });
-
     const handleKeyDown = (e: KeyboardEvent) => { if (e.key === "Enter" || e.key === "Escape") onCancelEditBoundary?.(); };
     document.addEventListener("keydown", handleKeyDown);
     return () => { editMarkersRef.current.forEach((m) => m.remove()); editMarkersRef.current = []; document.removeEventListener("keydown", handleKeyDown); };
@@ -348,10 +361,7 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
   };
 
   const handleLocationSelect = (lng: number, lat: number) => { mapRef.current?.flyTo({ center: [lng, lat], zoom: 13, duration: 2000 }); };
-
-  const handleToggleDraw = () => {
-    if (drawMode) { setDrawMode(false); setDrawVertices([]); } else { setDrawMode(true); setDrawVertices([]); }
-  };
+  const handleToggleDraw = () => { if (drawMode) { setDrawMode(false); setDrawVertices([]); } else { setDrawMode(true); setDrawVertices([]); } };
 
   const handleSaveNewField = (fieldData: { name: string; crop: string; cropEmoji: string; area: number; color: string; location: string; group?: string; coordinates: [number, number][][]; }) => {
     const newField: Field = { id: `custom-${Date.now()}`, ...fieldData };
@@ -379,48 +389,74 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
     );
   };
 
-  // AI Field Detection
-  const handleDetectFields = async () => {
+  // Deterministic field detection via image segmentation
+  const handleDetectFields = () => {
     const map = mapRef.current;
     if (!map) return;
+
+    // Zoom check
+    const zoom = map.getZoom();
+    if (zoom < MIN_DETECT_ZOOM) {
+      toast.warning(`Zoom in more to detect fields (current: ${zoom.toFixed(1)}, need ≥${MIN_DETECT_ZOOM})`);
+      return;
+    }
+
+    // Bounds size check
+    const bounds = map.getBounds();
+    const spanX = haversineDist(bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getSouth());
+    const spanY = haversineDist(bounds.getWest(), bounds.getSouth(), bounds.getWest(), bounds.getNorth());
+    if (spanX > MAX_DETECT_SPAN_KM || spanY > MAX_DETECT_SPAN_KM) {
+      toast.warning(`View too large (${spanX.toFixed(1)}×${spanY.toFixed(1)} km). Max ${MAX_DETECT_SPAN_KM}×${MAX_DETECT_SPAN_KM} km.`);
+      return;
+    }
+
     setIsDetecting(true);
     setDetectedFields(null);
-    toast.info("Capturing map view and analyzing with AI…");
+    toast.info("Analyzing satellite imagery for field boundaries…");
 
-    try {
-      // Capture map canvas as base64
-      const canvas = map.getCanvas();
-      const dataUrl = canvas.toDataURL("image/png");
-      const imageBase64 = dataUrl.replace(/^data:image\/png;base64,/, "");
+    // Run segmentation in next frame to allow UI update
+    requestAnimationFrame(() => {
+      try {
+        const canvas = map.getCanvas();
+        const boundsData = {
+          north: bounds.getNorth(),
+          south: bounds.getSouth(),
+          east: bounds.getEast(),
+          west: bounds.getWest(),
+        };
 
-      // Get current bounds
-      const bounds = map.getBounds();
-      const boundsData = {
-        north: bounds.getNorth(),
-        south: bounds.getSouth(),
-        east: bounds.getEast(),
-        west: bounds.getWest(),
-      };
+        const result = detectFieldBoundaries(canvas, boundsData, {
+          vegThreshold: 0.06,
+          morphKernel: 2,
+          minAreaHa: 0.5,
+          downscale: 2,
+        });
 
-      const { data, error } = await supabase.functions.invoke("detect-fields", {
-        body: { imageBase64, bounds: boundsData, zoom: Math.round(map.getZoom()) },
-      });
+        if (result.polygons.length === 0) {
+          toast.info("No field boundaries detected. Try a different area with more vegetation.");
+          setIsDetecting(false);
+          return;
+        }
 
-      if (error) throw error;
+        const detected: DetectedFieldData[] = result.polygons.map((poly, idx) => ({
+          name: `Field ${idx + 1}`,
+          crop: poly.meanVegIndex > 0.2 ? "Active Crop" : poly.meanVegIndex > 0.1 ? "Pasture" : "Bare Soil",
+          cropEmoji: poly.meanVegIndex > 0.2 ? "🌾" : poly.meanVegIndex > 0.1 ? "🌿" : "🟤",
+          ndviEstimate: poly.meanVegIndex,
+          color: assignFieldColor(idx),
+          coordinates: poly.coordinates,
+        }));
 
-      if (data?.fields && data.fields.length > 0) {
-        setDetectedFields(data.fields);
-        setDetectionSummary(data.summary || `${data.fields.length} fields detected`);
-        toast.success(`Detected ${data.fields.length} field boundaries`);
-      } else {
-        toast.info(data?.summary || "No field boundaries detected in this view. Try zooming into an agricultural area.");
+        setDetectedFields(detected);
+        setDetectionSummary(`${detected.length} regions detected in ${result.processingTimeMs}ms · ${spanX.toFixed(1)}×${spanY.toFixed(1)} km area`);
+        toast.success(`Detected ${detected.length} field boundaries in ${result.processingTimeMs}ms`);
+      } catch (err: any) {
+        console.error("Segmentation error:", err);
+        toast.error("Field detection failed: " + (err?.message || "Unknown error"));
+      } finally {
+        setIsDetecting(false);
       }
-    } catch (err: any) {
-      console.error("Detection error:", err);
-      toast.error(err?.message || "Field detection failed. Please try again.");
-    } finally {
-      setIsDetecting(false);
-    }
+    });
   };
 
   const handleAcceptDetected = (fields: Field[]) => {
@@ -449,7 +485,8 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
       {drawMode && isMobile && (
         <MobileDrawPrompt vertexCount={drawVertices.length}
           onSave={() => { if (drawVertices.length >= 3) { setDrawMode(false); setShowNewFieldDialog(true); } }}
-          onCancel={() => { setDrawMode(false); setDrawVertices([]); }} />
+          onCancel={() => { setDrawMode(false); setDrawVertices([]); }}
+          onUndo={() => setDrawVertices(prev => prev.slice(0, -1))} />
       )}
 
       {drawMode && !isMobile && (
@@ -458,7 +495,7 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
             <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: "#EAB947" }} />
             <span className="font-medium">Drawing Mode</span>
           </div>
-          <div className="text-muted-foreground">Click to add region points</div>
+          <div className="text-muted-foreground">Click to add points · Backspace to undo</div>
           <div className="text-muted-foreground">Enter to save · Esc to exit</div>
         </div>
       )}
@@ -475,14 +512,9 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
         </div>
       )}
 
-      {/* AI Detection Results Review */}
       {detectedFields && detectedFields.length > 0 && (
-        <DetectedFieldsReview
-          detectedFields={detectedFields}
-          summary={detectionSummary}
-          onAccept={handleAcceptDetected}
-          onDismiss={handleDismissDetected}
-        />
+        <DetectedFieldsReview detectedFields={detectedFields} summary={detectionSummary}
+          onAccept={handleAcceptDetected} onDismiss={handleDismissDetected} />
       )}
 
       {showNewFieldDialog && drawVertices.length >= 3 && (
