@@ -408,6 +408,76 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
     );
   };
 
+  // ── GEE: Load NDVI tile layer ──────────────────────────────────
+  const loadGeeNdviTiles = async () => {
+    try {
+      toast.info("Loading GEE NDVI tiles…");
+      const { data, error } = await supabase.functions.invoke("gee-ndvi-tiles");
+      if (error) throw error;
+      if (data?.tileUrl) {
+        setGeeNdviTileUrl(data.tileUrl);
+        setGeeNdviToken(data.token);
+        toast.success("GEE NDVI layer loaded");
+      } else if (data?.error) {
+        throw new Error(data.error);
+      }
+    } catch (err: any) {
+      console.error("GEE NDVI tiles error:", err);
+      toast.error("Failed to load NDVI tiles: " + (err?.message || "Unknown error"));
+      setShowNdvi(false);
+    }
+  };
+
+  // ── GEE: Auto-field single-click detection ────────────────────
+  const handleAutoFieldClick = async (lat: number, lng: number) => {
+    if (autoFieldDetecting) return;
+    setAutoFieldDetecting(true);
+    toast.info(`Detecting field at ${lat.toFixed(4)}, ${lng.toFixed(4)}…`);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("gee-detect-field", {
+        body: { lat, lng },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      const f = data.field;
+      if (!f?.coordinates || f.coordinates.length < 3) {
+        toast.warning("No field boundary detected at this location");
+        return;
+      }
+
+      const detected: DetectedFieldData[] = [{
+        name: `Field ${Date.now() % 10000}`,
+        crop: f.crop,
+        cropEmoji: f.cropEmoji,
+        ndviEstimate: f.stats.meanNdvi,
+        color: assignFieldColor(allFields.length),
+        coordinates: f.coordinates,
+      }];
+
+      setDetectedFields(detected);
+      setDetectionSummary(
+        `GEE Detection · ${f.stats.areaHectares} ha · NDVI ${f.stats.meanNdvi} ± ${f.stats.stdNdvi} · Health ${f.stats.healthScore}/100`
+      );
+      toast.success(`Field detected: ${f.stats.areaHectares} ha, health ${f.stats.healthScore}/100`);
+    } catch (err: any) {
+      console.error("Auto field detection error:", err);
+      toast.error("Detection failed: " + (err?.message || "Unknown error"));
+    } finally {
+      setAutoFieldDetecting(false);
+    }
+  };
+
+  const handleToggleAutoField = () => {
+    setAutoFieldMode(prev => !prev);
+    if (!autoFieldMode) {
+      toast.info("Auto Field mode ON – click on a field to detect its boundary");
+      setDrawMode(false);
+      setDrawVertices([]);
+    }
+  };
+
   // Deterministic field detection via image segmentation
   const handleDetectFields = () => {
     const map = mapRef.current;
