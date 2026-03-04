@@ -197,29 +197,36 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
     });
   }, [showFields, mapLoaded, allFields]);
 
-  // NDVI overlay
+  // GEE NDVI overlay
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapLoaded) return;
-    const ndviSourceId = "ndvi-sentinel";
-    const ndviLayerId = "ndvi-layer";
+    const ndviSourceId = "gee-ndvi-source";
+    const ndviLayerId = "gee-ndvi-layer";
     if (!showNdvi) {
       try { if (map.getLayer(ndviLayerId)) map.removeLayer(ndviLayerId); } catch {}
       try { if (map.getSource(ndviSourceId)) map.removeSource(ndviSourceId); } catch {}
       return;
     }
+    // If we don't have GEE tiles yet, fetch them
+    if (!geeNdviTileUrl) {
+      loadGeeNdviTiles();
+      return;
+    }
     if (!map.getSource(ndviSourceId)) {
+      // GEE tiles require auth token in the URL
+      const authenticatedUrl = `${geeNdviTileUrl}?access_token=${geeNdviToken}`;
       map.addSource(ndviSourceId, {
         type: "raster",
-        tiles: ["https://services.sentinel-hub.com/ogc/wms/1748e5b5-4266-4c6e-8983-3aa4c6eb0e5e?SERVICE=WMS&REQUEST=GetMap&LAYERS=NDVI&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&SRS=EPSG:3857&FORMAT=image/png&TRANSPARENT=true&TIME=2024-01-01/2025-12-31&MAXCC=30"],
+        tiles: [authenticatedUrl],
         tileSize: 256,
       });
     }
     if (!map.getLayer(ndviLayerId)) {
-      map.addLayer({ id: ndviLayerId, type: "raster", source: ndviSourceId, paint: { "raster-opacity": 0.6 } },
+      map.addLayer({ id: ndviLayerId, type: "raster", source: ndviSourceId, paint: { "raster-opacity": 0.5 } },
         allFields.length > 0 ? `field-fill-${allFields[0].id}` : undefined);
     }
-  }, [showNdvi, mapLoaded, allFields]);
+  }, [showNdvi, mapLoaded, allFields, geeNdviTileUrl, geeNdviToken]);
 
   // Show detected field previews on map
   useEffect(() => {
