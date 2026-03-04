@@ -153,6 +153,11 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
     map.on("moveend", () => saveMapPosition(map));
     map.on("click", (e) => {
       if (drawModeRef.current) return;
+      if (autoFieldModeRef.current) {
+        // Auto field mode: send click to GEE
+        handleAutoFieldClick(e.lngLat.lat, e.lngLat.lng);
+        return;
+      }
       const fieldLayers = allFieldsRef.current.map((f) => `field-fill-${f.id}`).filter((id) => { try { return !!map.getLayer(id); } catch { return false; } });
       if (fieldLayers.length === 0) return;
       const features = map.queryRenderedFeatures(e.point, { layers: fieldLayers });
@@ -164,6 +169,7 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
     });
     map.on("mousemove", (e) => {
       if (drawModeRef.current) { map.getCanvas().style.cursor = "crosshair"; return; }
+      if (autoFieldModeRef.current) { map.getCanvas().style.cursor = "crosshair"; return; }
       const fieldLayers = allFieldsRef.current.map((f) => `field-fill-${f.id}`).filter((id) => { try { return !!map.getLayer(id); } catch { return false; } });
       if (fieldLayers.length === 0) { map.getCanvas().style.cursor = ""; return; }
       const features = map.queryRenderedFeatures(e.point, { layers: fieldLayers });
