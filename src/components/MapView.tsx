@@ -602,6 +602,17 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
         </div>
       )}
 
+      {autoFieldMode && !drawMode && (
+        <div className="absolute bottom-6 left-4 z-10 bg-card/90 backdrop-blur-sm rounded-lg border border-border px-4 py-2.5 text-xs text-foreground space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: "#4CAF50" }} />
+            <span className="font-medium">{autoFieldDetecting ? "Detecting field…" : "Auto Field Mode"}</span>
+          </div>
+          <div className="text-muted-foreground">Click on any field to detect its boundary via GEE</div>
+          <button onClick={() => setAutoFieldMode(false)} className="mt-1 px-3 py-1 rounded-md bg-primary text-primary-foreground text-xs">Exit</button>
+        </div>
+      )}
+
       {detectedFields && detectedFields.length > 0 && (
         <DetectedFieldsReview detectedFields={detectedFields} summary={detectionSummary}
           onAccept={handleAcceptDetected} onDismiss={handleDismissDetected} />
