@@ -85,13 +85,19 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
   const [isDetecting, setIsDetecting] = useState(false);
   const [detectedFields, setDetectedFields] = useState<DetectedFieldData[] | null>(null);
   const [detectionSummary, setDetectionSummary] = useState("");
+  const [autoFieldMode, setAutoFieldMode] = useState(false);
+  const [autoFieldDetecting, setAutoFieldDetecting] = useState(false);
+  const [geeNdviTileUrl, setGeeNdviTileUrl] = useState<string | null>(null);
+  const [geeNdviToken, setGeeNdviToken] = useState<string | null>(null);
   const editMarkersRef = useRef<mapboxgl.Marker[]>([]);
   const drawModeRef = useRef(false);
+  const autoFieldModeRef = useRef(false);
   const allFieldsRef = useRef(allFields);
   const onFieldClickRef = useRef(onFieldClickOnMap);
   const onUpdateFieldRef = useRef(onUpdateField);
 
   useEffect(() => { drawModeRef.current = drawMode; }, [drawMode]);
+  useEffect(() => { autoFieldModeRef.current = autoFieldMode; }, [autoFieldMode]);
   useEffect(() => { allFieldsRef.current = allFields; }, [allFields]);
   useEffect(() => { onFieldClickRef.current = onFieldClickOnMap; }, [onFieldClickOnMap]);
   useEffect(() => { onUpdateFieldRef.current = onUpdateField; }, [onUpdateField]);
@@ -147,6 +153,11 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
     map.on("moveend", () => saveMapPosition(map));
     map.on("click", (e) => {
       if (drawModeRef.current) return;
+      if (autoFieldModeRef.current) {
+        // Auto field mode: send click to GEE
+        handleAutoFieldClick(e.lngLat.lat, e.lngLat.lng);
+        return;
+      }
       const fieldLayers = allFieldsRef.current.map((f) => `field-fill-${f.id}`).filter((id) => { try { return !!map.getLayer(id); } catch { return false; } });
       if (fieldLayers.length === 0) return;
       const features = map.queryRenderedFeatures(e.point, { layers: fieldLayers });
@@ -158,6 +169,7 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
     });
     map.on("mousemove", (e) => {
       if (drawModeRef.current) { map.getCanvas().style.cursor = "crosshair"; return; }
+      if (autoFieldModeRef.current) { map.getCanvas().style.cursor = "crosshair"; return; }
       const fieldLayers = allFieldsRef.current.map((f) => `field-fill-${f.id}`).filter((id) => { try { return !!map.getLayer(id); } catch { return false; } });
       if (fieldLayers.length === 0) { map.getCanvas().style.cursor = ""; return; }
       const features = map.queryRenderedFeatures(e.point, { layers: fieldLayers });
@@ -185,29 +197,36 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
     });
   }, [showFields, mapLoaded, allFields]);
 
-  // NDVI overlay
+  // GEE NDVI overlay
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapLoaded) return;
-    const ndviSourceId = "ndvi-sentinel";
-    const ndviLayerId = "ndvi-layer";
+    const ndviSourceId = "gee-ndvi-source";
+    const ndviLayerId = "gee-ndvi-layer";
     if (!showNdvi) {
       try { if (map.getLayer(ndviLayerId)) map.removeLayer(ndviLayerId); } catch {}
       try { if (map.getSource(ndviSourceId)) map.removeSource(ndviSourceId); } catch {}
       return;
     }
+    // If we don't have GEE tiles yet, fetch them
+    if (!geeNdviTileUrl) {
+      loadGeeNdviTiles();
+      return;
+    }
     if (!map.getSource(ndviSourceId)) {
+      // GEE tiles require auth token in the URL
+      const authenticatedUrl = `${geeNdviTileUrl}?access_token=${geeNdviToken}`;
       map.addSource(ndviSourceId, {
         type: "raster",
-        tiles: ["https://services.sentinel-hub.com/ogc/wms/1748e5b5-4266-4c6e-8983-3aa4c6eb0e5e?SERVICE=WMS&REQUEST=GetMap&LAYERS=NDVI&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&SRS=EPSG:3857&FORMAT=image/png&TRANSPARENT=true&TIME=2024-01-01/2025-12-31&MAXCC=30"],
+        tiles: [authenticatedUrl],
         tileSize: 256,
       });
     }
     if (!map.getLayer(ndviLayerId)) {
-      map.addLayer({ id: ndviLayerId, type: "raster", source: ndviSourceId, paint: { "raster-opacity": 0.6 } },
+      map.addLayer({ id: ndviLayerId, type: "raster", source: ndviSourceId, paint: { "raster-opacity": 0.5 } },
         allFields.length > 0 ? `field-fill-${allFields[0].id}` : undefined);
     }
-  }, [showNdvi, mapLoaded, allFields]);
+  }, [showNdvi, mapLoaded, allFields, geeNdviTileUrl, geeNdviToken]);
 
   // Show detected field previews on map
   useEffect(() => {
@@ -389,6 +408,76 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
     );
   };
 
+  // ── GEE: Load NDVI tile layer ──────────────────────────────────
+  const loadGeeNdviTiles = async () => {
+    try {
+      toast.info("Loading GEE NDVI tiles…");
+      const { data, error } = await supabase.functions.invoke("gee-ndvi-tiles");
+      if (error) throw error;
+      if (data?.tileUrl) {
+        setGeeNdviTileUrl(data.tileUrl);
+        setGeeNdviToken(data.token);
+        toast.success("GEE NDVI layer loaded");
+      } else if (data?.error) {
+        throw new Error(data.error);
+      }
+    } catch (err: any) {
+      console.error("GEE NDVI tiles error:", err);
+      toast.error("Failed to load NDVI tiles: " + (err?.message || "Unknown error"));
+      setShowNdvi(false);
+    }
+  };
+
+  // ── GEE: Auto-field single-click detection ────────────────────
+  const handleAutoFieldClick = async (lat: number, lng: number) => {
+    if (autoFieldDetecting) return;
+    setAutoFieldDetecting(true);
+    toast.info(`Detecting field at ${lat.toFixed(4)}, ${lng.toFixed(4)}…`);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("gee-detect-field", {
+        body: { lat, lng },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      const f = data.field;
+      if (!f?.coordinates || f.coordinates.length < 3) {
+        toast.warning("No field boundary detected at this location");
+        return;
+      }
+
+      const detected: DetectedFieldData[] = [{
+        name: `Field ${Date.now() % 10000}`,
+        crop: f.crop,
+        cropEmoji: f.cropEmoji,
+        ndviEstimate: f.stats.meanNdvi,
+        color: assignFieldColor(allFields.length),
+        coordinates: f.coordinates,
+      }];
+
+      setDetectedFields(detected);
+      setDetectionSummary(
+        `GEE Detection · ${f.stats.areaHectares} ha · NDVI ${f.stats.meanNdvi} ± ${f.stats.stdNdvi} · Health ${f.stats.healthScore}/100`
+      );
+      toast.success(`Field detected: ${f.stats.areaHectares} ha, health ${f.stats.healthScore}/100`);
+    } catch (err: any) {
+      console.error("Auto field detection error:", err);
+      toast.error("Detection failed: " + (err?.message || "Unknown error"));
+    } finally {
+      setAutoFieldDetecting(false);
+    }
+  };
+
+  const handleToggleAutoField = () => {
+    setAutoFieldMode(prev => !prev);
+    if (!autoFieldMode) {
+      toast.info("Auto Field mode ON – click on a field to detect its boundary");
+      setDrawMode(false);
+      setDrawVertices([]);
+    }
+  };
+
   // Deterministic field detection via image segmentation
   const handleDetectFields = () => {
     const map = mapRef.current;
@@ -480,7 +569,8 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
         onToggleLayers={() => setShowFields((prev) => !prev)} onToggleDraw={handleToggleDraw} isDrawing={drawMode} showFields={showFields} defaultStyle="satellite"
         onResetNorth={handleResetNorth} onLocateUser={handleLocateUser}
         onDetectFields={handleDetectFields} isDetecting={isDetecting}
-        onToggleNdvi={() => setShowNdvi(prev => !prev)} showNdvi={showNdvi} />
+        onToggleNdvi={() => setShowNdvi(prev => !prev)} showNdvi={showNdvi}
+        onToggleAutoField={handleToggleAutoField} isAutoField={autoFieldMode} />
 
       {drawMode && isMobile && (
         <MobileDrawPrompt vertexCount={drawVertices.length}
@@ -509,6 +599,17 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
           <div className="text-muted-foreground">Drag vertices to reshape</div>
           <div className="text-muted-foreground">Enter or Esc to finish</div>
           <button onClick={onCancelEditBoundary} className="mt-1 px-3 py-1 rounded-md bg-primary text-primary-foreground text-xs">Done</button>
+        </div>
+      )}
+
+      {autoFieldMode && !drawMode && (
+        <div className="absolute bottom-6 left-4 z-10 bg-card/90 backdrop-blur-sm rounded-lg border border-border px-4 py-2.5 text-xs text-foreground space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: "#4CAF50" }} />
+            <span className="font-medium">{autoFieldDetecting ? "Detecting field…" : "Auto Field Mode"}</span>
+          </div>
+          <div className="text-muted-foreground">Click on any field to detect its boundary via GEE</div>
+          <button onClick={() => setAutoFieldMode(false)} className="mt-1 px-3 py-1 rounded-md bg-primary text-primary-foreground text-xs">Exit</button>
         </div>
       )}
 
