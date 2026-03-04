@@ -569,7 +569,8 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
         onToggleLayers={() => setShowFields((prev) => !prev)} onToggleDraw={handleToggleDraw} isDrawing={drawMode} showFields={showFields} defaultStyle="satellite"
         onResetNorth={handleResetNorth} onLocateUser={handleLocateUser}
         onDetectFields={handleDetectFields} isDetecting={isDetecting}
-        onToggleNdvi={() => setShowNdvi(prev => !prev)} showNdvi={showNdvi} />
+        onToggleNdvi={() => setShowNdvi(prev => !prev)} showNdvi={showNdvi}
+        onToggleAutoField={handleToggleAutoField} isAutoField={autoFieldMode} />
 
       {drawMode && isMobile && (
         <MobileDrawPrompt vertexCount={drawVertices.length}
