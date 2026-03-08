@@ -9,6 +9,7 @@ import MobileDrawPrompt from "./MobileDrawPrompt";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import NdviLegend from "./NdviLegend";
 
 const MAP_STYLES = {
   dark: "mapbox://styles/mapbox/dark-v11",
@@ -477,6 +478,8 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
       {showNewFieldDialog && drawVertices.length >= 3 && (
         <NewFieldDialog coordinates={drawVertices} mapToken={mapToken} onSave={handleSaveNewField} onCancel={() => { setShowNewFieldDialog(false); setDrawVertices([]); }} />
       )}
+
+      {showNdvi && <NdviLegend />}
     </div>
   );
 };
