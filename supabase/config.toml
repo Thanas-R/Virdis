@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.gee-analytics]
 verify_jwt = false
+
+[functions.ndvi-timeseries]
+verify_jwt = false
