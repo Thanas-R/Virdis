@@ -329,14 +329,7 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
         </div>
 
         {/* Growth Stage */}
-        <div>
-          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
-            <Leaf className="w-3.5 h-3.5" /> Growth Stage
-          </h3>
-          <div className="p-4 rounded-xl border border-border bg-accent/10 text-sm text-muted-foreground">
-            No data available — requires NDVI time-series integration
-          </div>
-        </div>
+        <GrowthStageSection polygon={field.coordinates[0]} />
 
         {/* AI Analysis */}
         <div>
