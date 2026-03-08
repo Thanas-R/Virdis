@@ -44,29 +44,14 @@ async function getGeeAccessToken(): Promise<string> {
   return (await resp.json()).access_token;
 }
 
-// ── Expression flattener (extended for Collection.map) ───────────
+// ── Expression flattener ─────────────────────────────────────────
 
 function flattenExpression(nested: any): { values: Record<string, any>; result: string } {
   const values: Record<string, any> = {};
   let counter = 0;
-
   function flatten(node: any): string {
     if (node === null || node === undefined) {
       const k = `_${counter++}`; values[k] = { constantValue: null }; return k;
-    }
-    // argumentReference: used inside Collection.map body
-    if (node.argumentReference !== undefined) {
-      const k = `_${counter++}`;
-      values[k] = { argumentReference: node.argumentReference };
-      return k;
-    }
-    // functionDefinitionValue: used for Collection.map baseAlgorithm
-    if (node.functionDefinitionValue) {
-      const fdv = node.functionDefinitionValue;
-      const bodyRef = flatten(fdv.body);
-      const k = `_${counter++}`;
-      values[k] = { functionDefinitionValue: { argumentNames: fdv.argumentNames, body: bodyRef } };
-      return k;
     }
     if (node.functionInvocationValue) {
       const fiv = node.functionInvocationValue;
@@ -83,7 +68,6 @@ function flattenExpression(nested: any): { values: Record<string, any>; result: 
     }
     const k = `_${counter++}`; values[k] = { constantValue: node }; return k;
   }
-
   return { values, result: flatten(nested) };
 }
 
@@ -118,9 +102,9 @@ function makeGeometry(coords: [number, number][]) {
   };
 }
 
-// ── Build NDVI time-series ───────────────────────────────────────
+// ── Build filtered collection ────────────────────────────────────
 
-function buildNdviTimeSeries(coords: [number, number][], startDate: string, endDate: string) {
+function buildFilteredCollection(coords: [number, number][], startDate: string, endDate: string) {
   const geometry = makeGeometry(coords);
 
   const collection = {
@@ -189,101 +173,89 @@ function buildNdviTimeSeries(coords: [number, number][], startDate: string, endD
     },
   };
 
-  // Sort by date ascending
+  // Sort by date, limit to 20
   const sorted = {
     functionInvocationValue: {
       functionName: "Collection.limit",
       arguments: {
         collection: cloudFiltered,
-        limit: { constantValue: 30 },
+        limit: { constantValue: 20 },
         key: { constantValue: "system:time_start" },
         ascending: { constantValue: true },
       },
     },
   };
 
-  // Map over collection: compute NDVI mean for each image and set as property
-  const mapped = {
+  return { sorted, geometry };
+}
+
+// Build expression for a single image at index i in the list
+function buildImageNdviAtIndex(list: any, index: number, geometry: any) {
+  const image = {
     functionInvocationValue: {
-      functionName: "Collection.map",
+      functionName: "List.get",
       arguments: {
-        collection: sorted,
-        baseAlgorithm: {
-          functionDefinitionValue: {
-            argumentNames: ["_img"],
-            body: {
-              functionInvocationValue: {
-                functionName: "Element.set",
-                arguments: {
-                  object: { argumentReference: "_img" },
-                  key: { constantValue: "ndvi_mean" },
-                  value: {
-                    functionInvocationValue: {
-                      functionName: "Dictionary.get",
-                      arguments: {
-                        dictionary: {
-                          functionInvocationValue: {
-                            functionName: "Image.reduceRegion",
-                            arguments: {
-                              image: {
-                                functionInvocationValue: {
-                                  functionName: "Image.clip",
-                                  arguments: {
-                                    input: {
-                                      functionInvocationValue: {
-                                        functionName: "Image.normalizedDifference",
-                                        arguments: {
-                                          input: { argumentReference: "_img" },
-                                          bandNames: { constantValue: ["B8", "B4"] },
-                                        },
-                                      },
-                                    },
-                                    geometry,
-                                  },
-                                },
-                              },
-                              reducer: { functionInvocationValue: { functionName: "Reducer.mean", arguments: {} } },
-                              geometry,
-                              scale: { constantValue: 10 },
-                              maxPixels: { constantValue: 1000000000 },
-                            },
-                          },
-                        },
-                        key: { constantValue: "nd" },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
+        list,
+        index: { constantValue: index },
       },
     },
   };
 
-  // Aggregate dates and NDVI values
-  const dates = {
+  // Get timestamp
+  const timestamp = {
     functionInvocationValue: {
-      functionName: "Collection.aggregate_array",
+      functionName: "Element.get",
       arguments: {
-        collection: mapped,
+        object: image,
         property: { constantValue: "system:time_start" },
       },
     },
   };
 
-  const ndviValues = {
+  // Compute NDVI
+  const ndvi = {
     functionInvocationValue: {
-      functionName: "Collection.aggregate_array",
+      functionName: "Image.normalizedDifference",
       arguments: {
-        collection: mapped,
-        property: { constantValue: "ndvi_mean" },
+        input: image,
+        bandNames: { constantValue: ["B8", "B4"] },
       },
     },
   };
 
-  return { dates, ndviValues };
+  const clipped = {
+    functionInvocationValue: {
+      functionName: "Image.clip",
+      arguments: { input: ndvi, geometry },
+    },
+  };
+
+  // Reduce to mean
+  const stats = {
+    functionInvocationValue: {
+      functionName: "Image.reduceRegion",
+      arguments: {
+        image: clipped,
+        reducer: { functionInvocationValue: { functionName: "Reducer.mean", arguments: {} } },
+        geometry,
+        scale: { constantValue: 10 },
+        maxPixels: { constantValue: 1000000000 },
+      },
+    },
+  };
+
+  // Return dict with timestamp and ndvi_mean
+  const ndviVal = {
+    functionInvocationValue: {
+      functionName: "Dictionary.get",
+      arguments: {
+        dictionary: stats,
+        key: { constantValue: "nd" },
+      },
+    },
+  };
+
+  return { timestamp, ndviVal };
 }
 
 // ── Main handler ──────────────────────────────────────────────────
@@ -315,21 +287,20 @@ serve(async (req) => {
 
     console.log(`NDVI time-series: ${coords.length} vertices, ${startDate} to ${endDate}`);
 
-    const { dates, ndviValues } = buildNdviTimeSeries(coords, startDate, endDate);
+    const { sorted, geometry } = buildFilteredCollection(coords, startDate, endDate);
 
-    // Parallel compute for dates and ndvi values
-    const [datesResult, ndviResult] = await Promise.all([
-      computeValue(token, projectId, dates),
-      computeValue(token, projectId, ndviValues),
-    ]);
+    // Step 1: Get collection size
+    const sizeExpr = {
+      functionInvocationValue: {
+        functionName: "Collection.size",
+        arguments: { collection: sorted },
+      },
+    };
+    const sizeResult = await computeValue(token, projectId, sizeExpr);
+    const count = sizeResult?.result ?? 0;
+    console.log(`Found ${count} images`);
 
-    console.log("Dates result:", JSON.stringify(datesResult));
-    console.log("NDVI result:", JSON.stringify(ndviResult));
-
-    const timestamps: number[] = datesResult?.result || [];
-    const ndvis: number[] = ndviResult?.result || [];
-
-    if (timestamps.length === 0 || ndvis.length === 0) {
+    if (count === 0) {
       return new Response(JSON.stringify({
         timeseries: [],
         growth_rate: null,
@@ -340,36 +311,79 @@ serve(async (req) => {
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Convert timestamps to dates and pair with NDVI
-    const timeseries = timestamps.map((ts, i) => {
-      const d = new Date(ts);
-      return {
-        date: d.toISOString().split("T")[0],
-        ndvi: ndvis[i] != null ? Math.round(ndvis[i] * 1000) / 1000 : null,
-      };
-    }).filter((p) => p.ndvi !== null);
+    // Step 2: Convert to list
+    const listExpr = {
+      functionInvocationValue: {
+        functionName: "Collection.toList",
+        arguments: {
+          collection: sorted,
+          count: { constantValue: Math.min(count, 20) },
+        },
+      },
+    };
+
+    // Step 3: For each image, compute NDVI mean and get timestamp in parallel
+    const imageCount = Math.min(count, 20);
+    const promises: Promise<{ date: string; ndvi: number | null }>[] = [];
+
+    for (let i = 0; i < imageCount; i++) {
+      const { timestamp, ndviVal } = buildImageNdviAtIndex(listExpr, i, geometry);
+
+      promises.push(
+        Promise.all([
+          computeValue(token, projectId, timestamp),
+          computeValue(token, projectId, ndviVal),
+        ]).then(([tsResult, ndviResult]) => {
+          const ts = tsResult?.result;
+          const ndvi = ndviResult?.result;
+          const dateStr = ts ? new Date(ts).toISOString().split("T")[0] : null;
+          return {
+            date: dateStr || "unknown",
+            ndvi: ndvi != null ? Math.round(ndvi * 1000) / 1000 : null,
+          };
+        }).catch((e) => {
+          console.error(`Image ${i} error:`, e.message);
+          return { date: "unknown", ndvi: null };
+        })
+      );
+    }
+
+    const rawTimeseries = await Promise.all(promises);
+    const timeseries = rawTimeseries
+      .filter((p) => p.date !== "unknown" && p.ndvi !== null)
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    console.log(`Time-series: ${timeseries.length} valid observations`);
+
+    if (timeseries.length === 0) {
+      return new Response(JSON.stringify({
+        timeseries: [],
+        growth_rate: null,
+        canopy_cover: null,
+        biomass_estimate: null,
+        growth_stage: null,
+        error: "NDVI computation returned no valid results",
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
     // Compute derived indicators
-    const validNdvis = timeseries.filter((p) => p.ndvi !== null);
-    const latestNdvi = validNdvis.length > 0 ? validNdvis[validNdvis.length - 1].ndvi! : 0;
-    const earliestNdvi = validNdvis.length > 0 ? validNdvis[0].ndvi! : 0;
+    const latestNdvi = timeseries[timeseries.length - 1].ndvi!;
+    const earliestNdvi = timeseries[0].ndvi!;
 
     // Growth rate: NDVI change per day
     let growth_rate: number | null = null;
-    if (validNdvis.length >= 2) {
-      const daysDiff = (new Date(validNdvis[validNdvis.length - 1].date).getTime() - new Date(validNdvis[0].date).getTime()) / (1000 * 60 * 60 * 24);
+    if (timeseries.length >= 2) {
+      const daysDiff = (new Date(timeseries[timeseries.length - 1].date).getTime() - new Date(timeseries[0].date).getTime()) / (1000 * 60 * 60 * 24);
       if (daysDiff > 0) {
         growth_rate = Math.round(((latestNdvi - earliestNdvi) / daysDiff) * 10000) / 10000;
       }
     }
 
     // Canopy cover: fraction of observations where NDVI > 0.5
-    const canopy_cover = validNdvis.length > 0
-      ? Math.round((validNdvis.filter((p) => p.ndvi! > 0.5).length / validNdvis.length) * 100)
-      : null;
+    const canopy_cover = Math.round((timeseries.filter((p) => p.ndvi! > 0.5).length / timeseries.length) * 100);
 
     // Biomass estimate
-    const meanNdvi = validNdvis.reduce((s, p) => s + p.ndvi!, 0) / validNdvis.length;
+    const meanNdvi = timeseries.reduce((s, p) => s + p.ndvi!, 0) / timeseries.length;
     const biomass_estimate = Math.round(meanNdvi * 8 * 1000) / 1000;
 
     // Growth stage from latest NDVI
@@ -381,7 +395,7 @@ serve(async (req) => {
     else if (latestNdvi < 0.75) { growth_stage = "Heading"; growth_progress = 70; }
     else { growth_stage = "Grain Fill"; growth_progress = 90; }
 
-    console.log(`Time-series: ${timeseries.length} observations, latest NDVI=${latestNdvi}, stage=${growth_stage}`);
+    console.log(`Results: ${timeseries.length} obs, latest=${latestNdvi}, stage=${growth_stage}, rate=${growth_rate}`);
 
     return new Response(JSON.stringify({
       timeseries,
