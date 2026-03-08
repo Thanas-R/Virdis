@@ -101,6 +101,81 @@ function ndviLabel(val: number): string {
   return "Critical";
 }
 
+const GROWTH_STAGE_CACHE_KEY = "field-growth-stage-cache";
+
+function getGrowthCache(): Record<string, { data: any; timestamp: number }> {
+  try { const c = localStorage.getItem(GROWTH_STAGE_CACHE_KEY); return c ? JSON.parse(c) : {}; } catch { return {}; }
+}
+
+function GrowthStageSection({ polygon, fieldId }: { polygon: [number, number][]; fieldId: string }) {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const cache = getGrowthCache();
+    const cached = cache[fieldId];
+    if (cached && Date.now() - cached.timestamp < 3600000) {
+      setData(cached.data);
+      return;
+    }
+    const fetch = async () => {
+      setLoading(true);
+      try {
+        const { data: result, error } = await supabase.functions.invoke("gee-analytics", {
+          body: { polygon, analyses: ["growth_stage"] },
+        });
+        if (error) throw error;
+        const gs = result?.growth_stage || null;
+        setData(gs);
+        if (gs) {
+          const c = getGrowthCache();
+          c[fieldId] = { data: gs, timestamp: Date.now() };
+          localStorage.setItem(GROWTH_STAGE_CACHE_KEY, JSON.stringify(c));
+        }
+      } catch (e) {
+        console.error("Growth stage error:", e);
+        setData(null);
+      } finally { setLoading(false); }
+    };
+    fetch();
+  }, [fieldId]);
+
+  return (
+    <div>
+      <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+        <Leaf className="w-3.5 h-3.5" /> Growth Stage
+      </h3>
+      {loading ? (
+        <div className="p-4 rounded-xl border border-border bg-accent/15 flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="w-4 h-4 animate-spin" /> Detecting growth stage…
+        </div>
+      ) : data ? (
+        <div className="p-4 rounded-xl border border-border bg-accent/15 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-lg font-semibold text-foreground">{data.stage}</span>
+            <span className="text-xs text-muted-foreground">NDVI: {data.current_ndvi}</span>
+          </div>
+          <div className="w-full h-2 rounded-full bg-muted/30 overflow-hidden">
+            <div className="h-full rounded-full bg-[#7BC75B] transition-all duration-500" style={{ width: `${data.progress}%` }} />
+          </div>
+          <div className="flex justify-between text-[10px] text-muted-foreground">
+            <span>Germination</span>
+            <span>Tillering</span>
+            <span>Extension</span>
+            <span>Heading</span>
+            <span>Grain Fill</span>
+          </div>
+          <div className="text-[10px] text-muted-foreground">{data.date_range}</div>
+        </div>
+      ) : (
+        <div className="p-4 rounded-xl border border-border bg-accent/10 text-sm text-muted-foreground">
+          No satellite data available for this field.
+        </div>
+      )}
+    </div>
+  );
+}
+
 const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps) => {
   const [weather, setWeather] = useState<FieldWeather | null>(null);
   const [loading, setLoading] = useState(true);
