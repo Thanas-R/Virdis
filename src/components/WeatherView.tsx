@@ -377,16 +377,17 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in" style={{ animationDelay: "100ms" }}>
               {/* Land Use Donut */}
               <div className="flex flex-col">
-                <div className="rounded-2xl border border-border/40 p-4 w-full flex flex-col items-center justify-center" style={{ background: "hsla(150, 18%, 14%, 0.6)" }}>
+                <h3 className="text-sm font-medium text-foreground mb-4">Regional Land Use</h3>
+                <div className="rounded-2xl border border-border/40 p-4 w-full h-[290px] flex flex-col items-center justify-center" style={{ background: "hsla(150, 18%, 14%, 0.6)" }}>
                   {geeLoading ? (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground py-10">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Loader2 className="w-4 h-4 animate-spin" /> Fetching ESA WorldCover…
                     </div>
                   ) : landUseData && landUseData.length > 0 ? (
-                    <div className="flex flex-col items-center w-full">
-                      <ResponsiveContainer width="100%" height={180}>
+                    <div className="flex flex-col items-center w-full h-full justify-center">
+                      <ResponsiveContainer width="100%" height={160}>
                         <PieChart>
-                          <Pie data={landUseData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={35} outerRadius={65} paddingAngle={2} strokeWidth={0} label={false}>
+                          <Pie data={landUseData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={35} outerRadius={62} paddingAngle={2} strokeWidth={0} label={false}>
                             {landUseData.map((entry, i) => (
                               <Cell key={i} fill={entry.color} />
                             ))}
@@ -394,8 +395,7 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
                           <Tooltip content={<CustomLandUseTooltip />} />
                         </PieChart>
                       </ResponsiveContainer>
-                      <h3 className="text-xs font-medium text-muted-foreground mb-2 mt-1">Regional Land Use</h3>
-                      <div className="flex flex-wrap gap-x-4 gap-y-1.5 justify-center">
+                      <div className="flex flex-wrap gap-x-4 gap-y-1.5 justify-center mt-2">
                         {landUseData.map((entry, i) => (
                           <div key={i} className="flex items-center gap-1.5 text-[10px]">
                             <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: entry.color }} />
@@ -406,7 +406,7 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
                       </div>
                     </div>
                   ) : (
-                    <div className="text-center text-sm text-muted-foreground py-10">
+                    <div className="text-center text-sm text-muted-foreground">
                       <Leaf className="w-6 h-6 mx-auto mb-2 opacity-40" />
                       No satellite data available for this field.
                     </div>
@@ -430,6 +430,7 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
                           <PolarAngleAxis dataKey="subject" tick={{ fill: "hsl(150, 10%, 55%)", fontSize: 10 }} />
                           <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: "hsl(150, 10%, 55%)", fontSize: 9 }} />
                           <Radar name="Score" dataKey="value" stroke={CHART_GREEN} fill={CHART_GREEN} fillOpacity={0.25} strokeWidth={2} />
+                          <Tooltip content={<CustomChartTooltip />} />
                         </RadarChart>
                       </ResponsiveContainer>
                       {geeData?.suitability?.raw && (
