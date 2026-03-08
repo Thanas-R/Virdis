@@ -350,7 +350,7 @@ function buildNdviExpression(west: number, south: number, east: number, north: n
     },
     result: "15",
   };
-
+}
 
 
 // ── Main handler ──────────────────────────────────────────────────
