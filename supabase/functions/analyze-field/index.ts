@@ -74,10 +74,17 @@ function flattenExpression(nested: any): { values: Record<string, any>; result: 
 // ── GEE NDVI image builder ───────────────────────────────────────
 
 function buildNdviImage(coords: [number, number][], startDate: string, endDate: string) {
-  const geoJson = { type: "Polygon", coordinates: [coords] };
-
-  // Geometry is passed as a plain GeoJSON constant value
-  const geometry = { constantValue: geoJson };
+  // Construct a proper GEE Geometry using GeometryConstructors.Polygon
+  const geometry = {
+    functionInvocationValue: {
+      functionName: "GeometryConstructors.Polygon",
+      arguments: {
+        coordinates: { constantValue: [coords] },
+        geodesic: { constantValue: false },
+        evenOdd: { constantValue: true },
+      },
+    },
+  };
 
   const collection = {
     functionInvocationValue: {
