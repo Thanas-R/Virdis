@@ -92,12 +92,14 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
   const editMarkersRef = useRef<mapboxgl.Marker[]>([]);
   const drawModeRef = useRef(false);
   const autoFieldModeRef = useRef(false);
+  const editBoundaryFieldIdRef = useRef(editBoundaryFieldId);
   const allFieldsRef = useRef(allFields);
   const onFieldClickRef = useRef(onFieldClickOnMap);
   const onUpdateFieldRef = useRef(onUpdateField);
 
   useEffect(() => { drawModeRef.current = drawMode; }, [drawMode]);
   useEffect(() => { autoFieldModeRef.current = autoFieldMode; }, [autoFieldMode]);
+  useEffect(() => { editBoundaryFieldIdRef.current = editBoundaryFieldId; }, [editBoundaryFieldId]);
   useEffect(() => { allFieldsRef.current = allFields; }, [allFields]);
   useEffect(() => { onFieldClickRef.current = onFieldClickOnMap; }, [onFieldClickOnMap]);
   useEffect(() => { onUpdateFieldRef.current = onUpdateField; }, [onUpdateField]);
@@ -152,9 +154,11 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
     map.on("load", () => { hideExtraLabels(map); setMapLoaded(true); refreshFieldLayers(map, allFieldsRef.current, allFieldsRef.current); });
     map.on("moveend", () => saveMapPosition(map));
     map.on("click", (e) => {
+      console.log("Map clicked:", e.lngLat.lat, e.lngLat.lng, "| drawMode:", drawModeRef.current, "| autoField:", autoFieldModeRef.current);
       if (drawModeRef.current) return;
+      if (editBoundaryFieldIdRef.current) return;
       if (autoFieldModeRef.current) {
-        // Auto field mode: send click to GEE
+        console.log("Auto-detect triggered at:", e.lngLat.lat, e.lngLat.lng);
         handleAutoFieldClick(e.lngLat.lat, e.lngLat.lng);
         return;
       }
@@ -430,7 +434,8 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
 
   // ── GEE: Auto-field single-click detection ────────────────────
   const handleAutoFieldClick = async (lat: number, lng: number) => {
-    if (autoFieldDetecting) return;
+    console.log("handleAutoFieldClick called:", lat, lng);
+    if (autoFieldDetecting) { console.log("Already detecting, skipping"); return; }
     setAutoFieldDetecting(true);
     toast.info(`Detecting field at ${lat.toFixed(4)}, ${lng.toFixed(4)}…`);
 
@@ -605,11 +610,24 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
       {autoFieldMode && !drawMode && (
         <div className="absolute bottom-6 left-4 z-10 bg-card/90 backdrop-blur-sm rounded-lg border border-border px-4 py-2.5 text-xs text-foreground space-y-1">
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: "#4CAF50" }} />
+            {autoFieldDetecting ? (
+              <span className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: "#4CAF50" }} />
+            )}
             <span className="font-medium">{autoFieldDetecting ? "Detecting field…" : "Auto Field Mode"}</span>
           </div>
-          <div className="text-muted-foreground">Click on any field to detect its boundary via GEE</div>
+          {!autoFieldDetecting && <div className="text-muted-foreground">Click anywhere on the map to detect a field boundary</div>}
+          {autoFieldDetecting && <div className="text-muted-foreground">Querying satellite imagery, please wait…</div>}
           <button onClick={() => setAutoFieldMode(false)} className="mt-1 px-3 py-1 rounded-md bg-primary text-primary-foreground text-xs">Exit</button>
+        </div>
+      )}
+
+      {autoFieldDetecting && (
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 bg-card/95 backdrop-blur-md rounded-xl border border-border px-6 py-4 flex flex-col items-center gap-3 shadow-lg">
+          <span className="w-8 h-8 border-3 border-accent border-t-transparent rounded-full animate-spin" />
+          <span className="text-sm font-medium text-foreground">Analyzing satellite imagery…</span>
+          <span className="text-xs text-muted-foreground">This may take 10-20 seconds</span>
         </div>
       )}
 
