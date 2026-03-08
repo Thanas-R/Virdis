@@ -338,7 +338,7 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
                   <span className="flex items-center gap-1.5"><Wind className="w-3.5 h-3.5" />{liveWeather.windSpeed} km/h</span>
                 </div>
                 <div className="flex-1" />
-                <span className="text-[10px] italic" style={{ color: "#EAB947" }}>⚠ Data may not always be accurate</span>
+                <span className="text-xs italic" style={{ color: "#EAB947" }}>⚠ Data may not always be accurate</span>
               </div> :
         <div className="text-sm text-muted-foreground">Weather unavailable</div>
         }
@@ -357,9 +357,9 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
             <div className="text-muted-foreground animate-pulse text-sm">Fetching analytics for {effectiveField.name}…</div>
           </div> :
 
-        <>
+        <div key={effectiveField.id} className="animate-fade-in">
             {/* Key Metrics Cards */}
-            <div className="grid grid-cols-4 gap-3 animate-fade-in">
+            <div className="grid grid-cols-4 gap-3">
               {[
             { label: "Avg NDVI", value: ndviTimeSeries?.mean_ndvi != null ? ndviTimeSeries.mean_ndvi.toFixed(3) : (vegetation?.mean_ndvi != null ? vegetation.mean_ndvi.toFixed(3) : "N/A"), icon: Leaf, color: CHART_GREEN },
             { label: "Avg Moisture", value: soilMoistureData.length > 0 ? `${(soilMoistureData.reduce((s: number, d: any) => s + d.shallow, 0) / soilMoistureData.length).toFixed(1)}%` : "N/A", icon: Droplets, color: CHART_BLUE },
@@ -605,7 +605,7 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
                 </div>
               )}
             </div>
-          </>
+          </div>
         }
       </div>
     </div>);
