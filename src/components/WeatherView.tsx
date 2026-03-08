@@ -348,16 +348,29 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
               {/* Land Use Donut */}
               <div className="flex flex-col">
                 <h3 className="text-sm font-medium text-foreground mb-4">Regional Land Use</h3>
-                <div className="rounded-2xl border border-border/40 p-4 w-full h-[290px] flex items-center justify-center" style={{ background: "hsla(150, 18%, 14%, 0.6)" }}>
+                <div className="rounded-2xl border border-border/40 p-4 w-full h-[290px] flex flex-col items-center justify-center" style={{ background: "hsla(150, 18%, 14%, 0.6)" }}>
                   {geeLoading ? (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Loader2 className="w-4 h-4 animate-spin" /> Fetching ESA WorldCover…
                     </div>
                   ) : landUseData && landUseData.length > 0 ? (
-                    <div className="flex items-center gap-4 w-full">
-                      <ResponsiveContainer width="50%" height={240}>
+                    <div className="flex flex-col items-center w-full h-full">
+                      <ResponsiveContainer width="100%" height={170}>
                         <PieChart>
-                          <Pie data={landUseData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={90} paddingAngle={2} strokeWidth={0}>
+                          <Pie data={landUseData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={40} outerRadius={70} paddingAngle={2} strokeWidth={0}
+                            label={({ name, value, cx, cy, midAngle, outerRadius: or }) => {
+                              const RADIAN = Math.PI / 180;
+                              const radius = or + 16;
+                              const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                              const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                              const entry = landUseData.find((d) => d.name === name);
+                              return (
+                                <text x={x} y={y} fill={entry?.color || "#fff"} textAnchor={x > cx ? "start" : "end"} dominantBaseline="central" fontSize={10} fontWeight={600}>
+                                  {name} {value}%
+                                </text>
+                              );
+                            }}
+                          >
                             {landUseData.map((entry, i) => (
                               <Cell key={i} fill={entry.color} />
                             ))}
@@ -365,12 +378,12 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
                           <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => `${value}%`} />
                         </PieChart>
                       </ResponsiveContainer>
-                      <div className="flex flex-col gap-1.5 text-xs">
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 justify-center mt-2">
                         {landUseData.map((entry, i) => (
-                          <div key={i} className="flex items-center gap-2">
-                            <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: entry.color }} />
-                            <span className="text-muted-foreground">{entry.name}</span>
-                            <span className="text-foreground font-medium ml-auto">{entry.value}%</span>
+                          <div key={i} className="flex items-center gap-1.5 text-[10px]">
+                            <span className="w-2 h-2 rounded-sm flex-shrink-0" style={{ backgroundColor: entry.color }} />
+                            <span style={{ color: entry.color }}>{entry.name}</span>
+                            <span className="text-foreground font-semibold">{entry.value}%</span>
                           </div>
                         ))}
                       </div>
