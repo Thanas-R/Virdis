@@ -321,39 +321,39 @@ serve(async (req) => {
     // Use GEE REST API to compute NDVI grid
     // We'll build the expression as a serialized computation graph
     const region = {
-      function_invocation_value: {
-        function_name: "ee.Geometry.Rectangle",
+      functionInvocationValue: {
+        functionName: "ee.Geometry.Rectangle",
         arguments: {
-          coords: { constant_value: [west, south, east, north] },
+          coords: { constantValue: [west, south, east, north] },
         },
       },
     };
 
     const s2Collection = {
-      function_invocation_value: {
-        function_name: "Collection.filter",
+      functionInvocationValue: {
+        functionName: "Collection.filter",
         arguments: {
           collection: {
-            function_invocation_value: {
-              function_name: "Collection.filter",
+            functionInvocationValue: {
+              functionName: "Collection.filter",
               arguments: {
                 collection: {
-                  function_invocation_value: {
-                    function_name: "Collection.filter",
+                  functionInvocationValue: {
+                    functionName: "Collection.filter",
                     arguments: {
                       collection: {
-                        function_invocation_value: {
-                          function_name: "ImageCollection.load",
+                        functionInvocationValue: {
+                          functionName: "ImageCollection.load",
                           arguments: {
-                            id: { constant_value: "COPERNICUS/S2_SR_HARMONIZED" },
+                            id: { constantValue: "COPERNICUS/S2_SR_HARMONIZED" },
                           },
                         },
                       },
                       filter: {
-                        function_invocation_value: {
-                          function_name: "Filter.intersects",
+                        functionInvocationValue: {
+                          functionName: "Filter.intersects",
                           arguments: {
-                            leftField: { constant_value: ".all" },
+                            leftField: { constantValue: ".all" },
                             rightValue: region,
                           },
                         },
@@ -362,19 +362,19 @@ serve(async (req) => {
                   },
                 },
                 filter: {
-                  function_invocation_value: {
-                    function_name: "Filter.dateRangeContains",
+                  functionInvocationValue: {
+                    functionName: "Filter.dateRangeContains",
                     arguments: {
                       leftValue: {
-                        function_invocation_value: {
-                          function_name: "DateRange",
+                        functionInvocationValue: {
+                          functionName: "DateRange",
                           arguments: {
-                            start: { constant_value: startDate },
-                            end: { constant_value: endDate },
+                            start: { constantValue: startDate },
+                            end: { constantValue: endDate },
                           },
                         },
                       },
-                      rightField: { constant_value: "system:time_start" },
+                      rightField: { constantValue: "system:time_start" },
                     },
                   },
                 },
@@ -382,11 +382,11 @@ serve(async (req) => {
             },
           },
           filter: {
-            function_invocation_value: {
-              function_name: "Filter.lessThan",
+            functionInvocationValue: {
+              functionName: "Filter.lessThan",
               arguments: {
-                leftField: { constant_value: "CLOUDY_PIXEL_PERCENTAGE" },
-                rightValue: { constant_value: 30 },
+                leftField: { constantValue: "CLOUDY_PIXEL_PERCENTAGE" },
+                rightValue: { constantValue: 30 },
               },
             },
           },
@@ -396,13 +396,13 @@ serve(async (req) => {
 
     // Compute median, then NDVI
     const median = {
-      function_invocation_value: {
-        function_name: "Collection.reduce",
+      functionInvocationValue: {
+        functionName: "Collection.reduce",
         arguments: {
           collection: s2Collection,
           reducer: {
-            function_invocation_value: {
-              function_name: "Reducer.median",
+            functionInvocationValue: {
+              functionName: "Reducer.median",
               arguments: {},
             },
           },
@@ -411,42 +411,42 @@ serve(async (req) => {
     };
 
     const ndvi = {
-      function_invocation_value: {
-        function_name: "Image.normalizedDifference",
+      functionInvocationValue: {
+        functionName: "Image.normalizedDifference",
         arguments: {
           input: median,
-          bandNames: { constant_value: ["B8_median", "B4_median"] },
+          bandNames: { constantValue: ["B8_median", "B4_median"] },
         },
       },
     };
 
     // Sample NDVI as a grid over the region
     const ndviSampled = {
-      function_invocation_value: {
-        function_name: "Image.sampleRectangle",
+      functionInvocationValue: {
+        functionName: "Image.sampleRectangle",
         arguments: {
           image: {
-            function_invocation_value: {
-              function_name: "Image.rename",
+            functionInvocationValue: {
+              functionName: "Image.rename",
               arguments: {
                 input: ndvi,
-                names: { constant_value: ["ndvi"] },
+                names: { constantValue: ["ndvi"] },
               },
             },
           },
           region: region,
-          defaultValue: { constant_value: 0 },
+          defaultValue: { constantValue: 0 },
         },
       },
     };
 
     // Get the array from the sampled rectangle
     const ndviArray = {
-      function_invocation_value: {
-        function_name: "Element.get",
+      functionInvocationValue: {
+        functionName: "Element.get",
         arguments: {
           object: ndviSampled,
-          key: { constant_value: "ndvi" },
+          key: { constantValue: "ndvi" },
         },
       },
     };
