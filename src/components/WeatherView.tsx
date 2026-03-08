@@ -40,17 +40,31 @@ const weatherDescriptions: Record<number, string> = {
 };
 
 const LAND_USE_COLORS: Record<string, string> = {
-  "Cropland": "#4CAF50",
-  "Tree cover": "#2E7D32",
-  "Grassland": "#8BC34A",
-  "Built-up": "#E53935",
+  "Cropland": "#2F6936",
+  "Tree cover": "#4A9E5C",
+  "Grassland": "#72B755",
+  "Built-up": "#D34739",
   "Water": "#2196F3",
-  "Bare/sparse": "#D4A373",
+  "Bare/sparse": "#D6AA43",
   "Shrubland": "#A5D6A7",
   "Wetland": "#457b9d",
   "Snow/ice": "#e0e1dd",
   "Mangroves": "#1b4332",
   "Moss/lichen": "#b5e48c",
+};
+
+const CustomLandUseTooltip = ({ active, payload }: any) => {
+  if (!active || !payload?.length) return null;
+  const { name, value, color } = payload[0].payload;
+  return (
+    <div className="rounded-lg px-3 py-2 shadow-xl border border-border/50" style={{ background: "hsl(150, 18%, 12%)" }}>
+      <div className="flex items-center gap-2 mb-1">
+        <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: color }} />
+        <span className="text-xs font-semibold" style={{ color }}>{name}</span>
+      </div>
+      <div className="text-sm font-bold text-foreground">{value}%</div>
+    </div>
+  );
 };
 
 function getFieldCenter(field: Field) {
