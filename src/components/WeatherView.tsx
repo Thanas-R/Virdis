@@ -94,6 +94,10 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
   const [geeData, setGeeData] = useState<any>(null);
   const [geeLoading, setGeeLoading] = useState(false);
 
+  // NDVI time-series state
+  const [ndviTimeSeries, setNdviTimeSeries] = useState<any>(null);
+  const [ndviTsLoading, setNdviTsLoading] = useState(false);
+
   const effectiveField = activeField || selectedFields[0];
 
   // Fetch GEE analytics
