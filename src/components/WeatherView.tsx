@@ -390,14 +390,20 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
 
       {/* Charts */}
       <div className="flex-1 overflow-y-auto p-6 space-y-8">
-        {!effectiveField ?
-        <div className="flex flex-col items-center justify-center py-20 text-center">
+        {!effectiveField ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
             <Sprout className="w-10 h-10 text-muted-foreground mb-3" />
             <p className="text-sm text-muted-foreground">Select a field to view analytics</p>
-          </div> :
-        loading ?
-        <div className="flex items-center justify-center py-20">
-            <div className="text-muted-foreground animate-pulse text-sm">Fetching analytics for {effectiveField.name}…</div>
+          </div>
+        ) : compareField ? (
+          /* ===== COMPARISON MODE ===== */
+          <div className="grid grid-cols-2 gap-6 animate-fade-in">
+            <FieldComparisonColumn field={effectiveField} startDate={startDate} endDate={endDate} compact gradientIdSuffix="-a" />
+            <FieldComparisonColumn field={compareField} startDate={startDate} endDate={endDate} compact gradientIdSuffix="-b" />
+          </div>
+        ) : loading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="text-muted-foreground animate-pulse text-sm">Fetching analytics for {effectiveField.name}...</div>
           </div> :
 
         <div key={effectiveField.id} className="animate-fade-in">
