@@ -346,6 +346,7 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
 
   const handleSaveNewField = (fieldData: { name: string; crop: string; cropEmoji: string; area: number; color: string; location: string; group?: string; coordinates: [number, number][][]; }) => {
     const newField: Field = { id: `custom-${Date.now()}`, ...fieldData };
+    console.log("[Virdis Draw] Field saved:", { id: newField.id, name: newField.name, geometry: { type: "Polygon", coordinates: newField.coordinates } });
     onAddField(newField);
     setShowNewFieldDialog(false);
     setDrawVertices([]);
