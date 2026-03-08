@@ -67,6 +67,22 @@ const CustomLandUseTooltip = ({ active, payload }: any) => {
   );
 };
 
+const CustomChartTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-lg px-3 py-2 shadow-xl border border-border/50" style={{ background: "hsl(150, 18%, 12%)" }}>
+      <div className="text-[10px] text-muted-foreground mb-1.5">{label}</div>
+      {payload.map((p: any, i: number) => (
+        <div key={i} className="flex items-center gap-2 text-xs">
+          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: p.stroke || p.fill || p.color }} />
+          <span className="text-muted-foreground">{p.name || p.dataKey}</span>
+          <span className="font-semibold text-foreground ml-auto">{typeof p.value === 'number' ? p.value.toFixed(1) : p.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 function getFieldCenter(field: Field) {
   const coords = field.coordinates[0];
   const lat = coords.reduce((sum, c) => sum + c[1], 0) / coords.length;
@@ -361,16 +377,17 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in" style={{ animationDelay: "100ms" }}>
               {/* Land Use Donut */}
               <div className="flex flex-col">
-                <div className="rounded-2xl border border-border/40 p-4 w-full flex flex-col items-center justify-center" style={{ background: "hsla(150, 18%, 14%, 0.6)" }}>
+                <h3 className="text-sm font-medium text-foreground mb-4">Regional Land Use</h3>
+                <div className="rounded-2xl border border-border/40 p-4 w-full h-[290px] flex flex-col items-center justify-center" style={{ background: "hsla(150, 18%, 14%, 0.6)" }}>
                   {geeLoading ? (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground py-10">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Loader2 className="w-4 h-4 animate-spin" /> Fetching ESA WorldCover…
                     </div>
                   ) : landUseData && landUseData.length > 0 ? (
-                    <div className="flex flex-col items-center w-full">
-                      <ResponsiveContainer width="100%" height={180}>
+                    <div className="flex flex-col items-center w-full h-full justify-center">
+                      <ResponsiveContainer width="100%" height={160}>
                         <PieChart>
-                          <Pie data={landUseData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={35} outerRadius={65} paddingAngle={2} strokeWidth={0} label={false}>
+                          <Pie data={landUseData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={35} outerRadius={62} paddingAngle={2} strokeWidth={0} label={false}>
                             {landUseData.map((entry, i) => (
                               <Cell key={i} fill={entry.color} />
                             ))}
@@ -378,8 +395,7 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
                           <Tooltip content={<CustomLandUseTooltip />} />
                         </PieChart>
                       </ResponsiveContainer>
-                      <h3 className="text-xs font-medium text-muted-foreground mb-2 mt-1">Regional Land Use</h3>
-                      <div className="flex flex-wrap gap-x-4 gap-y-1.5 justify-center">
+                      <div className="flex flex-wrap gap-x-4 gap-y-1.5 justify-center mt-2">
                         {landUseData.map((entry, i) => (
                           <div key={i} className="flex items-center gap-1.5 text-[10px]">
                             <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: entry.color }} />
@@ -390,7 +406,7 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
                       </div>
                     </div>
                   ) : (
-                    <div className="text-center text-sm text-muted-foreground py-10">
+                    <div className="text-center text-sm text-muted-foreground">
                       <Leaf className="w-6 h-6 mx-auto mb-2 opacity-40" />
                       No satellite data available for this field.
                     </div>
@@ -414,6 +430,7 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
                           <PolarAngleAxis dataKey="subject" tick={{ fill: "hsl(150, 10%, 55%)", fontSize: 10 }} />
                           <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: "hsl(150, 10%, 55%)", fontSize: 9 }} />
                           <Radar name="Score" dataKey="value" stroke={CHART_GREEN} fill={CHART_GREEN} fillOpacity={0.25} strokeWidth={2} />
+                          <Tooltip content={<CustomChartTooltip />} />
                         </RadarChart>
                       </ResponsiveContainer>
                       {geeData?.suitability?.raw && (
@@ -449,7 +466,7 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(150, 12%, 22%)" />
                   <XAxis dataKey="month" stroke="hsl(150, 10%, 55%)" fontSize={11} />
                   <YAxis stroke="hsl(150, 10%, 55%)" fontSize={11} />
-                  <Tooltip contentStyle={tooltipStyle} />
+                  <Tooltip content={<CustomChartTooltip />} />
                   <Area type="monotone" dataKey="accumulated" stroke={CHART_GOLD} strokeWidth={2.5} fill="url(#goldGrad)" dot={{ r: 3, fill: CHART_GOLD }} activeDot={{ r: 5 }} />
                   <Line type="monotone" dataKey="evapotranspiration" stroke={CHART_CREAM} strokeWidth={1.5} dot={false} strokeDasharray="5 5" />
                 </AreaChart>
@@ -464,7 +481,7 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(150, 12%, 22%)" />
                   <XAxis dataKey="label" stroke="hsl(150, 10%, 55%)" fontSize={10} interval="preserveStartEnd" />
                   <YAxis stroke="hsl(150, 10%, 55%)" fontSize={11} />
-                  <Tooltip contentStyle={tooltipStyle} />
+                  <Tooltip content={<CustomChartTooltip />} />
                   <Bar dataKey="precipitation" fill={CHART_GOLD} radius={[3, 3, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -484,7 +501,7 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(150, 12%, 22%)" />
                   <XAxis dataKey="month" stroke="hsl(150, 10%, 55%)" fontSize={11} />
                   <YAxis stroke="hsl(150, 10%, 55%)" fontSize={11} />
-                  <Tooltip contentStyle={tooltipStyle} />
+                  <Tooltip content={<CustomChartTooltip />} />
                   <Line type="monotone" dataKey="tempMax" stroke={CHART_GOLD} strokeWidth={2} dot={{ r: 3, fill: CHART_GOLD }} activeDot={{ r: 5 }} />
                   <Line type="monotone" dataKey="tempMin" stroke={CHART_CREAM} strokeWidth={2} dot={{ r: 3, fill: CHART_CREAM }} strokeDasharray="5 5" />
                 </LineChart>
@@ -507,7 +524,7 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(150, 12%, 22%)" />
                     <XAxis dataKey="month" stroke="hsl(150, 10%, 55%)" fontSize={11} />
                     <YAxis stroke="hsl(150, 10%, 55%)" fontSize={11} />
-                    <Tooltip contentStyle={tooltipStyle} />
+                    <Tooltip content={<CustomChartTooltip />} />
                     <Area type="monotone" dataKey="shallow" stroke={CHART_GOLD} strokeWidth={2} fill="url(#soilGrad)" dot={{ r: 3, fill: CHART_GOLD }} />
                     <Line type="monotone" dataKey="deep" stroke={CHART_CREAM} strokeWidth={1.5} dot={false} strokeDasharray="5 5" />
                   </AreaChart>
@@ -539,7 +556,7 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(150, 12%, 22%)" />
                     <XAxis dataKey="date" stroke="hsl(150, 10%, 55%)" fontSize={10} interval="preserveStartEnd" />
                     <YAxis stroke="hsl(150, 10%, 55%)" fontSize={11} domain={[0, 1]} />
-                    <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => value?.toFixed(3)} />
+                    <Tooltip content={<CustomChartTooltip />} />
                     <Area type="monotone" dataKey="ndvi" stroke={CHART_GREEN} strokeWidth={2.5} fill="url(#ndviGrad)" dot={{ r: 3, fill: CHART_GREEN }} activeDot={{ r: 5 }} />
                   </AreaChart>
                 </ResponsiveContainer>
