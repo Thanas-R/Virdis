@@ -108,25 +108,54 @@ async function geeComputePixels(
 
 // Parse NumPy .npy format (simple float32/float64 2D arrays)
 function parseNpy(buffer: ArrayBuffer): { data: Float64Array | Float32Array; shape: number[] } {
+  const bytes = new Uint8Array(buffer);
   const view = new DataView(buffer);
-  // Magic: \x93NUMPY
-  const headerLen = view.getUint16(8, true);
-  const headerStr = new TextDecoder().decode(new Uint8Array(buffer, 10, headerLen));
   
-  // Parse shape from header like "{'descr': '<f4', 'fortran_order': False, 'shape': (64, 64), }"
+  // Magic: \x93NUMPY
+  const majorVersion = bytes[6];
+  let headerLen: number;
+  let headerOffset: number;
+  
+  if (majorVersion >= 2) {
+    headerLen = view.getUint32(8, true);
+    headerOffset = 12;
+  } else {
+    headerLen = view.getUint16(8, true);
+    headerOffset = 10;
+  }
+  
+  const headerStr = new TextDecoder().decode(new Uint8Array(buffer, headerOffset, headerLen));
+  console.log("NPY header:", headerStr);
+  
+  // Parse shape
   const shapeMatch = headerStr.match(/shape['"]\s*:\s*\(([^)]+)\)/);
   const shape = shapeMatch ? shapeMatch[1].split(",").map(s => parseInt(s.trim())).filter(n => !isNaN(n)) : [];
   
+  // Parse dtype
   const descrMatch = headerStr.match(/descr['"]\s*:\s*'([^']+)'/);
   const descr = descrMatch ? descrMatch[1] : "<f8";
+  console.log("NPY dtype:", descr, "shape:", shape);
   
-  const dataOffset = 10 + headerLen;
-  const dataBytes = new Uint8Array(buffer, dataOffset);
+  const dataOffset = headerOffset + headerLen;
   
+  let data: Float64Array | Float32Array;
   if (descr.includes("f4")) {
-    return { data: new Float32Array(dataBytes.buffer, dataOffset), shape };
+    data = new Float32Array(buffer, dataOffset);
+  } else if (descr.includes("f8")) {
+    data = new Float64Array(buffer, dataOffset);
+  } else {
+    // Might be int or other format - try float64
+    console.warn("Unexpected dtype:", descr, "- attempting float64");
+    data = new Float64Array(buffer, dataOffset);
   }
-  return { data: new Float64Array(dataBytes.buffer, dataOffset), shape };
+  
+  // Log first few values for debugging
+  const sample = Array.from(data.slice(0, 10));
+  const nonZero = Array.from(data).filter(v => v !== 0).length;
+  console.log(`NPY data: ${data.length} values, ${nonZero} non-zero, first 10:`, sample);
+  console.log(`NPY min=${Math.min(...Array.from(data))}, max=${Math.max(...Array.from(data))}`);
+  
+  return { data, shape };
 }
 
 // ── Region growing on NDVI grid ───────────────────────────────────
