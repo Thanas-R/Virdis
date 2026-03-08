@@ -248,11 +248,6 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
 
           }
 
-            {/* Water Stress */}
-            {vegetationIndices.length > 0
-
-
-
 
 
 
