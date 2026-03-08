@@ -297,13 +297,52 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
       {/* Header */}
       <div className="flex items-center gap-4 px-6 py-3 border-b border-border flex-wrap">
         <h1 className="text-lg font-semibold text-foreground">Field Analytics</h1>
-        {effectiveField &&
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        {effectiveField && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: effectiveField.color }} />
-            {effectiveField.name} · {effectiveField.crop} · {haToAcres(effectiveField.area)} acres
+            {effectiveField.name} - {effectiveField.crop} - {haToAcres(effectiveField.area)} acres
           </div>
-        }
+        )}
         <div className="flex-1" />
+
+        {/* Compare button */}
+        {effectiveField && !compareField && (allFields || selectedFields).length > 1 && (
+          <div className="relative">
+            <button
+              onClick={() => setShowCompareSelector(!showCompareSelector)}
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-border text-foreground hover:bg-accent/30 transition-colors"
+            >
+              <GitCompareArrows className="w-3.5 h-3.5" /> Compare
+            </button>
+            {showCompareSelector && (
+              <div className="absolute top-full right-0 mt-1 z-50 w-56 rounded-xl border border-border shadow-xl p-2 space-y-0.5" style={{ background: "hsl(150, 18%, 12%)" }}>
+                <div className="text-[10px] text-muted-foreground px-2 py-1 uppercase tracking-wider">Select field to compare</div>
+                {(allFields || selectedFields).filter(f => f.id !== effectiveField.id).map(f => (
+                  <button
+                    key={f.id}
+                    onClick={() => { setCompareField(f); setShowCompareSelector(false); }}
+                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-foreground hover:bg-accent/20 transition-colors"
+                  >
+                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: f.color }} />
+                    {f.name}
+                    <span className="text-muted-foreground ml-auto">{f.crop}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        {compareField && (
+          <button
+            onClick={() => setCompareField(null)}
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-primary/40 bg-primary/10 text-foreground hover:bg-primary/20 transition-colors"
+          >
+            <GitCompareArrows className="w-3.5 h-3.5" />
+            vs {compareField.name}
+            <X className="w-3 h-3 ml-1 text-muted-foreground" />
+          </button>
+        )}
+
         <Popover>
           <PopoverTrigger asChild>
             <button className="flex items-center gap-2 border border-border rounded-lg px-3 py-2 hover:bg-accent/30 transition-colors">
