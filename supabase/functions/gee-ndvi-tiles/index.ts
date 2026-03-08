@@ -149,7 +149,7 @@ serve(async (req) => {
               arguments: {
                 input: {
                   functionInvocationValue: {
-                    functionName: "Collection.reduce",
+                    functionName: "ImageCollection.reduce",
                     arguments: {
                       collection: {
                         functionInvocationValue: {
