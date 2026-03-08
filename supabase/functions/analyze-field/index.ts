@@ -82,9 +82,17 @@ serve(async (req) => {
     // ── Mode 1: GEE NDVI analysis for a polygon ──────────────────
     if (body.polygon) {
       const { polygon } = body;
-      // polygon is GeoJSON coordinates: [[lng, lat], ...]
-      const coords: [number, number][] = polygon;
-      if (!coords || coords.length < 3) throw new Error("Invalid polygon: need at least 3 coordinates");
+      // Accept GeoJSON Polygon object or raw coordinate array
+      let coords: [number, number][];
+      if (polygon.type === "Polygon" && Array.isArray(polygon.coordinates)) {
+        // Standard GeoJSON: { type: "Polygon", coordinates: [[[lng,lat], ...]] }
+        coords = polygon.coordinates[0];
+      } else if (Array.isArray(polygon) && polygon.length >= 3) {
+        // Raw array: [[lng,lat], ...]
+        coords = polygon;
+      } else {
+        throw new Error("Invalid polygon: provide GeoJSON Polygon or array of [lng,lat] with >= 3 points");
+      }
 
       const token = await getGeeAccessToken();
       const projectId = Deno.env.get("GEE_PROJECT_ID") || "earthengine-legacy";
@@ -98,9 +106,10 @@ serve(async (req) => {
         if (lat > north) north = lat;
       }
 
-      // Date range: summer 2024 (known good Sentinel-2 data)
-      const startDate = "2024-06-01";
-      const endDate = "2024-09-30";
+      // Date range: last 30 days
+      const now = new Date();
+      const endDate = now.toISOString().split("T")[0];
+      const startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
       // Build GEE expression: S2 median → select B8, B4 → clip to polygon → compute stats
       // We use computePixels to get a grid, then compute NDVI stats server-side
