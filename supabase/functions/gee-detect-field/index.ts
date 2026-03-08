@@ -396,11 +396,11 @@ serve(async (req) => {
 
     // Get the array from the sampled rectangle
     const ndviArray = {
-      functionInvocationValue: {
-        functionName: "Element.get",
+      function_invocation_value: {
+        function_name: "Element.get",
         arguments: {
           object: ndviSampled,
-          key: { constantValue: "ndvi" },
+          key: { constant_value: "ndvi" },
         },
       },
     };
