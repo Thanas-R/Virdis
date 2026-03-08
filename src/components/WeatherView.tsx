@@ -480,7 +480,7 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(150, 12%, 22%)" />
                   <XAxis dataKey="label" stroke="hsl(150, 10%, 55%)" fontSize={10} interval="preserveStartEnd" />
                   <YAxis stroke="hsl(150, 10%, 55%)" fontSize={11} />
-                  <Tooltip contentStyle={tooltipStyle} />
+                  <Tooltip content={<CustomChartTooltip />} />
                   <Bar dataKey="precipitation" fill={CHART_GOLD} radius={[3, 3, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
