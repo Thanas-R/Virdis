@@ -500,7 +500,7 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(150, 12%, 22%)" />
                   <XAxis dataKey="month" stroke="hsl(150, 10%, 55%)" fontSize={11} />
                   <YAxis stroke="hsl(150, 10%, 55%)" fontSize={11} />
-                  <Tooltip contentStyle={tooltipStyle} />
+                  <Tooltip content={<CustomChartTooltip />} />
                   <Line type="monotone" dataKey="tempMax" stroke={CHART_GOLD} strokeWidth={2} dot={{ r: 3, fill: CHART_GOLD }} activeDot={{ r: 5 }} />
                   <Line type="monotone" dataKey="tempMin" stroke={CHART_CREAM} strokeWidth={2} dot={{ r: 3, fill: CHART_CREAM }} strokeDasharray="5 5" />
                 </LineChart>
