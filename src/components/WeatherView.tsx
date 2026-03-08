@@ -329,7 +329,7 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
             {/* Key Metrics Cards */}
             <div className="grid grid-cols-4 gap-3 animate-fade-in">
               {[
-            { label: "Avg NDVI", value: vegetation?.mean_ndvi !== undefined && vegetation?.mean_ndvi !== null ? vegetation.mean_ndvi.toFixed(3) : "N/A", icon: Leaf, color: CHART_GREEN },
+            { label: "Avg NDVI", value: ndviTimeSeries?.mean_ndvi != null ? ndviTimeSeries.mean_ndvi.toFixed(3) : (vegetation?.mean_ndvi != null ? vegetation.mean_ndvi.toFixed(3) : "N/A"), icon: Leaf, color: CHART_GREEN },
             { label: "Avg Moisture", value: soilMoistureData.length > 0 ? `${(soilMoistureData.reduce((s: number, d: any) => s + d.shallow, 0) / soilMoistureData.length).toFixed(1)}%` : "N/A", icon: Droplets, color: CHART_BLUE },
             { label: "Temp Range", value: monthlyData.length > 0 ? `${Math.min(...monthlyData.map((d) => d.tempMin))}–${Math.max(...monthlyData.map((d) => d.tempMax))}°C` : "N/A", icon: Thermometer, color: CHART_GOLD },
             { label: "Total Rain", value: monthlyData.length > 0 ? `${monthlyData[monthlyData.length - 1]?.accumulated || 0} mm` : "N/A", icon: TrendingUp, color: CHART_CREAM }].
