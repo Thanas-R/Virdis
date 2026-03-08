@@ -80,7 +80,7 @@ async function getGeeAccessToken(): Promise<string> {
   return access_token;
 }
 
-// ── GEE REST API: computePixels approach ─────────────────────────
+// ── GEE REST API ─────────────────────────────────────────────────
 
 const GEE_API = "https://earthengine.googleapis.com/v1";
 
@@ -90,32 +90,36 @@ async function geeComputePixels(
   grid: any
 ): Promise<ArrayBuffer> {
   const projectId = Deno.env.get("GEE_PROJECT_ID") || "earthengine-legacy";
-  const resp = await fetch(`${GEE_API}/projects/${projectId}/image:computePixels`, {
+  const url = `${GEE_API}/projects/${projectId}/image:computePixels`;
+  const body = JSON.stringify({ expression, fileFormat: "NPY", grid });
+  
+  console.log("computePixels request body (truncated):", body.slice(0, 500));
+  
+  const resp = await fetch(url, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ expression, fileFormat: "NPY", grid }),
+    body,
   });
   if (!resp.ok) {
     const t = await resp.text();
     console.error("GEE computePixels error:", resp.status, t);
-    throw new Error(`GEE computePixels failed (${resp.status}): ${t.slice(0, 500)}`);
+    throw new Error(`GEE compute failed (${resp.status}): ${t.slice(0, 500)}`);
   }
   return resp.arrayBuffer();
 }
 
-// Parse NumPy .npy format (simple float32/float64 2D arrays)
-function parseNpy(buffer: ArrayBuffer): { data: Float64Array | Float32Array; shape: number[] } {
+// Parse NumPy .npy format
+function parseNpy(buffer: ArrayBuffer): { data: Float64Array | Float32Array; shape: number[]; header: string } {
   const bytes = new Uint8Array(buffer);
   const view = new DataView(buffer);
-  
-  // Magic: \x93NUMPY
+
   const majorVersion = bytes[6];
   let headerLen: number;
   let headerOffset: number;
-  
+
   if (majorVersion >= 2) {
     headerLen = view.getUint32(8, true);
     headerOffset = 12;
@@ -123,39 +127,27 @@ function parseNpy(buffer: ArrayBuffer): { data: Float64Array | Float32Array; sha
     headerLen = view.getUint16(8, true);
     headerOffset = 10;
   }
-  
+
   const headerStr = new TextDecoder().decode(new Uint8Array(buffer, headerOffset, headerLen));
-  console.log("NPY header:", headerStr);
-  
-  // Parse shape
+
   const shapeMatch = headerStr.match(/shape['"]\s*:\s*\(([^)]+)\)/);
-  const shape = shapeMatch ? shapeMatch[1].split(",").map(s => parseInt(s.trim())).filter(n => !isNaN(n)) : [];
-  
-  // Parse dtype
+  const shape = shapeMatch
+    ? shapeMatch[1].split(",").map((s) => parseInt(s.trim())).filter((n) => !isNaN(n))
+    : [];
+
   const descrMatch = headerStr.match(/descr['"]\s*:\s*'([^']+)'/);
   const descr = descrMatch ? descrMatch[1] : "<f8";
-  console.log("NPY dtype:", descr, "shape:", shape);
-  
+
   const dataOffset = headerOffset + headerLen;
-  
+
   let data: Float64Array | Float32Array;
   if (descr.includes("f4")) {
     data = new Float32Array(buffer, dataOffset);
-  } else if (descr.includes("f8")) {
-    data = new Float64Array(buffer, dataOffset);
   } else {
-    // Might be int or other format - try float64
-    console.warn("Unexpected dtype:", descr, "- attempting float64");
     data = new Float64Array(buffer, dataOffset);
   }
-  
-  // Log first few values for debugging
-  const sample = Array.from(data.slice(0, 10));
-  const nonZero = Array.from(data).filter(v => v !== 0).length;
-  console.log(`NPY data: ${data.length} values, ${nonZero} non-zero, first 10:`, sample);
-  console.log(`NPY min=${Math.min(...Array.from(data))}, max=${Math.max(...Array.from(data))}`);
-  
-  return { data, shape };
+
+  return { data, shape, header: headerStr };
 }
 
 // ── Region growing on NDVI grid ───────────────────────────────────
@@ -170,6 +162,23 @@ function regionGrow(
   const w = grid[0].length;
   const visited: boolean[][] = Array.from({ length: h }, () => new Array(w).fill(false));
   const seedVal = grid[startRow][startCol];
+
+  // If seed is 0 or NaN, try to find nearest non-zero pixel
+  if (seedVal <= 0) {
+    // Expand search radius
+    for (let radius = 1; radius < Math.max(h, w) / 2; radius++) {
+      for (let dr = -radius; dr <= radius; dr++) {
+        for (let dc = -radius; dc <= radius; dc++) {
+          const nr = startRow + dr;
+          const nc = startCol + dc;
+          if (nr >= 0 && nr < h && nc >= 0 && nc < w && grid[nr][nc] > 0.05) {
+            // Found a valid pixel, use it as seed
+            return regionGrow(grid, nr, nc, threshold);
+          }
+        }
+      }
+    }
+  }
 
   const queue: [number, number][] = [[startRow, startCol]];
   visited[startRow][startCol] = true;
@@ -206,7 +215,7 @@ function maskToPolygon(
       if (!mask[r][c]) continue;
       const isBoundary =
         r === 0 || r === h - 1 || c === 0 || c === w - 1 ||
-        !mask[r - 1][c] || !mask[r + 1][c] || !mask[r][c - 1] || !mask[r][c + 1];
+        !mask[r - 1]?.[c] || !mask[r + 1]?.[c] || !mask[r][c - 1] || !mask[r][c + 1];
       if (isBoundary) {
         const lng = west + (c + 0.5) * cellLng;
         const lat = south + (h - r - 0.5) * cellLat;
@@ -282,12 +291,10 @@ function computeAreaHectares(coords: [number, number][]): number {
   return Math.round((m2 / 10000) * 100) / 100;
 }
 
-// ── Build GEE expression using ee.serializer-compatible format ────
-// The Expression must use { values: { key: ValueNode }, result: key } DAG format.
-// ValueNodes use: constantValue, functionInvocationValue, arrayValue, valueReference, argumentReference
+// ── Build GEE expression ─────────────────────────────────────────
+// Use proper arrayValue for list arguments in the DAG format
 
-function buildNdviExpression(west: number, south: number, east: number, north: number, startDate: string, endDate: string) {
-  // Simplified: skip bounds filter since computePixels clips to the grid region anyway
+function buildNdviExpression(startDate: string, endDate: string) {
   return {
     values: {
       "0": { constantValue: "COPERNICUS/S2_SR_HARMONIZED" },
@@ -349,38 +356,55 @@ function buildNdviExpression(west: number, south: number, east: number, north: n
           },
         },
       },
-      // Median
+      // Median composite
       "12": {
         functionInvocationValue: {
-          functionName: "Reducer.median",
-          arguments: {},
-        },
-      },
-      "13": {
-        functionInvocationValue: {
-          functionName: "ImageCollection.reduce",
+          functionName: "ImageCollection.median",
           arguments: {
             collection: { valueReference: "11" },
-            reducer: { valueReference: "12" },
           },
         },
       },
-      // NDVI
-      "14": { constantValue: ["B8_median", "B4_median"] },
+      // Select B8 and B4 bands (before normalizedDifference)
+      "13": {
+        arrayValue: {
+          values: [
+            { constantValue: "B8" },
+            { constantValue: "B4" },
+          ],
+        },
+      },
+      "14": {
+        functionInvocationValue: {
+          functionName: "Image.select",
+          arguments: {
+            input: { valueReference: "12" },
+            bandSelectors: { valueReference: "13" },
+          },
+        },
+      },
+      // Compute NDVI using normalizedDifference
       "15": {
+        arrayValue: {
+          values: [
+            { constantValue: "B8" },
+            { constantValue: "B4" },
+          ],
+        },
+      },
+      "16": {
         functionInvocationValue: {
           functionName: "Image.normalizedDifference",
           arguments: {
-            input: { valueReference: "13" },
-            bandNames: { valueReference: "14" },
+            input: { valueReference: "14" },
+            bandNames: { valueReference: "15" },
           },
         },
       },
     },
-    result: "15",
+    result: "16",
   };
 }
-
 
 // ── Main handler ──────────────────────────────────────────────────
 
@@ -409,23 +433,22 @@ serve(async (req) => {
     const cellLng = (east - west) / gridSize;
     const cellLat = (north - south) / gridSize;
 
-    // Date range: use a known period with Sentinel-2 data
-    // Go back further to ensure we get data (S2 archive may not cover very recent dates)
+    // Date range: use a known good period with Sentinel-2 data
     const endDate = "2024-09-30";
     const startDate = "2024-06-01";
 
-    const expression = buildNdviExpression(west, south, east, north, startDate, endDate);
+    // Use ImageCollection.median instead of reduce to avoid _median suffix on bands
+    const expression = buildNdviExpression(startDate, endDate);
 
-    // Scale: degrees per pixel
     const scaleX = (east - west) / gridSize;
     const scaleY = (north - south) / gridSize;
 
     console.log("Computing NDVI grid via GEE computePixels...");
-    
+
     const pixelData = await geeComputePixels(token, expression, {
       dimensions: { width: gridSize, height: gridSize },
       affineTransform: {
-        scaleX: scaleX,
+        scaleX,
         shearX: 0,
         translateX: west,
         shearY: 0,
@@ -435,11 +458,34 @@ serve(async (req) => {
       crsCode: "EPSG:4326",
     });
 
-    // Parse NPY data into 2D grid
-    const { data, shape } = parseNpy(pixelData);
+    // Parse NPY data
+    const { data, shape, header } = parseNpy(pixelData);
     const h = shape[0] || gridSize;
     const w = shape[1] || gridSize;
-    
+
+    // Debug: analyze raw data
+    let nanCount = 0, zeroCount = 0, posCount = 0, negCount = 0;
+    let minVal = Infinity, maxVal = -Infinity;
+    for (let i = 0; i < data.length; i++) {
+      const v = data[i];
+      if (isNaN(v)) nanCount++;
+      else if (v === 0) zeroCount++;
+      else if (v > 0) { posCount++; if (v > maxVal) maxVal = v; if (v < minVal) minVal = v; }
+      else { negCount++; if (v < minVal) minVal = v; }
+    }
+
+    const debugInfo = {
+      npyHeader: header.trim(),
+      totalBytes: pixelData.byteLength,
+      dataLen: data.length,
+      shape,
+      nanCount, zeroCount, posCount, negCount,
+      minVal: minVal === Infinity ? null : minVal,
+      maxVal: maxVal === -Infinity ? null : maxVal,
+      first10: Array.from(data.slice(0, 10)),
+    };
+    console.log("NPY debug:", JSON.stringify(debugInfo));
+
     const ndviGrid: number[][] = [];
     for (let r = 0; r < h; r++) {
       const row: number[] = [];
@@ -450,7 +496,7 @@ serve(async (req) => {
       ndviGrid.push(row);
     }
 
-    console.log(`Grid size: ${w}x${h}, center NDVI=${ndviGrid[Math.floor(h/2)]?.[Math.floor(w/2)]}`);
+    console.log(`Grid: ${w}x${h}, center=${ndviGrid[Math.floor(h / 2)]?.[Math.floor(w / 2)]}`);
 
     if (ndviGrid.length === 0) {
       return new Response(
@@ -469,7 +515,10 @@ serve(async (req) => {
 
     if (polygonCoords.length < 4) {
       return new Response(
-        JSON.stringify({ error: "Could not detect a clear field boundary at this location" }),
+        JSON.stringify({
+          error: "Could not detect a clear field boundary at this location",
+          _debug: debugInfo,
+        }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -486,11 +535,11 @@ serve(async (req) => {
     else if (stats.meanNdvi > 0.2) { crop = "Moderate Vegetation"; cropEmoji = "🌿"; }
     else if (stats.meanNdvi > 0.1) { crop = "Sparse Vegetation"; cropEmoji = "🌱"; }
 
-    console.log(`Detected field: ${areaHectares} ha, NDVI=${stats.meanNdvi}, health=${stats.healthScore}`);
+    console.log(`Detected: ${areaHectares} ha, NDVI=${stats.meanNdvi}, health=${stats.healthScore}`);
 
     return new Response(
       JSON.stringify({
-        _debug,
+        _debug: debugInfo,
         field: {
           coordinates: polygonCoords,
           stats: {
