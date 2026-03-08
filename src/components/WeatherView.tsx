@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { CalendarArrowUp, CalendarArrowDown, Droplets, Wind, Sprout, Thermometer, Leaf, TrendingUp, Loader2 } from "lucide-react";
+import { CalendarArrowUp, CalendarArrowDown, Droplets, Wind, Sprout, Thermometer, Leaf, TrendingUp, Loader2, GitCompareArrows, X } from "lucide-react";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   Area, AreaChart, PieChart, Pie, Cell, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
 } from "recharts";
+import FieldComparisonColumn from "@/components/FieldComparisonColumn";
 import { Field, haToAcres } from "@/data/fields";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
