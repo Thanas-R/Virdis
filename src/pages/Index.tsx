@@ -118,7 +118,7 @@ const Index = () => {
 
         {mobileTab === "analytics" && (
           <div className="absolute inset-0 z-30 bg-background overflow-y-auto pb-20">
-            <WeatherView activeField={activeField} selectedFields={selectedFields} />
+            <WeatherView activeField={activeField} selectedFields={selectedFields} allFields={allFields} />
           </div>
         )}
 
