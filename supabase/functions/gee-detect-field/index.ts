@@ -406,13 +406,6 @@ function buildNdviExpression(startDate: string, endDate: string) {
     result: "17",
   };
 }
-          },
-        },
-      },
-    },
-    result: "16",
-  };
-}
 
 // ── Main handler ──────────────────────────────────────────────────
 
