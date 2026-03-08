@@ -367,6 +367,9 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
     const map = mapRef.current;
     if (!map) return;
     setMapLoaded(false);
+    // Clear NDVI layer/source since style change removes all layers
+    setGeeNdviTileUrl(null);
+    setGeeNdviToken(null);
     map.setStyle(MAP_STYLES[style]);
     map.once("style.load", () => { if (style === "satellite") hideExtraLabels(map); setMapLoaded(true); refreshFieldLayers(map, allFields, selectedFields); });
   };
