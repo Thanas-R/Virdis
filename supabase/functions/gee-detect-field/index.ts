@@ -490,6 +490,7 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({
+        _debug,
         field: {
           coordinates: polygonCoords,
           stats: {
