@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { CalendarArrowUp, CalendarArrowDown, Droplets, Wind, Sprout, Thermometer, Leaf, TrendingUp } from "lucide-react";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  Area, AreaChart, PieChart, Pie, Cell, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from
+  Area, AreaChart } from
 "recharts";
 import { Field, haToAcres } from "@/data/fields";
 import { format } from "date-fns";
@@ -50,15 +50,6 @@ interface WeatherViewProps {
   selectedFields: Field[];
 }
 
-const LAND_USE_DATA = [
-  { name: "Cropland", value: 45, color: "#317039" },
-  { name: "Vegetation", value: 25, color: "#7BC75B" },
-  { name: "Water", value: 10, color: "#61AFEF" },
-  { name: "Built-up", value: 12, color: "#E74C3C" },
-  { name: "Bare Soil", value: 8, color: "#EAB947" },
-];
-
-
 const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
   const [endDate, setEndDate] = useState<Date>(new Date());
   const [startDate, setStartDate] = useState<Date>(() => {
@@ -74,23 +65,6 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
   const [liveLoading, setLiveLoading] = useState(false);
 
   const effectiveField = activeField || selectedFields[0];
-
-  // Simulated vegetation indices based on soil moisture + weather
-  const vegetationIndices = soilMoistureData.map((d, i) => ({
-    month: d.month,
-    ndvi: Math.min(0.9, Math.max(0.1, 0.3 + d.shallow * 1.5 + Math.random() * 0.15)),
-    evi: Math.min(0.8, Math.max(0.05, 0.2 + d.shallow * 1.2 + Math.random() * 0.1)),
-    waterStress: Math.max(0, 100 - d.shallow * 300 - (monthlyData[i]?.precipitation || 0) * 0.5)
-  }));
-
-  const suitabilityData = effectiveField ? [
-  { metric: "Soil Quality", value: 72 },
-  { metric: "Water Access", value: 65 },
-  { metric: "Climate", value: 80 },
-  { metric: "Drainage", value: 58 },
-  { metric: "Topography", value: 85 },
-  { metric: "Nutrient Level", value: 70 }] :
-  [];
 
   // Fetch live weather
   useEffect(() => {
@@ -238,7 +212,7 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
             {/* Key Metrics Cards */}
             <div className="grid grid-cols-4 gap-3 animate-fade-in">
               {[
-            { label: "Avg NDVI", value: vegetationIndices.length > 0 ? (vegetationIndices.reduce((s, v) => s + v.ndvi, 0) / vegetationIndices.length).toFixed(2) : "N/A", icon: Leaf, color: CHART_GREEN },
+            { label: "Avg NDVI", value: "N/A", icon: Leaf, color: CHART_GREEN },
             { label: "Avg Moisture", value: soilMoistureData.length > 0 ? `${(soilMoistureData.reduce((s, d) => s + d.shallow, 0) / soilMoistureData.length).toFixed(1)}%` : "N/A", icon: Droplets, color: CHART_BLUE },
             { label: "Temp Range", value: monthlyData.length > 0 ? `${Math.min(...monthlyData.map((d) => d.tempMin))}–${Math.max(...monthlyData.map((d) => d.tempMax))}°C` : "N/A", icon: Thermometer, color: CHART_GOLD },
             { label: "Total Rain", value: monthlyData.length > 0 ? `${monthlyData[monthlyData.length - 1]?.accumulated || 0} mm` : "N/A", icon: TrendingUp, color: CHART_CREAM }].
@@ -250,117 +224,26 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
             )}
             </div>
 
-            {/* Vegetation Indices (NDVI/EVI) */}
-            {vegetationIndices.length > 0
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-          }
-
-            {/* Water Stress */}
-            {vegetationIndices.length > 0
-
-
-
-
-
-
-
-
-
-
-
-
-          }
-
             {/* Land Use / Suitability side by side */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in" style={{ animationDelay: "100ms" }}>
               <div className="flex flex-col">
                 <h3 className="text-sm font-medium text-foreground mb-4">Regional Land Use</h3>
-                <div
-                  className="rounded-2xl border border-border/40 p-4 w-full h-[290px] flex items-center justify-center"
-                  style={{ background: "hsla(150, 18%, 14%, 0.6)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)" }}
-                >
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={LAND_USE_DATA}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={58}
-                        outerRadius={90}
-                        paddingAngle={3}
-                        dataKey="value"
-                        labelLine={false}
-                        label={({ name, percent, cx: cxVal, cy: cyVal, midAngle, outerRadius: oR, payload }) => {
-                          const RADIAN = Math.PI / 180;
-                          const radius = oR + 18;
-                          const x = cxVal + radius * Math.cos(-midAngle * RADIAN);
-                          const y = cyVal + radius * Math.sin(-midAngle * RADIAN);
-                          return (
-                            <text
-                              x={x}
-                              y={y}
-                              textAnchor={x > cxVal ? "start" : "end"}
-                              dominantBaseline="central"
-                              fontSize={13}
-                              fontWeight={700}
-                            >
-                              <tspan fill={payload.color}>{`${name} `}</tspan>
-                              <tspan fill="#FFFBEB">{`${(percent * 100).toFixed(0)}%`}</tspan>
-                            </text>
-                          );
-                        }}
-                        stroke="hsla(150, 12%, 22%, 0.5)"
-                        strokeWidth={1}
-                        fillOpacity={0.9}
-                      >
-                        {LAND_USE_DATA.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-                      </Pie>
-                      <Tooltip
-                        contentStyle={{
-                          ...tooltipStyle,
-                          backdropFilter: "blur(12px)",
-                          background: "hsla(150, 18%, 14%, 0.92)",
-                          border: "1px solid hsla(150, 12%, 30%, 0.5)",
-                        }}
-                        itemStyle={{ color: "hsl(60, 20%, 85%)" }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
+                <div className="rounded-2xl border border-border/40 p-4 w-full h-[290px] flex items-center justify-center" style={{ background: "hsla(150, 18%, 14%, 0.6)" }}>
+                  <div className="text-center text-sm text-muted-foreground">
+                    <Leaf className="w-6 h-6 mx-auto mb-2 opacity-40" />
+                    No data available<br />
+                    <span className="text-xs">Requires ESA WorldCover integration</span>
+                  </div>
                 </div>
               </div>
               <div className="flex flex-col">
                 <h3 className="text-sm font-medium text-foreground mb-4">Land Suitability Score</h3>
-                <div className="rounded-2xl border border-border/40 p-4 w-full h-[290px] flex items-center justify-center" style={{ background: "hsla(150, 18%, 14%, 0.6)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)" }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RadarChart data={suitabilityData}>
-                      <PolarGrid stroke="hsl(150, 12%, 22%)" />
-                      <PolarAngleAxis dataKey="metric" tick={{ fill: "hsl(150, 10%, 55%)", fontSize: 10 }} />
-                      <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} />
-                      <Radar name="Score" dataKey="value" stroke={CHART_GOLD} fill={CHART_GOLD} fillOpacity={0.25} />
-                      <Tooltip contentStyle={tooltipStyle} />
-                    </RadarChart>
-                  </ResponsiveContainer>
+                <div className="rounded-2xl border border-border/40 p-4 w-full h-[290px] flex items-center justify-center" style={{ background: "hsla(150, 18%, 14%, 0.6)" }}>
+                  <div className="text-center text-sm text-muted-foreground">
+                    <Leaf className="w-6 h-6 mx-auto mb-2 opacity-40" />
+                    No data available<br />
+                    <span className="text-xs">Requires soil, elevation &amp; climate datasets</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -451,9 +334,9 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
               <h3 className="text-sm font-medium text-foreground mb-4">Crop Growth Indicators</h3>
               <div className="grid grid-cols-3 gap-3">
                 {[
-              { label: "Growth Rate", value: "N/A", detail: "Satellite data not available", color: "hsl(150, 10%, 55%)" },
-              { label: "Canopy Cover", value: "N/A", detail: "Satellite data not available", color: "hsl(150, 10%, 55%)" },
-              { label: "Biomass Est.", value: "N/A", detail: "Satellite data not available", color: "hsl(150, 10%, 55%)" }].
+              { label: "Growth Rate", value: "N/A", detail: "Requires NDVI time-series data", color: "hsl(150, 10%, 55%)" },
+              { label: "Canopy Cover", value: "N/A", detail: "Requires NDVI time-series data", color: "hsl(150, 10%, 55%)" },
+              { label: "Biomass Est.", value: "N/A", detail: "Requires NDVI time-series data", color: "hsl(150, 10%, 55%)" }].
               map((item, i) =>
               <div key={i} className="p-3 rounded-xl border border-border bg-accent/10">
                     <div className="text-xs text-muted-foreground mb-1">{item.label}</div>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import {
-  ArrowLeft, Droplets, Wind, Sprout, CheckCircle, MapPin,
-  TrendingUp, TrendingDown, BarChart3, Leaf, Move, Brain, Loader2, Satellite,
+  ArrowLeft, Droplets, Wind, Sprout, MapPin,
+  Leaf, Move, Brain, Loader2, Satellite,
 } from "lucide-react";
 import { Field, haToAcres } from "@/data/fields";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,23 +35,6 @@ const weatherCodes: Record<number, string> = {
   55: "Dense drizzle", 61: "Slight rain", 63: "Moderate rain", 65: "Heavy rain",
   71: "Slight snow", 73: "Moderate snow", 75: "Heavy snow",
   80: "Slight showers", 81: "Moderate showers", 82: "Violent showers", 95: "Thunderstorm",
-};
-
-const cropGrowthStages: Record<string, { stages: string[]; currentStage: number }> = {
-  Maize: { stages: ["Germination", "Seedling", "Vegetative", "Tasseling", "Grain Fill", "Maturity"], currentStage: 3 },
-  Grapes: { stages: ["Dormancy", "Bud Break", "Flowering", "Fruit Set", "Veraison", "Harvest"], currentStage: 4 },
-  Sunflower: { stages: ["Emergence", "Vegetative", "Bud Stage", "Flowering", "Seed Fill", "Maturity"], currentStage: 2 },
-  Apple: { stages: ["Dormancy", "Silver Tip", "Bloom", "Petal Fall", "Fruit Dev", "Harvest"], currentStage: 4 },
-  Wheat: { stages: ["Germination", "Tillering", "Stem Extension", "Heading", "Grain Fill", "Maturity"], currentStage: 3 },
-  Rice: { stages: ["Germination", "Seedling", "Tillering", "Booting", "Heading", "Maturity"], currentStage: 2 },
-};
-
-const historicalYield: Record<string, { year: string; yield: number }[]> = {
-  Maize: [{ year: "2020", yield: 8.2 }, { year: "2021", yield: 9.1 }, { year: "2022", yield: 7.8 }, { year: "2023", yield: 9.5 }, { year: "2024", yield: 10.1 }],
-  Grapes: [{ year: "2020", yield: 6.5 }, { year: "2021", yield: 7.2 }, { year: "2022", yield: 5.9 }, { year: "2023", yield: 7.8 }, { year: "2024", yield: 8.0 }],
-  Sunflower: [{ year: "2020", yield: 2.1 }, { year: "2021", yield: 2.5 }, { year: "2022", yield: 1.9 }, { year: "2023", yield: 2.8 }, { year: "2024", yield: 3.0 }],
-  Apple: [{ year: "2020", yield: 25 }, { year: "2021", yield: 28 }, { year: "2022", yield: 22 }, { year: "2023", yield: 30 }, { year: "2024", yield: 32 }],
-  Wheat: [{ year: "2020", yield: 3.5 }, { year: "2021", yield: 4.0 }, { year: "2022", yield: 3.8 }, { year: "2023", yield: 4.2 }, { year: "2024", yield: 4.5 }],
 };
 
 const ANALYSIS_CACHE_KEY = "field-ai-analysis-cache";
@@ -161,7 +144,7 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
   const fetchNdviStats = async () => {
     setNdviLoading(true);
     try {
-      const polygon = field.coordinates[0]; // [[lng, lat], ...]
+      const polygon = field.coordinates[0];
       const { data, error } = await supabase.functions.invoke("analyze-field", {
         body: { polygon },
       });
@@ -211,9 +194,6 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
     } finally { setAiLoading(false); }
   };
 
-  const growth = cropGrowthStages[field.crop] || { stages: ["Germination", "Growth", "Maturity"], currentStage: 1 };
-  const yields = historicalYield[field.crop] || [];
-  const lastYield = yields.length >= 2 ? yields[yields.length - 1].yield - yields[yields.length - 2].yield : 0;
   const analysisBlocks = useMemo(() => splitAnalysisBlocks(aiAnalysis), [aiAnalysis]);
 
   return (
@@ -320,7 +300,7 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
             </div>
           ) : (
             <div className="p-4 rounded-xl border border-border bg-accent/10 text-sm text-muted-foreground">
-              No NDVI data yet. Click Refresh to analyze.
+              No satellite data available for this field. Click Refresh to analyze.
             </div>
           )}
         </div>
@@ -353,49 +333,10 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
           <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
             <Leaf className="w-3.5 h-3.5" /> Growth Stage
           </h3>
-          <div className="p-4 rounded-xl border border-border bg-accent/15">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-sm font-medium text-foreground">{growth.stages[growth.currentStage]}</span>
-              <span className="text-xs text-muted-foreground">({growth.currentStage + 1}/{growth.stages.length})</span>
-            </div>
-            <div className="flex gap-1">
-              {growth.stages.map((stage, i) => (
-                <div key={stage} className="flex-1 flex flex-col items-center gap-1">
-                  <div className="w-full h-2 rounded-full" style={{ backgroundColor: i <= growth.currentStage ? "#EAB947" : "hsl(150, 12%, 22%)", opacity: i <= growth.currentStage ? 1 : 0.4 }} />
-                  <span className="text-[9px] text-muted-foreground text-center leading-tight">{stage}</span>
-                </div>
-              ))}
-            </div>
+          <div className="p-4 rounded-xl border border-border bg-accent/10 text-sm text-muted-foreground">
+            No data available — requires NDVI time-series integration
           </div>
         </div>
-
-        {/* Historical Yield */}
-        {yields.length > 0 && (
-          <div>
-            <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
-              <BarChart3 className="w-3.5 h-3.5" /> Historical Yield (t/acre)
-            </h3>
-            <div className="p-4 rounded-xl border border-border bg-accent/15">
-              <div className="flex items-end gap-2 h-24">
-                {yields.map((y) => {
-                  const maxY = Math.max(...yields.map((yy) => yy.yield));
-                  const heightPct = (y.yield / maxY) * 100;
-                  return (
-                    <div key={y.year} className="flex-1 flex flex-col items-center gap-1">
-                      <span className="text-[10px] text-foreground font-medium">{y.yield}</span>
-                      <div className="w-full rounded-t-md" style={{ height: `${heightPct}%`, backgroundColor: "#EAB947", minHeight: 4 }} />
-                      <span className="text-[10px] text-muted-foreground">{y.year}</span>
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="mt-3 flex items-center gap-1 text-xs text-muted-foreground">
-                {lastYield >= 0 ? <TrendingUp className="w-3.5 h-3.5 text-field-green" /> : <TrendingDown className="w-3.5 h-3.5 text-destructive" />}
-                <span>{lastYield >= 0 ? "+" : ""}{lastYield.toFixed(1)} t/acre vs last year</span>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* AI Analysis */}
         <div>
@@ -462,24 +403,8 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
         {/* Scouting Tasks */}
         <div>
           <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Scouting Tasks</h3>
-          <div className="space-y-2">
-            {[
-              { id: 1, label: "Check irrigation system", status: "pending" as const, priority: "high" as const },
-              { id: 2, label: "Soil sampling - Zone A", status: "done" as const, priority: "medium" as const },
-              { id: 3, label: "Pest inspection", status: "pending" as const, priority: "low" as const },
-              { id: 4, label: "Fertilizer application", status: "pending" as const, priority: "medium" as const },
-            ].map((task) => (
-              <div key={task.id} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-accent/10 hover:bg-accent/20 transition-all">
-                {task.status === "done" ? (
-                  <CheckCircle className="w-4 h-4 text-field-green flex-shrink-0" />
-                ) : (
-                  <Sprout className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                )}
-                <span className={`text-sm flex-1 ${task.status === "done" ? "text-muted-foreground line-through" : "text-foreground"}`}>
-                  {task.label}
-                </span>
-              </div>
-            ))}
+          <div className="p-4 rounded-xl border border-border bg-accent/10 text-sm text-muted-foreground">
+            No data available — scouting tasks will be generated by AI analysis when NDVI and weather data are available. Click "Generate" in AI Field Analysis above.
           </div>
         </div>
       </div>
