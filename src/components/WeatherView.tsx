@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { CalendarArrowUp, CalendarArrowDown, Droplets, Wind, Sprout, Thermometer, Leaf, TrendingUp } from "lucide-react";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  Area, AreaChart, PieChart, Pie, Cell, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from
+  Area, AreaChart } from
 "recharts";
 import { Field, haToAcres } from "@/data/fields";
 import { format } from "date-fns";
@@ -50,8 +50,6 @@ interface WeatherViewProps {
   selectedFields: Field[];
 }
 
-
-
 const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
   const [endDate, setEndDate] = useState<Date>(new Date());
   const [startDate, setStartDate] = useState<Date>(() => {
@@ -67,7 +65,6 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
   const [liveLoading, setLiveLoading] = useState(false);
 
   const effectiveField = activeField || selectedFields[0];
-
 
   // Fetch live weather
   useEffect(() => {
@@ -227,9 +224,6 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
             )}
             </div>
 
-
-          }
-
             {/* Land Use / Suitability side by side */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in" style={{ animationDelay: "100ms" }}>
               <div className="flex flex-col">
@@ -340,9 +334,9 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
               <h3 className="text-sm font-medium text-foreground mb-4">Crop Growth Indicators</h3>
               <div className="grid grid-cols-3 gap-3">
                 {[
-              { label: "Growth Rate", value: "N/A", detail: "Satellite data not available", color: "hsl(150, 10%, 55%)" },
-              { label: "Canopy Cover", value: "N/A", detail: "Satellite data not available", color: "hsl(150, 10%, 55%)" },
-              { label: "Biomass Est.", value: "N/A", detail: "Satellite data not available", color: "hsl(150, 10%, 55%)" }].
+              { label: "Growth Rate", value: "N/A", detail: "Requires NDVI time-series data", color: "hsl(150, 10%, 55%)" },
+              { label: "Canopy Cover", value: "N/A", detail: "Requires NDVI time-series data", color: "hsl(150, 10%, 55%)" },
+              { label: "Biomass Est.", value: "N/A", detail: "Requires NDVI time-series data", color: "hsl(150, 10%, 55%)" }].
               map((item, i) =>
               <div key={i} className="p-3 rounded-xl border border-border bg-accent/10">
                     <div className="text-xs text-muted-foreground mb-1">{item.label}</div>
