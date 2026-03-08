@@ -50,13 +50,6 @@ interface WeatherViewProps {
   selectedFields: Field[];
 }
 
-const LAND_USE_DATA = [
-  { name: "Cropland", value: 45, color: "#317039" },
-  { name: "Vegetation", value: 25, color: "#7BC75B" },
-  { name: "Water", value: 10, color: "#61AFEF" },
-  { name: "Built-up", value: 12, color: "#E74C3C" },
-  { name: "Bare Soil", value: 8, color: "#EAB947" },
-];
 
 
 const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
