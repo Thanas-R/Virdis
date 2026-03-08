@@ -92,6 +92,7 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
   const editMarkersRef = useRef<mapboxgl.Marker[]>([]);
   const drawModeRef = useRef(false);
   const autoFieldModeRef = useRef(false);
+  const editBoundaryFieldIdRef = useRef(editBoundaryFieldId);
   const allFieldsRef = useRef(allFields);
   const onFieldClickRef = useRef(onFieldClickOnMap);
   const onUpdateFieldRef = useRef(onUpdateField);
