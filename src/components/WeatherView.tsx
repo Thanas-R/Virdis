@@ -338,7 +338,7 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
                   <span className="flex items-center gap-1.5"><Wind className="w-3.5 h-3.5" />{liveWeather.windSpeed} km/h</span>
                 </div>
                 <div className="flex-1" />
-                <span className="text-[10px] italic" style={{ color: "#EAB947" }}>⚠ Data may not always be accurate</span>
+                <span className="text-xs italic" style={{ color: "#EAB947" }}>⚠ Data may not always be accurate</span>
               </div> :
         <div className="text-sm text-muted-foreground">Weather unavailable</div>
         }
