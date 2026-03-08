@@ -76,12 +76,8 @@ function flattenExpression(nested: any): { values: Record<string, any>; result: 
 function buildNdviImage(coords: [number, number][], startDate: string, endDate: string) {
   const geoJson = { type: "Polygon", coordinates: [coords] };
 
-  const geometry = {
-    functionInvocationValue: {
-      functionName: "Geometry",
-      arguments: { geoJson: { constantValue: geoJson } },
-    },
-  };
+  // Geometry is passed as a plain GeoJSON constant value
+  const geometry = { constantValue: geoJson };
 
   const collection = {
     functionInvocationValue: {
@@ -117,7 +113,7 @@ function buildNdviImage(coords: [number, number][], startDate: string, endDate: 
     },
   };
 
-  // Filter by bounds
+  // Filter by bounds using the polygon geometry
   const boundsFiltered = {
     functionInvocationValue: {
       functionName: "Collection.filter",
