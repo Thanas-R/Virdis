@@ -99,6 +99,7 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
 
   useEffect(() => { drawModeRef.current = drawMode; }, [drawMode]);
   useEffect(() => { autoFieldModeRef.current = autoFieldMode; }, [autoFieldMode]);
+  useEffect(() => { editBoundaryFieldIdRef.current = editBoundaryFieldId; }, [editBoundaryFieldId]);
   useEffect(() => { allFieldsRef.current = allFields; }, [allFields]);
   useEffect(() => { onFieldClickRef.current = onFieldClickOnMap; }, [onFieldClickOnMap]);
   useEffect(() => { onUpdateFieldRef.current = onUpdateField; }, [onUpdateField]);
