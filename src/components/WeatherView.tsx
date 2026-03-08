@@ -67,6 +67,22 @@ const CustomLandUseTooltip = ({ active, payload }: any) => {
   );
 };
 
+const CustomChartTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-lg px-3 py-2 shadow-xl border border-border/50" style={{ background: "hsl(150, 18%, 12%)" }}>
+      <div className="text-[10px] text-muted-foreground mb-1.5">{label}</div>
+      {payload.map((p: any, i: number) => (
+        <div key={i} className="flex items-center gap-2 text-xs">
+          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: p.stroke || p.fill || p.color }} />
+          <span className="text-muted-foreground">{p.name || p.dataKey}</span>
+          <span className="font-semibold text-foreground ml-auto">{typeof p.value === 'number' ? p.value.toFixed(1) : p.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 function getFieldCenter(field: Field) {
   const coords = field.coordinates[0];
   const lat = coords.reduce((sum, c) => sum + c[1], 0) / coords.length;
