@@ -127,6 +127,33 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
     fetchGee();
   }, [effectiveField?.id]);
 
+  // Fetch NDVI time-series
+  useEffect(() => {
+    if (!effectiveField) { setNdviTimeSeries(null); return; }
+    const tsCache = getGeeCache();
+    const tsCached = tsCache[`ts-${effectiveField.id}`];
+    if (tsCached && Date.now() - tsCached.timestamp < 3600000) {
+      setNdviTimeSeries(tsCached.data);
+      return;
+    }
+    const fetchTs = async () => {
+      setNdviTsLoading(true);
+      try {
+        const polygon = effectiveField.coordinates[0];
+        const { data, error } = await supabase.functions.invoke("ndvi-timeseries", {
+          body: { polygon },
+        });
+        if (error) throw error;
+        setNdviTimeSeries(data);
+        setGeeCache(`ts-${effectiveField.id}`, data);
+      } catch (e) {
+        console.error("NDVI time-series error:", e);
+        setNdviTimeSeries(null);
+      } finally { setNdviTsLoading(false); }
+    };
+    fetchTs();
+  }, [effectiveField?.id]);
+
   // Fetch live weather
   useEffect(() => {
     if (!effectiveField) return;
