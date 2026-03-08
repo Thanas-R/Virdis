@@ -158,7 +158,7 @@ serve(async (req) => {
                         filter: {
                           functionInvocationValue: {
                             functionName: "Filter.lessThan",
-                            arguments: { leftField: { constantValue: "CLOUDY_PIXEL_PERCENTAGE" }, rightValue: { constantValue: 30 } },
+                            arguments: { leftField: { constantValue: "CLOUDY_PIXEL_PERCENTAGE" }, rightValue: { constantValue: 20 } },
                           },
                         },
                       },
