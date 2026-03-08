@@ -350,17 +350,8 @@ function buildNdviExpression(west: number, south: number, east: number, north: n
     },
     result: "15",
   };
-}
-          arguments: {
-            input: { valueReference: "17" },
-            bandNames: { valueReference: "18" },
-          },
-        },
-      },
-    },
-    result: "19",
-  };
-}
+
+
 
 // ── Main handler ──────────────────────────────────────────────────
 
