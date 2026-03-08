@@ -361,49 +361,36 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in" style={{ animationDelay: "100ms" }}>
               {/* Land Use Donut */}
               <div className="flex flex-col">
-                <h3 className="text-sm font-medium text-foreground mb-4">Regional Land Use</h3>
-                <div className="rounded-2xl border border-border/40 p-4 w-full h-[290px] flex flex-col items-center justify-center" style={{ background: "hsla(150, 18%, 14%, 0.6)" }}>
+                <div className="rounded-2xl border border-border/40 p-4 w-full flex flex-col items-center justify-center" style={{ background: "hsla(150, 18%, 14%, 0.6)" }}>
                   {geeLoading ? (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground py-10">
                       <Loader2 className="w-4 h-4 animate-spin" /> Fetching ESA WorldCover…
                     </div>
                   ) : landUseData && landUseData.length > 0 ? (
-                    <div className="flex flex-col items-center w-full h-full">
-                      <ResponsiveContainer width="100%" height={170}>
+                    <div className="flex flex-col items-center w-full">
+                      <ResponsiveContainer width="100%" height={180}>
                         <PieChart>
-                          <Pie data={landUseData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={40} outerRadius={70} paddingAngle={2} strokeWidth={0}
-                            label={({ name, value, cx, cy, midAngle, outerRadius: or }) => {
-                              const RADIAN = Math.PI / 180;
-                              const radius = or + 16;
-                              const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                              const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                              const entry = landUseData.find((d) => d.name === name);
-                              return (
-                                <text x={x} y={y} fill={entry?.color || "#fff"} textAnchor={x > cx ? "start" : "end"} dominantBaseline="central" fontSize={10} fontWeight={600}>
-                                  {name} {value}%
-                                </text>
-                              );
-                            }}
-                          >
+                          <Pie data={landUseData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={35} outerRadius={65} paddingAngle={2} strokeWidth={0} label={false}>
                             {landUseData.map((entry, i) => (
                               <Cell key={i} fill={entry.color} />
                             ))}
                           </Pie>
-                          <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => `${value}%`} />
+                          <Tooltip content={<CustomLandUseTooltip />} />
                         </PieChart>
                       </ResponsiveContainer>
-                      <div className="flex flex-wrap gap-x-4 gap-y-1 justify-center mt-2">
+                      <h3 className="text-xs font-medium text-muted-foreground mb-2 mt-1">Regional Land Use</h3>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1.5 justify-center">
                         {landUseData.map((entry, i) => (
                           <div key={i} className="flex items-center gap-1.5 text-[10px]">
-                            <span className="w-2 h-2 rounded-sm flex-shrink-0" style={{ backgroundColor: entry.color }} />
-                            <span style={{ color: entry.color }}>{entry.name}</span>
+                            <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: entry.color }} />
+                            <span className="text-muted-foreground">{entry.name}</span>
                             <span className="text-foreground font-semibold">{entry.value}%</span>
                           </div>
                         ))}
                       </div>
                     </div>
                   ) : (
-                    <div className="text-center text-sm text-muted-foreground">
+                    <div className="text-center text-sm text-muted-foreground py-10">
                       <Leaf className="w-6 h-6 mx-auto mb-2 opacity-40" />
                       No satellite data available for this field.
                     </div>
