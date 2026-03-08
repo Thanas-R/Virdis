@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   ArrowLeft, Droplets, Wind, Sprout, CheckCircle, MapPin,
-  TrendingUp, TrendingDown, BarChart3, Leaf, Move, Brain, Loader2,
+  TrendingUp, TrendingDown, BarChart3, Leaf, Move, Brain, Loader2, Satellite,
 } from "lucide-react";
 import { Field, haToAcres } from "@/data/fields";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,6 +18,15 @@ interface FieldWeather {
   relative_humidity_2m: number;
   wind_speed_10m: number;
   weather_code: number;
+}
+
+interface NdviStats {
+  mean_ndvi: number;
+  min_ndvi: number;
+  max_ndvi: number;
+  vegetation_health_score: number;
+  acquisition_date: string;
+  pixel_count: number;
 }
 
 const weatherCodes: Record<number, string> = {
@@ -46,21 +55,14 @@ const historicalYield: Record<string, { year: string; yield: number }[]> = {
 };
 
 const ANALYSIS_CACHE_KEY = "field-ai-analysis-cache";
+const NDVI_CACHE_KEY = "field-ndvi-cache";
 
 type AnalysisBlock =
   | { type: "markdown"; content: string }
   | { type: "table"; rows: string[][] };
 
 const isTableRow = (line: string) => /^\s*\|.*\|\s*$/.test(line);
-
-const parseTableRow = (line: string) =>
-  line
-    .trim()
-    .replace(/^\|/, "")
-    .replace(/\|$/, "")
-    .split("|")
-    .map((cell) => cell.trim());
-
+const parseTableRow = (line: string) => line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((cell) => cell.trim());
 const isSeparatorCell = (cell: string) => /^:?-{3,}:?$/.test(cell.trim());
 
 function splitAnalysisBlocks(rawText: string): AnalysisBlock[] {
@@ -68,64 +70,66 @@ function splitAnalysisBlocks(rawText: string): AnalysisBlock[] {
   const lines = text.split("\n");
   const blocks: AnalysisBlock[] = [];
   let markdownBuffer: string[] = [];
-
-  const flushMarkdown = () => {
-    if (!markdownBuffer.length) return;
-    blocks.push({ type: "markdown", content: markdownBuffer.join("\n") });
-    markdownBuffer = [];
-  };
-
+  const flushMarkdown = () => { if (markdownBuffer.length) { blocks.push({ type: "markdown", content: markdownBuffer.join("\n") }); markdownBuffer = []; } };
   for (let i = 0; i < lines.length; i += 1) {
-    if (!isTableRow(lines[i])) {
-      markdownBuffer.push(lines[i]);
-      continue;
-    }
-
+    if (!isTableRow(lines[i])) { markdownBuffer.push(lines[i]); continue; }
     flushMarkdown();
     const tableRows: string[][] = [];
-    while (i < lines.length && isTableRow(lines[i])) {
-      tableRows.push(parseTableRow(lines[i]));
-      i += 1;
-    }
-
+    while (i < lines.length && isTableRow(lines[i])) { tableRows.push(parseTableRow(lines[i])); i += 1; }
     const hasSeparator = tableRows[1]?.every(isSeparatorCell);
     if (hasSeparator) tableRows.splice(1, 1);
-
-    if (tableRows.length >= 2) {
-      blocks.push({ type: "table", rows: tableRows });
-    } else {
-      markdownBuffer.push(...tableRows.map((row) => `| ${row.join(" | ")} |`));
-    }
-
+    if (tableRows.length >= 2) blocks.push({ type: "table", rows: tableRows });
+    else markdownBuffer.push(...tableRows.map((row) => `| ${row.join(" | ")} |`));
     i -= 1;
   }
-
   flushMarkdown();
   return blocks;
 }
 
 function getAnalysisCache(): Record<string, { analysis: string; timestamp: number }> {
-  try {
-    const cached = localStorage.getItem(ANALYSIS_CACHE_KEY);
-    return cached ? JSON.parse(cached) : {};
-  } catch { return {}; }
+  try { const c = localStorage.getItem(ANALYSIS_CACHE_KEY); return c ? JSON.parse(c) : {}; } catch { return {}; }
 }
-
 function setAnalysisCache(fieldId: string, analysis: string) {
   const cache = getAnalysisCache();
   cache[fieldId] = { analysis, timestamp: Date.now() };
   localStorage.setItem(ANALYSIS_CACHE_KEY, JSON.stringify(cache));
 }
 
+function getNdviCache(): Record<string, { stats: NdviStats; timestamp: number }> {
+  try { const c = localStorage.getItem(NDVI_CACHE_KEY); return c ? JSON.parse(c) : {}; } catch { return {}; }
+}
+function setNdviCache(fieldId: string, stats: NdviStats) {
+  const cache = getNdviCache();
+  cache[fieldId] = { stats, timestamp: Date.now() };
+  localStorage.setItem(NDVI_CACHE_KEY, JSON.stringify(cache));
+}
+
+function ndviColor(val: number): string {
+  if (val > 0.6) return "hsl(var(--field-green, 140 40% 40%))";
+  if (val > 0.4) return "#66bd63";
+  if (val > 0.2) return "#fee08b";
+  return "#d73027";
+}
+
+function ndviLabel(val: number): string {
+  if (val > 0.6) return "Healthy";
+  if (val > 0.4) return "Moderate";
+  if (val > 0.2) return "Stressed";
+  return "Critical";
+}
+
 const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps) => {
   const [weather, setWeather] = useState<FieldWeather | null>(null);
   const [loading, setLoading] = useState(true);
+  const [ndviStats, setNdviStats] = useState<NdviStats | null>(null);
+  const [ndviLoading, setNdviLoading] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<string>("");
   const [aiLoading, setAiLoading] = useState(false);
   const [showAnalysis, setShowAnalysis] = useState(false);
 
   const areaAcres = haToAcres(field.area);
 
+  // Fetch weather
   useEffect(() => {
     const fetchWeather = async () => {
       setLoading(true);
@@ -133,9 +137,7 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
         const coords = field.coordinates[0];
         const lat = coords.reduce((sum, c) => sum + c[1], 0) / coords.length;
         const lng = coords.reduce((sum, c) => sum + c[0], 0) / coords.length;
-        const res = await fetch(
-          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code`
-        );
+        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code`);
         const data = await res.json();
         setWeather(data.current);
       } catch { setWeather(null); }
@@ -144,11 +146,41 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
     fetchWeather();
   }, [field]);
 
-  // Load cached analysis
+  // Load cached NDVI or fetch
+  useEffect(() => {
+    const cache = getNdviCache();
+    const cached = cache[field.id];
+    if (cached && Date.now() - cached.timestamp < 3600000) {
+      setNdviStats(cached.stats);
+    } else {
+      setNdviStats(null);
+      fetchNdviStats();
+    }
+  }, [field.id]);
+
+  const fetchNdviStats = async () => {
+    setNdviLoading(true);
+    try {
+      const polygon = field.coordinates[0]; // [[lng, lat], ...]
+      const { data, error } = await supabase.functions.invoke("analyze-field", {
+        body: { polygon },
+      });
+      if (error) throw error;
+      if (data?.mean_ndvi !== undefined) {
+        setNdviStats(data as NdviStats);
+        setNdviCache(field.id, data as NdviStats);
+      }
+    } catch (e) {
+      console.error("NDVI analysis error:", e);
+    } finally {
+      setNdviLoading(false);
+    }
+  };
+
+  // Load cached AI analysis
   useEffect(() => {
     const cache = getAnalysisCache();
     const cached = cache[field.id];
-    // Use cache if less than 1 hour old
     if (cached && Date.now() - cached.timestamp < 3600000) {
       setAiAnalysis(cached.analysis);
       setShowAnalysis(true);
@@ -162,18 +194,12 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
     setAiLoading(true);
     setShowAnalysis(true);
     try {
-      const ndviEstimate = field.ndviChange !== undefined ? (0.55 + field.ndviChange).toFixed(2) : "0.55";
+      const ndviEstimate = ndviStats?.mean_ndvi?.toFixed(2) || (field.ndviChange !== undefined ? (0.55 + field.ndviChange).toFixed(2) : "0.55");
       const { data, error } = await supabase.functions.invoke("analyze-field", {
         body: {
-          fieldName: field.name,
-          crop: field.crop,
-          area: areaAcres,
-          location: field.location,
-          temperature: weather?.temperature_2m ?? 25,
-          humidity: weather?.relative_humidity_2m ?? 60,
-          windSpeed: weather?.wind_speed_10m ?? 10,
-          soilMoisture: 45,
-          ndviEstimate,
+          fieldName: field.name, crop: field.crop, area: areaAcres, location: field.location,
+          temperature: weather?.temperature_2m ?? 25, humidity: weather?.relative_humidity_2m ?? 60,
+          windSpeed: weather?.wind_speed_10m ?? 10, soilMoisture: 45, ndviEstimate,
         },
       });
       if (error) throw error;
@@ -182,9 +208,7 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
     } catch (e) {
       console.error("AI analysis error:", e);
       setAiAnalysis("Analysis temporarily unavailable. Please try again.");
-    } finally {
-      setAiLoading(false);
-    }
+    } finally { setAiLoading(false); }
   };
 
   const growth = cropGrowthStages[field.crop] || { stages: ["Germination", "Growth", "Maturity"], currentStage: 1 };
@@ -237,20 +261,67 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
                 })()}
               </div>
             </div>
-            {field.ndviChange !== undefined && (
-              <div>
-                <span className="text-xs text-muted-foreground">NDVI Change</span>
-                <div className={`font-semibold flex items-center gap-1 ${field.ndviChange >= 0 ? "text-field-green" : "text-destructive"}`}>
-                  {field.ndviChange >= 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
-                  {field.ndviChange >= 0 ? "+" : ""}{field.ndviChange.toFixed(2)}
-                </div>
-              </div>
-            )}
           </div>
           {onEditBoundary && (
             <button onClick={onEditBoundary} className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
               <Move className="w-3.5 h-3.5" /> Edit boundary
             </button>
+          )}
+        </div>
+
+        {/* NDVI Satellite Analysis */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+              <Satellite className="w-3.5 h-3.5" /> Satellite NDVI Analysis
+            </h3>
+            <button onClick={fetchNdviStats} disabled={ndviLoading}
+              className="text-xs px-3 py-1 rounded-md border border-border text-foreground hover:bg-accent transition-colors disabled:opacity-50">
+              {ndviLoading ? "Analyzing…" : "Refresh"}
+            </button>
+          </div>
+          {ndviLoading ? (
+            <div className="p-4 rounded-xl border border-border bg-accent/15 flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="w-4 h-4 animate-spin" /> Querying Sentinel-2 imagery…
+            </div>
+          ) : ndviStats ? (
+            <div className="p-4 rounded-xl border border-border bg-accent/15 space-y-3">
+              {/* Health score bar */}
+              <div className="flex items-center justify-between">
+                <span className="text-2xl font-light text-foreground">{ndviStats.vegetation_health_score}<span className="text-sm text-muted-foreground">/100</span></span>
+                <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+                  style={{ backgroundColor: ndviColor(ndviStats.mean_ndvi) + "30", color: ndviColor(ndviStats.mean_ndvi) }}>
+                  {ndviLabel(ndviStats.mean_ndvi)}
+                </span>
+              </div>
+              <div className="w-full h-2 rounded-full bg-muted/30 overflow-hidden">
+                <div className="h-full rounded-full transition-all duration-500"
+                  style={{ width: `${ndviStats.vegetation_health_score}%`, background: `linear-gradient(90deg, #d73027, #fee08b, #66bd63, #006837)` }} />
+              </div>
+              {/* NDVI metrics */}
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div className="p-2 rounded-lg bg-muted/20">
+                  <div className="text-[10px] text-muted-foreground uppercase">Mean</div>
+                  <div className="text-sm font-semibold text-foreground">{ndviStats.mean_ndvi.toFixed(3)}</div>
+                </div>
+                <div className="p-2 rounded-lg bg-muted/20">
+                  <div className="text-[10px] text-muted-foreground uppercase">Min</div>
+                  <div className="text-sm font-semibold text-foreground">{ndviStats.min_ndvi.toFixed(3)}</div>
+                </div>
+                <div className="p-2 rounded-lg bg-muted/20">
+                  <div className="text-[10px] text-muted-foreground uppercase">Max</div>
+                  <div className="text-sm font-semibold text-foreground">{ndviStats.max_ndvi.toFixed(3)}</div>
+                </div>
+              </div>
+              <div className="text-[10px] text-muted-foreground flex justify-between">
+                <span>Sentinel-2 · {ndviStats.pixel_count} pixels</span>
+                <span>{ndviStats.acquisition_date}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="p-4 rounded-xl border border-border bg-accent/10 text-sm text-muted-foreground">
+              No NDVI data yet. Click Refresh to analyze.
+            </div>
           )}
         </div>
 
@@ -332,11 +403,8 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
             <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
               <Brain className="w-3.5 h-3.5" /> AI Field Analysis
             </h3>
-            <button
-              onClick={fetchAiAnalysis}
-              disabled={aiLoading}
-              className="text-xs px-3 py-1 rounded-md border border-border text-foreground hover:bg-accent transition-colors disabled:opacity-50"
-            >
+            <button onClick={fetchAiAnalysis} disabled={aiLoading}
+              className="text-xs px-3 py-1 rounded-md border border-border text-foreground hover:bg-accent transition-colors disabled:opacity-50">
               {aiLoading ? "Analyzing…" : aiAnalysis ? "Refresh" : "Generate"}
             </button>
           </div>
@@ -344,8 +412,7 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
             <div className="p-4 rounded-xl border border-border bg-accent/15">
               {aiLoading ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Generating field analysis...
+                  <Loader2 className="w-4 h-4 animate-spin" /> Generating field analysis...
                 </div>
               ) : (
                 <div className="prose prose-sm prose-invert max-w-none text-foreground
@@ -364,7 +431,6 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
                       if (!block.content.trim()) return null;
                       return <ReactMarkdown key={`md-${blockIndex}`}>{block.content}</ReactMarkdown>;
                     }
-
                     const [header, ...bodyRows] = block.rows;
                     return (
                       <table key={`table-${blockIndex}`} className="w-full border-collapse text-xs mt-2 mb-3">

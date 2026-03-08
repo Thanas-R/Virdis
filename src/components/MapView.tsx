@@ -6,11 +6,9 @@ import SearchBar from "./SearchBar";
 import MapToolbar from "./MapToolbar";
 import NewFieldDialog from "./NewFieldDialog";
 import MobileDrawPrompt from "./MobileDrawPrompt";
-import DetectedFieldsReview from "./DetectedFieldsReview";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { detectFieldBoundaries, assignFieldColor } from "@/lib/field-segmentation";
 
 const MAP_STYLES = {
   dark: "mapbox://styles/mapbox/dark-v11",
@@ -18,8 +16,6 @@ const MAP_STYLES = {
 };
 
 const MAP_POS_KEY = "map-last-position";
-const MIN_DETECT_ZOOM = 16;
-const MAX_DETECT_SPAN_KM = 10;
 
 function saveMapPosition(map: mapboxgl.Map) {
   const center = map.getCenter();
@@ -41,14 +37,6 @@ function hideExtraLabels(map: mapboxgl.Map) {
   });
 }
 
-function haversineDist(lng1: number, lat1: number, lng2: number, lat2: number): number {
-  const R = 6371;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLng = (lng2 - lng1) * Math.PI / 180;
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
 interface MapViewProps {
   allFields: Field[];
   selectedFields: Field[];
@@ -62,15 +50,6 @@ interface MapViewProps {
   onCancelEditBoundary?: () => void;
 }
 
-interface DetectedFieldData {
-  name: string;
-  crop: string;
-  cropEmoji: string;
-  ndviEstimate: number;
-  color: string;
-  coordinates: [number, number][];
-}
-
 const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDone, onFieldClickOnMap, onAddField, editBoundaryFieldId, onUpdateField, onCancelEditBoundary }: MapViewProps) => {
   const isMobile = useIsMobile();
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -82,23 +61,16 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
   const [showNewFieldDialog, setShowNewFieldDialog] = useState(false);
   const [showFields, setShowFields] = useState(true);
   const [showNdvi, setShowNdvi] = useState(false);
-  const [isDetecting, setIsDetecting] = useState(false);
-  const [detectedFields, setDetectedFields] = useState<DetectedFieldData[] | null>(null);
-  const [detectionSummary, setDetectionSummary] = useState("");
-  const [autoFieldMode, setAutoFieldMode] = useState(false);
-  const [autoFieldDetecting, setAutoFieldDetecting] = useState(false);
   const [geeNdviTileUrl, setGeeNdviTileUrl] = useState<string | null>(null);
   const [geeNdviToken, setGeeNdviToken] = useState<string | null>(null);
   const editMarkersRef = useRef<mapboxgl.Marker[]>([]);
   const drawModeRef = useRef(false);
-  const autoFieldModeRef = useRef(false);
   const editBoundaryFieldIdRef = useRef(editBoundaryFieldId);
   const allFieldsRef = useRef(allFields);
   const onFieldClickRef = useRef(onFieldClickOnMap);
   const onUpdateFieldRef = useRef(onUpdateField);
 
   useEffect(() => { drawModeRef.current = drawMode; }, [drawMode]);
-  useEffect(() => { autoFieldModeRef.current = autoFieldMode; }, [autoFieldMode]);
   useEffect(() => { editBoundaryFieldIdRef.current = editBoundaryFieldId; }, [editBoundaryFieldId]);
   useEffect(() => { allFieldsRef.current = allFields; }, [allFields]);
   useEffect(() => { onFieldClickRef.current = onFieldClickOnMap; }, [onFieldClickOnMap]);
@@ -149,20 +121,14 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
     const map = new mapboxgl.Map({
       container: mapContainer.current, style: MAP_STYLES.satellite,
       center: [pos.lng, pos.lat], zoom: pos.zoom, bearing: pos.bearing, pitch: pos.pitch,
-      attributionControl: false, doubleClickZoom: false, preserveDrawingBuffer: true, // needed for canvas capture
+      attributionControl: false, doubleClickZoom: false,
     });
     mapRef.current = map;
     map.on("load", () => { hideExtraLabels(map); setMapLoaded(true); refreshFieldLayers(map, allFieldsRef.current, allFieldsRef.current); });
     map.on("moveend", () => saveMapPosition(map));
     map.on("click", (e) => {
-      console.log("Map clicked:", e.lngLat.lat, e.lngLat.lng, "| drawMode:", drawModeRef.current, "| autoField:", autoFieldModeRef.current);
       if (drawModeRef.current) return;
       if (editBoundaryFieldIdRef.current) return;
-      if (autoFieldModeRef.current) {
-        console.log("Auto-detect triggered at:", e.lngLat.lat, e.lngLat.lng);
-        handleAutoFieldClick(e.lngLat.lat, e.lngLat.lng);
-        return;
-      }
       const fieldLayers = allFieldsRef.current.map((f) => `field-fill-${f.id}`).filter((id) => { try { return !!map.getLayer(id); } catch { return false; } });
       if (fieldLayers.length === 0) return;
       const features = map.queryRenderedFeatures(e.point, { layers: fieldLayers });
@@ -174,7 +140,6 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
     });
     map.on("mousemove", (e) => {
       if (drawModeRef.current) { map.getCanvas().style.cursor = "crosshair"; return; }
-      if (autoFieldModeRef.current) { map.getCanvas().style.cursor = "crosshair"; return; }
       const fieldLayers = allFieldsRef.current.map((f) => `field-fill-${f.id}`).filter((id) => { try { return !!map.getLayer(id); } catch { return false; } });
       if (fieldLayers.length === 0) { map.getCanvas().style.cursor = ""; return; }
       const features = map.queryRenderedFeatures(e.point, { layers: fieldLayers });
@@ -213,46 +178,19 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
       try { if (map.getSource(ndviSourceId)) map.removeSource(ndviSourceId); } catch {}
       return;
     }
-    // If we don't have GEE tiles yet, fetch them
     if (!geeNdviTileUrl) {
       loadGeeNdviTiles();
       return;
     }
     if (!map.getSource(ndviSourceId)) {
-      // GEE tiles require auth token in the URL
       const authenticatedUrl = `${geeNdviTileUrl}?access_token=${geeNdviToken}`;
-      map.addSource(ndviSourceId, {
-        type: "raster",
-        tiles: [authenticatedUrl],
-        tileSize: 256,
-      });
+      map.addSource(ndviSourceId, { type: "raster", tiles: [authenticatedUrl], tileSize: 256 });
     }
     if (!map.getLayer(ndviLayerId)) {
       map.addLayer({ id: ndviLayerId, type: "raster", source: ndviSourceId, paint: { "raster-opacity": 0.5 } },
         allFields.length > 0 ? `field-fill-${allFields[0].id}` : undefined);
     }
   }, [showNdvi, mapLoaded, allFields, geeNdviTileUrl, geeNdviToken]);
-
-  // Show detected field previews on map
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !mapLoaded) return;
-    const style = map.getStyle();
-    if (style?.layers) {
-      style.layers.filter(l => l.id.startsWith("detected-")).forEach(l => { try { map.removeLayer(l.id); } catch {} });
-    }
-    if (style?.sources) {
-      Object.keys(style.sources).filter(s => s.startsWith("detected-")).forEach(s => { try { map.removeSource(s); } catch {} });
-    }
-    if (!detectedFields || detectedFields.length === 0) return;
-    detectedFields.forEach((field, idx) => {
-      const sourceId = `detected-${idx}`;
-      const coords: [number, number][] = [...field.coordinates, field.coordinates[0]];
-      map.addSource(sourceId, { type: "geojson", data: { type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [coords] } } });
-      map.addLayer({ id: `detected-fill-${idx}`, type: "fill", source: sourceId, paint: { "fill-color": field.color, "fill-opacity": 0.25 } });
-      map.addLayer({ id: `detected-line-${idx}`, type: "line", source: sourceId, paint: { "line-color": field.color, "line-width": 2, "line-dasharray": [3, 2] } });
-    });
-  }, [detectedFields, mapLoaded]);
 
   // Drawing mode with Backspace undo
   useEffect(() => {
@@ -293,7 +231,6 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapLoaded) return;
-    // Clear if no vertices
     if (drawVertices.length < 2) {
       try {
         if (map.getLayer("draw-fill")) map.removeLayer("draw-fill");
@@ -302,7 +239,6 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
         if (map.getSource("draw-preview")) map.removeSource("draw-preview");
         if (map.getSource("draw-points")) map.removeSource("draw-points");
       } catch {}
-      // Still show single point
       if (drawVertices.length === 1) {
         const pointData: GeoJSON.FeatureCollection = {
           type: "FeatureCollection",
@@ -416,154 +352,21 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
   // ── GEE: Load NDVI tile layer ──────────────────────────────────
   const loadGeeNdviTiles = async () => {
     try {
-      toast.info("Loading GEE NDVI tiles…");
+      toast.info("Loading NDVI overlay…");
       const { data, error } = await supabase.functions.invoke("gee-ndvi-tiles");
       if (error) throw error;
       if (data?.tileUrl) {
         setGeeNdviTileUrl(data.tileUrl);
         setGeeNdviToken(data.token);
-        toast.success("GEE NDVI layer loaded");
+        toast.success("NDVI layer loaded");
       } else if (data?.error) {
         throw new Error(data.error);
       }
     } catch (err: any) {
-      console.error("GEE NDVI tiles error:", err);
+      console.error("NDVI tiles error:", err);
       toast.error("Failed to load NDVI tiles: " + (err?.message || "Unknown error"));
       setShowNdvi(false);
     }
-  };
-
-  // ── GEE: Auto-field single-click detection ────────────────────
-  const handleAutoFieldClick = async (lat: number, lng: number) => {
-    console.log("handleAutoFieldClick called:", lat, lng);
-    if (autoFieldDetecting) { console.log("Already detecting, skipping"); return; }
-    setAutoFieldDetecting(true);
-    toast.info(`Detecting field at ${lat.toFixed(4)}, ${lng.toFixed(4)}…`);
-
-    try {
-      const { data, error } = await supabase.functions.invoke("gee-detect-field", {
-        body: { lat, lng },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-
-      const f = data.field;
-      if (!f?.coordinates || f.coordinates.length < 3) {
-        toast.warning("No field boundary detected at this location");
-        return;
-      }
-
-      const detected: DetectedFieldData[] = [{
-        name: `Field ${Date.now() % 10000}`,
-        crop: f.crop,
-        cropEmoji: f.cropEmoji,
-        ndviEstimate: f.stats.meanNdvi,
-        color: assignFieldColor(allFields.length),
-        coordinates: f.coordinates,
-      }];
-
-      setDetectedFields(detected);
-      setDetectionSummary(
-        `GEE Detection · ${f.stats.areaHectares} ha · NDVI ${f.stats.meanNdvi} ± ${f.stats.stdNdvi} · Health ${f.stats.healthScore}/100`
-      );
-      toast.success(`Field detected: ${f.stats.areaHectares} ha, health ${f.stats.healthScore}/100`);
-    } catch (err: any) {
-      console.error("Auto field detection error:", err);
-      toast.error("Detection failed: " + (err?.message || "Unknown error"));
-    } finally {
-      setAutoFieldDetecting(false);
-    }
-  };
-
-  const handleToggleAutoField = () => {
-    setAutoFieldMode(prev => !prev);
-    if (!autoFieldMode) {
-      toast.info("Auto Field mode ON – click on a field to detect its boundary");
-      setDrawMode(false);
-      setDrawVertices([]);
-    }
-  };
-
-  // Deterministic field detection via image segmentation
-  const handleDetectFields = () => {
-    const map = mapRef.current;
-    if (!map) return;
-
-    // Zoom check
-    const zoom = map.getZoom();
-    if (zoom < MIN_DETECT_ZOOM) {
-      toast.warning(`Zoom in more to detect fields (current: ${zoom.toFixed(1)}, need ≥${MIN_DETECT_ZOOM})`);
-      return;
-    }
-
-    // Bounds size check
-    const bounds = map.getBounds();
-    const spanX = haversineDist(bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getSouth());
-    const spanY = haversineDist(bounds.getWest(), bounds.getSouth(), bounds.getWest(), bounds.getNorth());
-    if (spanX > MAX_DETECT_SPAN_KM || spanY > MAX_DETECT_SPAN_KM) {
-      toast.warning(`View too large (${spanX.toFixed(1)}×${spanY.toFixed(1)} km). Max ${MAX_DETECT_SPAN_KM}×${MAX_DETECT_SPAN_KM} km.`);
-      return;
-    }
-
-    setIsDetecting(true);
-    setDetectedFields(null);
-    toast.info("Analyzing satellite imagery for field boundaries…");
-
-    // Run segmentation in next frame to allow UI update
-    requestAnimationFrame(() => {
-      try {
-        const canvas = map.getCanvas();
-        const boundsData = {
-          north: bounds.getNorth(),
-          south: bounds.getSouth(),
-          east: bounds.getEast(),
-          west: bounds.getWest(),
-        };
-
-        const result = detectFieldBoundaries(canvas, boundsData, {
-          vegThreshold: 0.06,
-          morphKernel: 2,
-          minAreaHa: 0.5,
-          downscale: 2,
-        });
-
-        if (result.polygons.length === 0) {
-          toast.info("No field boundaries detected. Try a different area with more vegetation.");
-          setIsDetecting(false);
-          return;
-        }
-
-        const detected: DetectedFieldData[] = result.polygons.map((poly, idx) => ({
-          name: `Field ${idx + 1}`,
-          crop: poly.meanVegIndex > 0.2 ? "Active Crop" : poly.meanVegIndex > 0.1 ? "Pasture" : "Bare Soil",
-          cropEmoji: poly.meanVegIndex > 0.2 ? "🌾" : poly.meanVegIndex > 0.1 ? "🌿" : "🟤",
-          ndviEstimate: poly.meanVegIndex,
-          color: assignFieldColor(idx),
-          coordinates: poly.coordinates,
-        }));
-
-        setDetectedFields(detected);
-        setDetectionSummary(`${detected.length} regions detected in ${result.processingTimeMs}ms · ${spanX.toFixed(1)}×${spanY.toFixed(1)} km area`);
-        toast.success(`Detected ${detected.length} field boundaries in ${result.processingTimeMs}ms`);
-      } catch (err: any) {
-        console.error("Segmentation error:", err);
-        toast.error("Field detection failed: " + (err?.message || "Unknown error"));
-      } finally {
-        setIsDetecting(false);
-      }
-    });
-  };
-
-  const handleAcceptDetected = (fields: Field[]) => {
-    fields.forEach(f => onAddField(f));
-    setDetectedFields(null);
-    setDetectionSummary("");
-    toast.success(`Added ${fields.length} detected fields`);
-  };
-
-  const handleDismissDetected = () => {
-    setDetectedFields(null);
-    setDetectionSummary("");
   };
 
   return (
@@ -574,9 +377,7 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
       <MapToolbar onZoomIn={() => mapRef.current?.zoomIn()} onZoomOut={() => mapRef.current?.zoomOut()} onStyleChange={handleStyleChange}
         onToggleLayers={() => setShowFields((prev) => !prev)} onToggleDraw={handleToggleDraw} isDrawing={drawMode} showFields={showFields} defaultStyle="satellite"
         onResetNorth={handleResetNorth} onLocateUser={handleLocateUser}
-        onDetectFields={handleDetectFields} isDetecting={isDetecting}
-        onToggleNdvi={() => setShowNdvi(prev => !prev)} showNdvi={showNdvi}
-        onToggleAutoField={handleToggleAutoField} isAutoField={autoFieldMode} />
+        onToggleNdvi={() => setShowNdvi(prev => !prev)} showNdvi={showNdvi} />
 
       {drawMode && isMobile && (
         <MobileDrawPrompt vertexCount={drawVertices.length}
@@ -606,35 +407,6 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
           <div className="text-muted-foreground">Enter or Esc to finish</div>
           <button onClick={onCancelEditBoundary} className="mt-1 px-3 py-1 rounded-md bg-primary text-primary-foreground text-xs">Done</button>
         </div>
-      )}
-
-      {autoFieldMode && !drawMode && (
-        <div className="absolute bottom-6 left-4 z-10 bg-card/90 backdrop-blur-sm rounded-lg border border-border px-4 py-2.5 text-xs text-foreground space-y-1">
-          <div className="flex items-center gap-2">
-            {autoFieldDetecting ? (
-              <span className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: "#4CAF50" }} />
-            )}
-            <span className="font-medium">{autoFieldDetecting ? "Detecting field…" : "Auto Field Mode"}</span>
-          </div>
-          {!autoFieldDetecting && <div className="text-muted-foreground">Click anywhere on the map to detect a field boundary</div>}
-          {autoFieldDetecting && <div className="text-muted-foreground">Querying satellite imagery, please wait…</div>}
-          <button onClick={() => setAutoFieldMode(false)} className="mt-1 px-3 py-1 rounded-md bg-primary text-primary-foreground text-xs">Exit</button>
-        </div>
-      )}
-
-      {autoFieldDetecting && (
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 bg-card/95 backdrop-blur-md rounded-xl border border-border px-6 py-4 flex flex-col items-center gap-3 shadow-lg">
-          <span className="w-8 h-8 border-3 border-accent border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm font-medium text-foreground">Analyzing satellite imagery…</span>
-          <span className="text-xs text-muted-foreground">This may take 10-20 seconds</span>
-        </div>
-      )}
-
-      {detectedFields && detectedFields.length > 0 && (
-        <DetectedFieldsReview detectedFields={detectedFields} summary={detectionSummary}
-          onAccept={handleAcceptDetected} onDismiss={handleDismissDetected} />
       )}
 
       {showNewFieldDialog && drawVertices.length >= 3 && (
