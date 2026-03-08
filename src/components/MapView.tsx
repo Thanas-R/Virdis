@@ -401,13 +401,23 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
     );
   };
 
-  // ── GEE: Load NDVI tile layer ──────────────────────────────────
+  // ── GEE: Load NDVI tile layer (clipped to selected fields) ──────
   const loadGeeNdviTiles = async () => {
     try {
       toast.info("Loading NDVI overlay…");
-      const { data, error } = await supabase.functions.invoke("gee-ndvi-tiles");
+      // Send field coordinates so GEE clips tiles to farm boundaries
+      const fieldCoords = selectedFields.map(f => f.coordinates[0]);
+      const { data, error } = await supabase.functions.invoke("gee-ndvi-tiles", {
+        body: { coordinates: fieldCoords },
+      });
       if (error) throw error;
       if (data?.tileUrl) {
+        // Clear old source/layer before setting new URL (new clip region)
+        const map = mapRef.current;
+        if (map) {
+          try { if (map.getLayer("gee-ndvi-layer")) map.removeLayer("gee-ndvi-layer"); } catch {}
+          try { if (map.getSource("gee-ndvi-source")) map.removeSource("gee-ndvi-source"); } catch {}
+        }
         setGeeNdviTileUrl(data.tileUrl);
         setGeeNdviToken(data.token);
         toast.success("NDVI layer loaded");
