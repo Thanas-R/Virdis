@@ -605,7 +605,7 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
                 </div>
               )}
             </div>
-          </>
+          </div>
         }
       </div>
     </div>);
