@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.gee-ndvi-tiles]
 verify_jwt = false
+
+[functions.gee-analytics]
+verify_jwt = false
