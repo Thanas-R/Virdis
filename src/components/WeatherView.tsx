@@ -406,7 +406,7 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
           </div>
         ) : (
 
-        <div key={effectiveField.id} className="animate-fade-in">
+        <div key={effectiveField.id} className="animate-fade-in space-y-8">
             {/* Key Metrics Cards */}
             <div className="grid grid-cols-4 gap-3">
               {[
