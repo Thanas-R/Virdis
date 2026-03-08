@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { CalendarArrowUp, CalendarArrowDown, Droplets, Wind, Sprout, Thermometer, Leaf, TrendingUp, Loader2 } from "lucide-react";
+import { CalendarArrowUp, CalendarArrowDown, Droplets, Wind, Sprout, Thermometer, Leaf, TrendingUp, Loader2, GitCompareArrows, X } from "lucide-react";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   Area, AreaChart, PieChart, Pie, Cell, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
 } from "recharts";
+import FieldComparisonColumn from "@/components/FieldComparisonColumn";
 import { Field, haToAcres } from "@/data/fields";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
@@ -93,6 +94,7 @@ function getFieldCenter(field: Field) {
 interface WeatherViewProps {
   activeField: Field | null;
   selectedFields: Field[];
+  allFields?: Field[];
 }
 
 const GEE_ANALYTICS_CACHE_KEY = "gee-analytics-cache";
@@ -106,7 +108,9 @@ function setGeeCache(fieldId: string, data: any) {
   localStorage.setItem(GEE_ANALYTICS_CACHE_KEY, JSON.stringify(cache));
 }
 
-const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
+const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProps) => {
+  const [compareField, setCompareField] = useState<Field | null>(null);
+  const [showCompareSelector, setShowCompareSelector] = useState(false);
   const [endDate, setEndDate] = useState<Date>(new Date());
   const [startDate, setStartDate] = useState<Date>(() => {
     const d = new Date();
@@ -293,13 +297,52 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
       {/* Header */}
       <div className="flex items-center gap-4 px-6 py-3 border-b border-border flex-wrap">
         <h1 className="text-lg font-semibold text-foreground">Field Analytics</h1>
-        {effectiveField &&
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        {effectiveField && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: effectiveField.color }} />
-            {effectiveField.name} · {effectiveField.crop} · {haToAcres(effectiveField.area)} acres
+            {effectiveField.name} - {effectiveField.crop} - {haToAcres(effectiveField.area)} acres
           </div>
-        }
+        )}
         <div className="flex-1" />
+
+        {/* Compare button */}
+        {effectiveField && !compareField && (allFields || selectedFields).length > 1 && (
+          <div className="relative">
+            <button
+              onClick={() => setShowCompareSelector(!showCompareSelector)}
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-border text-foreground hover:bg-accent/30 transition-colors"
+            >
+              <GitCompareArrows className="w-3.5 h-3.5" /> Compare
+            </button>
+            {showCompareSelector && (
+              <div className="absolute top-full right-0 mt-1 z-50 w-56 rounded-xl border border-border shadow-xl p-2 space-y-0.5" style={{ background: "hsl(150, 18%, 12%)" }}>
+                <div className="text-[10px] text-muted-foreground px-2 py-1 uppercase tracking-wider">Select field to compare</div>
+                {(allFields || selectedFields).filter(f => f.id !== effectiveField.id).map(f => (
+                  <button
+                    key={f.id}
+                    onClick={() => { setCompareField(f); setShowCompareSelector(false); }}
+                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-foreground hover:bg-accent/20 transition-colors"
+                  >
+                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: f.color }} />
+                    {f.name}
+                    <span className="text-muted-foreground ml-auto">{f.crop}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        {compareField && (
+          <button
+            onClick={() => setCompareField(null)}
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-primary/40 bg-primary/10 text-foreground hover:bg-primary/20 transition-colors"
+          >
+            <GitCompareArrows className="w-3.5 h-3.5" />
+            vs {compareField.name}
+            <X className="w-3 h-3 ml-1 text-muted-foreground" />
+          </button>
+        )}
+
         <Popover>
           <PopoverTrigger asChild>
             <button className="flex items-center gap-2 border border-border rounded-lg px-3 py-2 hover:bg-accent/30 transition-colors">
@@ -347,15 +390,22 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
 
       {/* Charts */}
       <div className="flex-1 overflow-y-auto p-6 space-y-8">
-        {!effectiveField ?
-        <div className="flex flex-col items-center justify-center py-20 text-center">
+        {!effectiveField ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
             <Sprout className="w-10 h-10 text-muted-foreground mb-3" />
             <p className="text-sm text-muted-foreground">Select a field to view analytics</p>
-          </div> :
-        loading ?
-        <div className="flex items-center justify-center py-20">
-            <div className="text-muted-foreground animate-pulse text-sm">Fetching analytics for {effectiveField.name}…</div>
-          </div> :
+          </div>
+        ) : compareField ? (
+          /* ===== COMPARISON MODE ===== */
+          <div className="grid grid-cols-2 gap-6 animate-fade-in">
+            <FieldComparisonColumn field={effectiveField} startDate={startDate} endDate={endDate} compact gradientIdSuffix="-a" />
+            <FieldComparisonColumn field={compareField} startDate={startDate} endDate={endDate} compact gradientIdSuffix="-b" />
+          </div>
+        ) : loading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="text-muted-foreground animate-pulse text-sm">Fetching analytics for {effectiveField.name}...</div>
+          </div>
+        ) : (
 
         <div key={effectiveField.id} className="animate-fade-in">
             {/* Key Metrics Cards */}
@@ -363,7 +413,7 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
               {[
             { label: "Avg NDVI", value: ndviTimeSeries?.mean_ndvi != null ? ndviTimeSeries.mean_ndvi.toFixed(3) : (vegetation?.mean_ndvi != null ? vegetation.mean_ndvi.toFixed(3) : "N/A"), icon: Leaf, color: CHART_GREEN },
             { label: "Avg Moisture", value: soilMoistureData.length > 0 ? `${(soilMoistureData.reduce((s: number, d: any) => s + d.shallow, 0) / soilMoistureData.length).toFixed(1)}%` : "N/A", icon: Droplets, color: CHART_BLUE },
-            { label: "Temp Range", value: monthlyData.length > 0 ? `${Math.min(...monthlyData.map((d) => d.tempMin))}–${Math.max(...monthlyData.map((d) => d.tempMax))}°C` : "N/A", icon: Thermometer, color: CHART_GOLD },
+            { label: "Temp Range", value: monthlyData.length > 0 ? `${Math.min(...monthlyData.map((d) => d.tempMin))}-${Math.max(...monthlyData.map((d) => d.tempMax))}°C` : "N/A", icon: Thermometer, color: CHART_GOLD },
             { label: "Total Rain", value: monthlyData.length > 0 ? `${monthlyData[monthlyData.length - 1]?.accumulated || 0} mm` : "N/A", icon: TrendingUp, color: CHART_CREAM }].
             map((m, i) =>
             <div key={i} className="p-3 rounded-xl border border-border bg-accent/15 space-y-1">
@@ -606,7 +656,7 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
               )}
             </div>
           </div>
-        }
+        )}
       </div>
     </div>);
 

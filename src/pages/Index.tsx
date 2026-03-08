@@ -118,7 +118,7 @@ const Index = () => {
 
         {mobileTab === "analytics" && (
           <div className="absolute inset-0 z-30 bg-background overflow-y-auto pb-20">
-            <WeatherView activeField={activeField} selectedFields={selectedFields} />
+            <WeatherView activeField={activeField} selectedFields={selectedFields} allFields={allFields} />
           </div>
         )}
 
@@ -164,7 +164,7 @@ const Index = () => {
                 onAddField={handleAddField} editBoundaryFieldId={editBoundaryFieldId} onUpdateField={handleUpdateField} onCancelEditBoundary={() => setEditBoundaryFieldId(null)} />
             </div>
             <div className="absolute inset-0 transition-opacity duration-200" style={{ opacity: view === "analytics" ? 1 : 0, pointerEvents: view === "analytics" ? "auto" : "none" }}>
-              <WeatherView activeField={activeField} selectedFields={selectedFields} />
+              <WeatherView activeField={activeField} selectedFields={selectedFields} allFields={allFields} />
             </div>
           </div>
           <SidePanel allFields={allFields} selectedFields={selectedFields} activeField={activeField} detailField={detailField}

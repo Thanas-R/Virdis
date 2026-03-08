@@ -16,7 +16,7 @@ export function haToAcres(ha: number): number {
   return Math.round(ha * 2.47105 * 10) / 10;
 }
 
-// No default fields – users create their own
+// No default fields - users create their own
 export const fields: Field[] = [];
 
 // Legacy data exports for compatibility
