@@ -292,7 +292,8 @@ function computeAreaHectares(coords: [number, number][]): number {
 }
 
 // ── Build GEE expression ─────────────────────────────────────────
-// Use proper arrayValue for list arguments in the DAG format
+// Strategy: select B8+B4 first, then reduce (median), then normalizedDifference
+// Selecting bands BEFORE reduce means reduced bands keep original names (B8, B4)
 
 function buildNdviExpression(startDate: string, endDate: string) {
   return {
@@ -310,29 +311,20 @@ function buildNdviExpression(startDate: string, endDate: string) {
       "4": {
         functionInvocationValue: {
           functionName: "DateRange",
-          arguments: {
-            start: { valueReference: "2" },
-            end: { valueReference: "3" },
-          },
+          arguments: { start: { valueReference: "2" }, end: { valueReference: "3" } },
         },
       },
       "5": { constantValue: "system:time_start" },
       "6": {
         functionInvocationValue: {
           functionName: "Filter.dateRangeContains",
-          arguments: {
-            leftValue: { valueReference: "4" },
-            rightField: { valueReference: "5" },
-          },
+          arguments: { leftValue: { valueReference: "4" }, rightField: { valueReference: "5" } },
         },
       },
       "7": {
         functionInvocationValue: {
           functionName: "Collection.filter",
-          arguments: {
-            collection: { valueReference: "1" },
-            filter: { valueReference: "6" },
-          },
+          arguments: { collection: { valueReference: "1" }, filter: { valueReference: "6" } },
         },
       },
       // Cloud filter
@@ -341,63 +333,79 @@ function buildNdviExpression(startDate: string, endDate: string) {
       "10": {
         functionInvocationValue: {
           functionName: "Filter.lessThan",
-          arguments: {
-            leftField: { valueReference: "8" },
-            rightValue: { valueReference: "9" },
-          },
+          arguments: { leftField: { valueReference: "8" }, rightValue: { valueReference: "9" } },
         },
       },
       "11": {
         functionInvocationValue: {
           functionName: "Collection.filter",
-          arguments: {
-            collection: { valueReference: "7" },
-            filter: { valueReference: "10" },
-          },
+          arguments: { collection: { valueReference: "7" }, filter: { valueReference: "10" } },
         },
       },
-      // Median composite
+      // Select B8 and B4 BEFORE reduce so band names stay B8, B4
       "12": {
+        arrayValue: {
+          values: [{ constantValue: "B8" }, { constantValue: "B4" }],
+        },
+      },
+      "13": {
         functionInvocationValue: {
-          functionName: "ImageCollection.median",
+          functionName: "Collection.map",
           arguments: {
             collection: { valueReference: "11" },
+            baseAlgorithm: {
+              functionDefinitionValue: {
+                argumentNames: ["img"],
+                body: {
+                  functionInvocationValue: {
+                    functionName: "Image.select",
+                    arguments: {
+                      input: { argumentReference: "img" },
+                      bandSelectors: { valueReference: "12" },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
       },
-      // Select B8 and B4 bands (before normalizedDifference)
-      "13": {
-        arrayValue: {
-          values: [
-            { constantValue: "B8" },
-            { constantValue: "B4" },
-          ],
-        },
-      },
+      // Reduce with median
       "14": {
         functionInvocationValue: {
-          functionName: "Image.select",
+          functionName: "Reducer.median",
+          arguments: {},
+        },
+      },
+      "15": {
+        functionInvocationValue: {
+          functionName: "ImageCollection.reduce",
           arguments: {
-            input: { valueReference: "12" },
-            bandSelectors: { valueReference: "13" },
+            collection: { valueReference: "13" },
+            reducer: { valueReference: "14" },
           },
         },
       },
-      // Compute NDVI using normalizedDifference
-      "15": {
+      // After reduce, bands are B8_median, B4_median
+      // Compute NDVI: (B8_median - B4_median) / (B8_median + B4_median)
+      "16": {
         arrayValue: {
-          values: [
-            { constantValue: "B8" },
-            { constantValue: "B4" },
-          ],
+          values: [{ constantValue: "B8_median" }, { constantValue: "B4_median" }],
         },
       },
-      "16": {
+      "17": {
         functionInvocationValue: {
           functionName: "Image.normalizedDifference",
           arguments: {
-            input: { valueReference: "14" },
-            bandNames: { valueReference: "15" },
+            input: { valueReference: "15" },
+            bandNames: { valueReference: "16" },
+          },
+        },
+      },
+    },
+    result: "17",
+  };
+}
           },
         },
       },
