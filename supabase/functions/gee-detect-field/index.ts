@@ -258,70 +258,56 @@ function computeAreaHectares(coords: [number, number][]): number {
 // ValueNodes use: constantValue, functionInvocationValue, arrayValue, valueReference, argumentReference
 
 function buildNdviExpression(west: number, south: number, east: number, north: number, startDate: string, endDate: string) {
-  // Build a flat DAG expression for: 
-  // ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
-  //   .filterBounds(region).filterDate(start, end)
-  //   .filter(CLOUDY_PIXEL_PERCENTAGE < 30)
-  //   .median()
-  //   .normalizedDifference(['B8', 'B4'])
-
+  // Simplified: skip bounds filter since computePixels clips to the grid region anyway
   return {
     values: {
-      // Constants
       "0": { constantValue: "COPERNICUS/S2_SR_HARMONIZED" },
-      // Load image collection
       "1": {
         functionInvocationValue: {
           functionName: "ImageCollection.load",
           arguments: { id: { valueReference: "0" } },
         },
       },
-      // Region as GeoJSON
-      "2": {
-        constantValue: {
-          type: "Polygon",
-          coordinates: [[[west, south], [east, south], [east, north], [west, north], [west, south]]],
-        },
-      },
-      // Filter: bounds
-      "3": { constantValue: ".all" },
+      // Date filter
+      "2": { constantValue: startDate },
+      "3": { constantValue: endDate },
       "4": {
         functionInvocationValue: {
-          functionName: "Filter.geometry",
+          functionName: "DateRange",
           arguments: {
-            leftField: { valueReference: "3" },
-            rightValue: { valueReference: "2" },
+            start: { valueReference: "2" },
+            end: { valueReference: "3" },
           },
         },
       },
-      "5": {
+      "5": { constantValue: "system:time_start" },
+      "6": {
+        functionInvocationValue: {
+          functionName: "Filter.dateRangeContains",
+          arguments: {
+            leftValue: { valueReference: "4" },
+            rightField: { valueReference: "5" },
+          },
+        },
+      },
+      "7": {
         functionInvocationValue: {
           functionName: "Collection.filter",
           arguments: {
             collection: { valueReference: "1" },
-            filter: { valueReference: "4" },
+            filter: { valueReference: "6" },
           },
         },
       },
-      // Filter: date range
-      "6": { constantValue: startDate },
-      "7": { constantValue: endDate },
-      "8": {
-        functionInvocationValue: {
-          functionName: "DateRange",
-          arguments: {
-            start: { valueReference: "6" },
-            end: { valueReference: "7" },
-          },
-        },
-      },
-      "9": { constantValue: "system:time_start" },
+      // Cloud filter
+      "8": { constantValue: "CLOUDY_PIXEL_PERCENTAGE" },
+      "9": { constantValue: 30 },
       "10": {
         functionInvocationValue: {
-          functionName: "Filter.dateRangeContains",
+          functionName: "Filter.lessThan",
           arguments: {
-            leftValue: { valueReference: "8" },
-            rightField: { valueReference: "9" },
+            leftField: { valueReference: "8" },
+            rightValue: { valueReference: "9" },
           },
         },
       },
@@ -329,55 +315,42 @@ function buildNdviExpression(west: number, south: number, east: number, north: n
         functionInvocationValue: {
           functionName: "Collection.filter",
           arguments: {
-            collection: { valueReference: "5" },
+            collection: { valueReference: "7" },
             filter: { valueReference: "10" },
           },
         },
       },
-      // Filter: cloud cover
-      "12": { constantValue: "CLOUDY_PIXEL_PERCENTAGE" },
-      "13": { constantValue: 30 },
-      "14": {
-        functionInvocationValue: {
-          functionName: "Filter.lessThan",
-          arguments: {
-            leftField: { valueReference: "12" },
-            rightValue: { valueReference: "13" },
-          },
-        },
-      },
-      "15": {
-        functionInvocationValue: {
-          functionName: "Collection.filter",
-          arguments: {
-            collection: { valueReference: "11" },
-            filter: { valueReference: "14" },
-          },
-        },
-      },
-      // Median composite - use Reducer approach
-      "16": {
+      // Median
+      "12": {
         functionInvocationValue: {
           functionName: "Reducer.median",
           arguments: {},
         },
       },
-      "17": {
+      "13": {
         functionInvocationValue: {
           functionName: "ImageCollection.reduce",
           arguments: {
-            collection: { valueReference: "15" },
-            reducer: { valueReference: "16" },
+            collection: { valueReference: "11" },
+            reducer: { valueReference: "12" },
           },
         },
       },
-      // NDVI: normalizedDifference on B8_median, B4_median
-      "18": {
-        constantValue: ["B8_median", "B4_median"],
-      },
-      "19": {
+      // NDVI
+      "14": { constantValue: ["B8_median", "B4_median"] },
+      "15": {
         functionInvocationValue: {
           functionName: "Image.normalizedDifference",
+          arguments: {
+            input: { valueReference: "13" },
+            bandNames: { valueReference: "14" },
+          },
+        },
+      },
+    },
+    result: "15",
+  };
+}
           arguments: {
             input: { valueReference: "17" },
             bandNames: { valueReference: "18" },
