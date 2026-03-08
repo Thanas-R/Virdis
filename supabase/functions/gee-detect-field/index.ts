@@ -329,7 +329,7 @@ function buildNdviExpression(west: number, south: number, east: number, north: n
         functionInvocationValue: {
           functionName: "Collection.filter",
           arguments: {
-            collection: { valueReference: "3" },
+            collection: { valueReference: "5" },
             filter: { valueReference: "10" },
           },
         },
