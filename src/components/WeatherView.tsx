@@ -556,7 +556,7 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(150, 12%, 22%)" />
                     <XAxis dataKey="date" stroke="hsl(150, 10%, 55%)" fontSize={10} interval="preserveStartEnd" />
                     <YAxis stroke="hsl(150, 10%, 55%)" fontSize={11} domain={[0, 1]} />
-                    <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => value?.toFixed(3)} />
+                    <Tooltip content={<CustomChartTooltip />} />
                     <Area type="monotone" dataKey="ndvi" stroke={CHART_GREEN} strokeWidth={2.5} fill="url(#ndviGrad)" dot={{ r: 3, fill: CHART_GREEN }} activeDot={{ r: 5 }} />
                   </AreaChart>
                 </ResponsiveContainer>
