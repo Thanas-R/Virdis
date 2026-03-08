@@ -499,10 +499,45 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
               </div>
           }
 
-            {/* Crop Growth Indicators */}
+            {/* NDVI Vegetation Trend */}
             <div className="animate-fade-in" style={{ animationDelay: "350ms" }}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-medium text-foreground">NDVI Vegetation Trend (90 days)</h3>
+                {ndviTimeSeries?.growth_stage && (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-accent/30 text-foreground">{ndviTimeSeries.growth_stage}</span>
+                )}
+              </div>
+              {ndviTsLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground p-3">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Loading NDVI time-series…
+                </div>
+              ) : ndviChartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={200}>
+                  <AreaChart data={ndviChartData}>
+                    <defs>
+                      <linearGradient id="ndviGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={CHART_GREEN} stopOpacity={0.3} />
+                        <stop offset="95%" stopColor={CHART_GREEN} stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(150, 12%, 22%)" />
+                    <XAxis dataKey="date" stroke="hsl(150, 10%, 55%)" fontSize={10} interval="preserveStartEnd" />
+                    <YAxis stroke="hsl(150, 10%, 55%)" fontSize={11} domain={[0, 1]} />
+                    <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => value?.toFixed(3)} />
+                    <Area type="monotone" dataKey="ndvi" stroke={CHART_GREEN} strokeWidth={2.5} fill="url(#ndviGrad)" dot={{ r: 3, fill: CHART_GREEN }} activeDot={{ r: 5 }} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="p-4 rounded-xl border border-border bg-accent/10 text-sm text-muted-foreground">
+                  No satellite data available for this field.
+                </div>
+              )}
+            </div>
+
+            {/* Crop Growth Indicators */}
+            <div className="animate-fade-in" style={{ animationDelay: "400ms" }}>
               <h3 className="text-sm font-medium text-foreground mb-4">Crop Growth Indicators</h3>
-              {geeLoading ? (
+              {(geeLoading || ndviTsLoading) ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground p-3">
                   <Loader2 className="w-4 h-4 animate-spin" /> Loading satellite indices…
                 </div>
@@ -510,22 +545,22 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
                 <div className="grid grid-cols-3 gap-3">
                   {[
                     {
-                      label: "Mean EVI",
-                      value: vegetation?.mean_evi != null ? vegetation.mean_evi.toFixed(3) : "N/A",
-                      detail: vegetation?.mean_evi != null ? "Enhanced Vegetation Index" : "No satellite data available",
-                      color: vegetation?.mean_evi != null ? CHART_GREEN : "hsl(150, 10%, 55%)",
+                      label: "Growth Rate",
+                      value: ndviTimeSeries?.growth_rate != null ? `${ndviTimeSeries.growth_rate > 0 ? "+" : ""}${ndviTimeSeries.growth_rate}/day` : "N/A",
+                      detail: ndviTimeSeries?.growth_rate != null ? "NDVI change per day" : "No time-series data",
+                      color: ndviTimeSeries?.growth_rate != null ? (ndviTimeSeries.growth_rate >= 0 ? CHART_GREEN : "#d73027") : "hsl(150, 10%, 55%)",
                     },
                     {
                       label: "Canopy Cover",
-                      value: vegetation?.canopy_cover_pct != null ? `${vegetation.canopy_cover_pct}%` : "N/A",
-                      detail: vegetation?.canopy_cover_pct != null ? "NDVI > 0.5 fraction" : "No satellite data available",
-                      color: vegetation?.canopy_cover_pct != null ? CHART_GREEN : "hsl(150, 10%, 55%)",
+                      value: ndviTimeSeries?.canopy_cover != null ? `${ndviTimeSeries.canopy_cover}%` : (vegetation?.canopy_cover_pct != null ? `${vegetation.canopy_cover_pct}%` : "N/A"),
+                      detail: ndviTimeSeries?.canopy_cover != null ? "NDVI > 0.5 observations" : "No satellite data",
+                      color: (ndviTimeSeries?.canopy_cover ?? vegetation?.canopy_cover_pct) != null ? CHART_GREEN : "hsl(150, 10%, 55%)",
                     },
                     {
                       label: "Biomass Est.",
-                      value: vegetation?.biomass_estimate_kg_ha != null ? `${vegetation.biomass_estimate_kg_ha} kg/ha` : "N/A",
-                      detail: vegetation?.biomass_estimate_kg_ha != null ? "NDVI-derived estimate" : "No satellite data available",
-                      color: vegetation?.biomass_estimate_kg_ha != null ? CHART_GOLD : "hsl(150, 10%, 55%)",
+                      value: ndviTimeSeries?.biomass_estimate != null ? ndviTimeSeries.biomass_estimate.toFixed(2) : (vegetation?.biomass_estimate_kg_ha != null ? `${vegetation.biomass_estimate_kg_ha} kg/ha` : "N/A"),
+                      detail: ndviTimeSeries?.biomass_estimate != null ? "mean NDVI × 8" : "No satellite data",
+                      color: (ndviTimeSeries?.biomass_estimate ?? vegetation?.biomass_estimate_kg_ha) != null ? CHART_GOLD : "hsl(150, 10%, 55%)",
                     },
                   ].map((item, i) => (
                     <div key={i} className="p-3 rounded-xl border border-border bg-accent/10">
