@@ -404,7 +404,8 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
         ) : loading ? (
           <div className="flex items-center justify-center py-20">
             <div className="text-muted-foreground animate-pulse text-sm">Fetching analytics for {effectiveField.name}...</div>
-          </div> :
+          </div>
+        ) : (
 
         <div key={effectiveField.id} className="animate-fade-in">
             {/* Key Metrics Cards */}
