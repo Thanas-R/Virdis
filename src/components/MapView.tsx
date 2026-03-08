@@ -173,23 +173,53 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
     if (!map || !mapLoaded) return;
     const ndviSourceId = "gee-ndvi-source";
     const ndviLayerId = "gee-ndvi-layer";
+
     if (!showNdvi) {
-      try { if (map.getLayer(ndviLayerId)) map.removeLayer(ndviLayerId); } catch {}
-      try { if (map.getSource(ndviSourceId)) map.removeSource(ndviSourceId); } catch {}
+      // Toggle visibility instead of removing to preserve cached tiles
+      try { if (map.getLayer(ndviLayerId)) map.setLayoutProperty(ndviLayerId, "visibility", "none"); } catch {}
       return;
     }
+
+    // If layer already exists, just make it visible
+    if (map.getLayer(ndviLayerId)) {
+      try { map.setLayoutProperty(ndviLayerId, "visibility", "visible"); } catch {}
+      return;
+    }
+
     if (!geeNdviTileUrl) {
       loadGeeNdviTiles();
       return;
     }
+
+    // Add source if missing
     if (!map.getSource(ndviSourceId)) {
       const authenticatedUrl = `${geeNdviTileUrl}?access_token=${geeNdviToken}`;
       map.addSource(ndviSourceId, { type: "raster", tiles: [authenticatedUrl], tileSize: 256 });
+
+      // Log tile loading errors
+      map.on("error", (e: any) => {
+        if (e.sourceId === ndviSourceId) {
+          console.error("[NDVI] Tile load error:", e.error?.message || e);
+        }
+      });
     }
-    if (!map.getLayer(ndviLayerId)) {
-      map.addLayer({ id: ndviLayerId, type: "raster", source: ndviSourceId, paint: { "raster-opacity": 0.5 } },
-        allFields.length > 0 ? `field-fill-${allFields[0].id}` : undefined);
-    }
+
+    // Add layer ABOVE basemap but BELOW field polygons
+    // Find first field layer to insert before it
+    const firstFieldLayer = allFields.length > 0 ? `field-fill-${allFields[0].id}` : undefined;
+    const beforeLayer = firstFieldLayer && map.getLayer(firstFieldLayer) ? firstFieldLayer : "waterway-label";
+    const insertBefore = map.getLayer(beforeLayer) ? beforeLayer : undefined;
+
+    map.addLayer(
+      {
+        id: ndviLayerId,
+        type: "raster",
+        source: ndviSourceId,
+        paint: { "raster-opacity": 0.55 },
+        layout: { visibility: "visible" },
+      },
+      insertBefore
+    );
   }, [showNdvi, mapLoaded, allFields, geeNdviTileUrl, geeNdviToken]);
 
   // Drawing mode with Backspace undo
@@ -337,6 +367,9 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
     const map = mapRef.current;
     if (!map) return;
     setMapLoaded(false);
+    // Clear NDVI layer/source since style change removes all layers
+    setGeeNdviTileUrl(null);
+    setGeeNdviToken(null);
     map.setStyle(MAP_STYLES[style]);
     map.once("style.load", () => { if (style === "satellite") hideExtraLabels(map); setMapLoaded(true); refreshFieldLayers(map, allFields, selectedFields); });
   };
@@ -371,13 +404,23 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
     );
   };
 
-  // ── GEE: Load NDVI tile layer ──────────────────────────────────
+  // ── GEE: Load NDVI tile layer (clipped to selected fields) ──────
   const loadGeeNdviTiles = async () => {
     try {
       toast.info("Loading NDVI overlay…");
-      const { data, error } = await supabase.functions.invoke("gee-ndvi-tiles");
+      // Send field coordinates so GEE clips tiles to farm boundaries
+      const fieldCoords = selectedFields.map(f => f.coordinates[0]);
+      const { data, error } = await supabase.functions.invoke("gee-ndvi-tiles", {
+        body: { coordinates: fieldCoords },
+      });
       if (error) throw error;
       if (data?.tileUrl) {
+        // Clear old source/layer before setting new URL (new clip region)
+        const map = mapRef.current;
+        if (map) {
+          try { if (map.getLayer("gee-ndvi-layer")) map.removeLayer("gee-ndvi-layer"); } catch {}
+          try { if (map.getSource("gee-ndvi-source")) map.removeSource("gee-ndvi-source"); } catch {}
+        }
         setGeeNdviTileUrl(data.tileUrl);
         setGeeNdviToken(data.token);
         toast.success("NDVI layer loaded");
