@@ -409,12 +409,10 @@ serve(async (req) => {
     const cellLng = (east - west) / gridSize;
     const cellLat = (north - south) / gridSize;
 
-    // Date range: last 3 months
-    const now = new Date();
-    const threeMonthsAgo = new Date(now);
-    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-    const startDate = threeMonthsAgo.toISOString().split("T")[0];
-    const endDate = now.toISOString().split("T")[0];
+    // Date range: use a known period with Sentinel-2 data
+    // Go back further to ensure we get data (S2 archive may not cover very recent dates)
+    const endDate = "2024-09-30";
+    const startDate = "2024-06-01";
 
     const expression = buildNdviExpression(west, south, east, north, startDate, endDate);
 
