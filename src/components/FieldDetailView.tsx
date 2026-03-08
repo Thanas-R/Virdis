@@ -118,7 +118,7 @@ function GrowthStageSection({ polygon, fieldId }: { polygon: [number, number][];
       setData(cached.data);
       return;
     }
-    const fetchData = async () => {
+    const fetchGrowthStage = async () => {
       setLoading(true);
       try {
         const { data: result, error } = await supabase.functions.invoke("ndvi-timeseries", {
@@ -142,7 +142,7 @@ function GrowthStageSection({ polygon, fieldId }: { polygon: [number, number][];
         setData(null);
       } finally { setLoading(false); }
     };
-    fetch();
+    fetchGrowthStage();
   }, [fieldId]);
 
   return (
