@@ -434,7 +434,8 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
 
   // ── GEE: Auto-field single-click detection ────────────────────
   const handleAutoFieldClick = async (lat: number, lng: number) => {
-    if (autoFieldDetecting) return;
+    console.log("handleAutoFieldClick called:", lat, lng);
+    if (autoFieldDetecting) { console.log("Already detecting, skipping"); return; }
     setAutoFieldDetecting(true);
     toast.info(`Detecting field at ${lat.toFixed(4)}, ${lng.toFixed(4)}…`);
 
