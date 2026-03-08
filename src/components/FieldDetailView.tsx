@@ -329,7 +329,7 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
         </div>
 
         {/* Growth Stage */}
-        <GrowthStageSection polygon={field.coordinates[0]} />
+        <GrowthStageSection polygon={field.coordinates[0]} fieldId={field.id} />
 
         {/* AI Analysis */}
         <div>
