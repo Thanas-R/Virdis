@@ -465,7 +465,7 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(150, 12%, 22%)" />
                   <XAxis dataKey="month" stroke="hsl(150, 10%, 55%)" fontSize={11} />
                   <YAxis stroke="hsl(150, 10%, 55%)" fontSize={11} />
-                  <Tooltip contentStyle={tooltipStyle} />
+                  <Tooltip content={<CustomChartTooltip />} />
                   <Area type="monotone" dataKey="accumulated" stroke={CHART_GOLD} strokeWidth={2.5} fill="url(#goldGrad)" dot={{ r: 3, fill: CHART_GOLD }} activeDot={{ r: 5 }} />
                   <Line type="monotone" dataKey="evapotranspiration" stroke={CHART_CREAM} strokeWidth={1.5} dot={false} strokeDasharray="5 5" />
                 </AreaChart>
