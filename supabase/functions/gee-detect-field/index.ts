@@ -283,13 +283,23 @@ function buildNdviExpression(west: number, south: number, east: number, north: n
           coordinates: [[[west, south], [east, south], [east, north], [west, north], [west, south]]],
         },
       },
-      // Filter: bounds using Collection.filterBounds
-      "3": {
+      // Filter: bounds
+      "3": { constantValue: ".all" },
+      "4": {
         functionInvocationValue: {
-          functionName: "Collection.filterBounds",
+          functionName: "Filter.geometry",
+          arguments: {
+            leftField: { valueReference: "3" },
+            rightValue: { valueReference: "2" },
+          },
+        },
+      },
+      "5": {
+        functionInvocationValue: {
+          functionName: "Collection.filter",
           arguments: {
             collection: { valueReference: "1" },
-            geometry: { valueReference: "2" },
+            filter: { valueReference: "4" },
           },
         },
       },
