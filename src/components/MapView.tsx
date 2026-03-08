@@ -208,16 +208,37 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
       return;
     }
     map.getCanvas().style.cursor = "crosshair";
-    const handleClick = (e: mapboxgl.MapMouseEvent) => { setDrawVertices((prev) => [...prev, [e.lngLat.lng, e.lngLat.lat]]); };
+    console.log("[Virdis Draw] Drawing mode started");
+    const handleClick = (e: mapboxgl.MapMouseEvent) => {
+      const vertex: [number, number] = [e.lngLat.lng, e.lngLat.lat];
+      console.log("[Virdis Draw] Vertex added:", vertex);
+      setDrawVertices((prev) => {
+        const updated = [...prev, vertex];
+        console.log("[Virdis Draw] Total vertices:", updated.length);
+        return updated;
+      });
+    };
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { setDrawMode(false); setDrawVertices([]); }
+      if (e.key === "Escape") {
+        console.log("[Virdis Draw] Drawing cancelled (Escape)");
+        setDrawMode(false); setDrawVertices([]);
+      }
       if (e.key === "Backspace") {
         e.preventDefault();
+        console.log("[Virdis Draw] Undo last vertex (Backspace)");
         setDrawVertices((prev) => prev.length > 0 ? prev.slice(0, -1) : prev);
       }
       if (e.key === "Enter") {
         setDrawVertices((prev) => {
-          if (prev.length >= 3) { setDrawMode(false); setShowNewFieldDialog(true); }
+          if (prev.length >= 3) {
+            const closedCoords = [...prev, prev[0]];
+            const geometry = { type: "Polygon" as const, coordinates: [closedCoords] };
+            console.log("[Virdis Draw] Polygon created:", geometry);
+            setDrawMode(false);
+            setShowNewFieldDialog(true);
+          } else {
+            console.warn("[Virdis Draw] Need at least 3 vertices, have:", prev.length);
+          }
           return prev;
         });
       }
