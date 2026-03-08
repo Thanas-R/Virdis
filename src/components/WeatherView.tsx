@@ -252,6 +252,12 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
 
   const vegetation = geeData?.vegetation;
 
+  // NDVI time-series chart data
+  const ndviChartData = ndviTimeSeries?.timeseries?.map((p: any) => ({
+    date: format(new Date(p.date + "T00:00:00"), "MMM dd"),
+    ndvi: p.ndvi,
+  })) || [];
+
   return (
     <div className="relative w-full h-full flex flex-col overflow-hidden">
       {/* Header */}
