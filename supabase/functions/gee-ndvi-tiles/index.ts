@@ -99,47 +99,47 @@ serve(async (req) => {
     // Build the NDVI visualization expression for map tiles
     // Sentinel-2 → cloud filter → median → NDVI → color map
     const expression = {
-      functionInvocationValue: {
-        functionName: "Image.visualize",
+      function_invocation_value: {
+        function_name: "Image.visualize",
         arguments: {
           image: {
-            functionInvocationValue: {
-              functionName: "Image.normalizedDifference",
+            function_invocation_value: {
+              function_name: "Image.normalizedDifference",
               arguments: {
                 input: {
-                  functionInvocationValue: {
-                    functionName: "Collection.reduce",
+                  function_invocation_value: {
+                    function_name: "Collection.reduce",
                     arguments: {
                       collection: {
-                        functionInvocationValue: {
-                          functionName: "Collection.filter",
+                        function_invocation_value: {
+                          function_name: "Collection.filter",
                           arguments: {
                             collection: {
-                              functionInvocationValue: {
-                                functionName: "Collection.filter",
+                              function_invocation_value: {
+                                function_name: "Collection.filter",
                                 arguments: {
                                   collection: {
-                                    functionInvocationValue: {
-                                      functionName: "ImageCollection.load",
+                                    function_invocation_value: {
+                                      function_name: "ImageCollection.load",
                                       arguments: {
-                                        id: { constantValue: "COPERNICUS/S2_SR_HARMONIZED" },
+                                        id: { constant_value: "COPERNICUS/S2_SR_HARMONIZED" },
                                       },
                                     },
                                   },
                                   filter: {
-                                    functionInvocationValue: {
-                                      functionName: "Filter.dateRangeContains",
+                                    function_invocation_value: {
+                                      function_name: "Filter.dateRangeContains",
                                       arguments: {
                                         leftValue: {
-                                          functionInvocationValue: {
-                                            functionName: "DateRange",
+                                          function_invocation_value: {
+                                            function_name: "DateRange",
                                             arguments: {
-                                              start: { constantValue: startDate },
-                                              end: { constantValue: endDate },
+                                              start: { constant_value: startDate },
+                                              end: { constant_value: endDate },
                                             },
                                           },
                                         },
-                                        rightField: { constantValue: "system:time_start" },
+                                        rightField: { constant_value: "system:time_start" },
                                       },
                                     },
                                   },
@@ -147,11 +147,11 @@ serve(async (req) => {
                               },
                             },
                             filter: {
-                              functionInvocationValue: {
-                                functionName: "Filter.lessThan",
+                              function_invocation_value: {
+                                function_name: "Filter.lessThan",
                                 arguments: {
-                                  leftField: { constantValue: "CLOUDY_PIXEL_PERCENTAGE" },
-                                  rightValue: { constantValue: 20 },
+                                  leftField: { constant_value: "CLOUDY_PIXEL_PERCENTAGE" },
+                                  rightValue: { constant_value: 20 },
                                 },
                               },
                             },
@@ -159,23 +159,23 @@ serve(async (req) => {
                         },
                       },
                       reducer: {
-                        functionInvocationValue: {
-                          functionName: "Reducer.median",
+                        function_invocation_value: {
+                          function_name: "Reducer.median",
                           arguments: {},
                         },
                       },
                     },
                   },
                 },
-                bandNames: { constantValue: ["B8_median", "B4_median"] },
+                bandNames: { constant_value: ["B8_median", "B4_median"] },
               },
             },
           },
-          bands: { constantValue: ["nd"] },
-          min: { constantValue: -0.1 },
-          max: { constantValue: 0.8 },
+          bands: { constant_value: ["nd"] },
+          min: { constant_value: -0.1 },
+          max: { constant_value: 0.8 },
           palette: {
-            constantValue: [
+            constant_value: [
               "#d73027", "#f46d43", "#fdae61", "#fee08b",
               "#d9ef8b", "#a6d96a", "#66bd63", "#1a9850", "#006837",
             ],
