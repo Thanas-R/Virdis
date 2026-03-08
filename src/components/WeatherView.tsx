@@ -227,11 +227,6 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
             )}
             </div>
 
-            {/* Vegetation Indices (NDVI/EVI) */}
-            {vegetationIndices.length > 0
-
-
-
 
 
 
