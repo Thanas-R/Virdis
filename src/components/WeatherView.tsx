@@ -94,6 +94,7 @@ function getFieldCenter(field: Field) {
 interface WeatherViewProps {
   activeField: Field | null;
   selectedFields: Field[];
+  allFields?: Field[];
 }
 
 const GEE_ANALYTICS_CACHE_KEY = "gee-analytics-cache";
