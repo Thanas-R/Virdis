@@ -85,8 +85,54 @@ async function getGeeAccessToken(): Promise<string> {
 
 const GEE_API = "https://earthengine.googleapis.com/v1";
 
-async function geeCompute(token: string, expression: any): Promise<any> {
+// Convert a nested expression tree into the flat DAG format required by GEE REST API
+function flattenExpression(nested: any): { values: Record<string, any>; result: string } {
+  const values: Record<string, any> = {};
+  let counter = 0;
+
+  function flatten(node: any): string {
+    if (node === null || node === undefined) {
+      const key = `_${counter++}`;
+      values[key] = { constantValue: null };
+      return key;
+    }
+    
+    if (node.functionInvocationValue) {
+      const fiv = node.functionInvocationValue;
+      const flatArgs: Record<string, any> = {};
+      for (const [argName, argVal] of Object.entries(fiv.arguments || {})) {
+        const ref = flatten(argVal as any);
+        flatArgs[argName] = { valueReference: ref };
+      }
+      const key = `_${counter++}`;
+      values[key] = {
+        functionInvocationValue: {
+          functionName: fiv.functionName,
+          arguments: flatArgs,
+        },
+      };
+      return key;
+    }
+
+    if ("constantValue" in node) {
+      const key = `_${counter++}`;
+      values[key] = { constantValue: node.constantValue };
+      return key;
+    }
+
+    // Fallback: treat as constant
+    const key = `_${counter++}`;
+    values[key] = { constantValue: node };
+    return key;
+  }
+
+  const resultKey = flatten(nested);
+  return { values, result: resultKey };
+}
+
+async function geeCompute(token: string, nestedExpression: any): Promise<any> {
   const projectId = Deno.env.get("GEE_PROJECT_ID") || "earthengine-legacy";
+  const expression = flattenExpression(nestedExpression);
   const resp = await fetch(`${GEE_API}/projects/${projectId}/value:compute`, {
     method: "POST",
     headers: {
