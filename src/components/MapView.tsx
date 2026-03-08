@@ -124,6 +124,7 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
   }, [flyToField, onFlyToDone]);
 
   const refreshFieldLayers = useCallback((map: mapboxgl.Map, fields: Field[], selected: Field[]) => {
+    if (!map.isStyleLoaded()) return;
     const style = map.getStyle();
     if (style?.layers) {
       style.layers.filter((l) => l.id.startsWith("field-fill-") || l.id.startsWith("field-line-")).forEach((l) => { try { map.removeLayer(l.id); } catch {} });
