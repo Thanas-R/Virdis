@@ -228,35 +228,6 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
             </div>
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-          }
-
-
-
-
-
-
-
-
-
-
           }
 
             {/* Land Use / Suitability side by side */}
