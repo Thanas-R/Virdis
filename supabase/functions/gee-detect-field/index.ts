@@ -35,7 +35,6 @@ async function createJwt(
   const payloadB64 = base64url(enc.encode(JSON.stringify(payload)));
   const unsignedToken = `${headerB64}.${payloadB64}`;
 
-  // Import private key
   const pemBody = privateKeyPem
     .replace(/-----BEGIN PRIVATE KEY-----/g, "")
     .replace(/-----END PRIVATE KEY-----/g, "")
@@ -81,39 +80,56 @@ async function getGeeAccessToken(): Promise<string> {
   return access_token;
 }
 
-// ── GEE REST API helpers ──────────────────────────────────────────
+// ── GEE REST API: computePixels approach ─────────────────────────
 
 const GEE_API = "https://earthengine.googleapis.com/v1";
 
-async function geeCompute(token: string, expression: any): Promise<any> {
+async function geeComputePixels(
+  token: string,
+  expression: any,
+  grid: any
+): Promise<ArrayBuffer> {
   const projectId = Deno.env.get("GEE_PROJECT_ID") || "earthengine-legacy";
-  const resp = await fetch(`${GEE_API}/projects/${projectId}/value:compute`, {
+  const resp = await fetch(`${GEE_API}/projects/${projectId}/image:computePixels`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ expression }),
+    body: JSON.stringify({ expression, fileFormat: "NPY", grid }),
   });
   if (!resp.ok) {
     const t = await resp.text();
-    console.error("GEE compute error:", resp.status, t);
-    throw new Error(`GEE compute failed (${resp.status}): ${t.slice(0, 500)}`);
+    console.error("GEE computePixels error:", resp.status, t);
+    throw new Error(`GEE computePixels failed (${resp.status}): ${t.slice(0, 500)}`);
   }
-  return resp.json();
+  return resp.arrayBuffer();
+}
+
+// Parse NumPy .npy format (simple float32/float64 2D arrays)
+function parseNpy(buffer: ArrayBuffer): { data: Float64Array | Float32Array; shape: number[] } {
+  const view = new DataView(buffer);
+  // Magic: \x93NUMPY
+  const headerLen = view.getUint16(8, true);
+  const headerStr = new TextDecoder().decode(new Uint8Array(buffer, 10, headerLen));
+  
+  // Parse shape from header like "{'descr': '<f4', 'fortran_order': False, 'shape': (64, 64), }"
+  const shapeMatch = headerStr.match(/shape['"]\s*:\s*\(([^)]+)\)/);
+  const shape = shapeMatch ? shapeMatch[1].split(",").map(s => parseInt(s.trim())).filter(n => !isNaN(n)) : [];
+  
+  const descrMatch = headerStr.match(/descr['"]\s*:\s*'([^']+)'/);
+  const descr = descrMatch ? descrMatch[1] : "<f8";
+  
+  const dataOffset = 10 + headerLen;
+  const dataBytes = new Uint8Array(buffer, dataOffset);
+  
+  if (descr.includes("f4")) {
+    return { data: new Float32Array(dataBytes.buffer, dataOffset), shape };
+  }
+  return { data: new Float64Array(dataBytes.buffer, dataOffset), shape };
 }
 
 // ── Region growing on NDVI grid ───────────────────────────────────
-
-interface GridResult {
-  ndviGrid: number[][];
-  width: number;
-  height: number;
-  west: number;
-  south: number;
-  cellLng: number;
-  cellLat: number;
-}
 
 function regionGrow(
   grid: number[][],
@@ -126,7 +142,6 @@ function regionGrow(
   const visited: boolean[][] = Array.from({ length: h }, () => new Array(w).fill(false));
   const seedVal = grid[startRow][startCol];
 
-  // BFS flood fill
   const queue: [number, number][] = [[startRow, startCol]];
   visited[startRow][startCol] = true;
 
@@ -153,7 +168,6 @@ function maskToPolygon(
   cellLng: number,
   cellLat: number
 ): [number, number][] {
-  // Find boundary cells and create convex-hull-like polygon
   const boundaryPts: [number, number][] = [];
   const h = mask.length;
   const w = mask[0].length;
@@ -161,7 +175,6 @@ function maskToPolygon(
   for (let r = 0; r < h; r++) {
     for (let c = 0; c < w; c++) {
       if (!mask[r][c]) continue;
-      // Check if boundary (adjacent to non-mask or edge)
       const isBoundary =
         r === 0 || r === h - 1 || c === 0 || c === w - 1 ||
         !mask[r - 1][c] || !mask[r + 1][c] || !mask[r][c - 1] || !mask[r][c + 1];
@@ -197,7 +210,6 @@ function maskToPolygon(
   lower.pop();
   upper.pop();
   const hull = [...lower, ...upper];
-  // Close the polygon
   if (hull.length > 0) hull.push(hull[0]);
   return hull;
 }
@@ -217,15 +229,18 @@ function computeFieldStats(
   const mean = values.reduce((a, b) => a + b, 0) / values.length;
   const variance = values.reduce((a, v) => a + (v - mean) ** 2, 0) / values.length;
   const std = Math.sqrt(variance);
-  // Health score: scale NDVI 0-0.8 to 0-100
   const healthScore = Math.min(100, Math.max(0, Math.round((mean / 0.8) * 100)));
 
-  return { meanNdvi: Math.round(mean * 1000) / 1000, stdNdvi: Math.round(std * 1000) / 1000, healthScore, pixelCount: values.length };
+  return {
+    meanNdvi: Math.round(mean * 1000) / 1000,
+    stdNdvi: Math.round(std * 1000) / 1000,
+    healthScore,
+    pixelCount: values.length,
+  };
 }
 
 function computeAreaHectares(coords: [number, number][]): number {
   if (coords.length < 3) return 0;
-  // Shoelace formula in degree² → convert to m²
   let area = 0;
   for (let i = 0; i < coords.length - 1; i++) {
     const j = (i + 1) % coords.length;
@@ -235,8 +250,108 @@ function computeAreaHectares(coords: [number, number][]): number {
   area = Math.abs(area) / 2;
   const midLat = coords.reduce((s, c) => s + c[1], 0) / coords.length;
   const m2 = area * (111320 * Math.cos((midLat * Math.PI) / 180)) * 111320;
-  return Math.round((m2 / 10000) * 100) / 100; // hectares
+  return Math.round((m2 / 10000) * 100) / 100;
 }
+
+// ── Build GEE expression using ee.serializer-compatible format ────
+// The Expression must use { values: { key: ValueNode }, result: key } DAG format.
+// ValueNodes use: constantValue, functionInvocationValue, arrayValue, valueReference, argumentReference
+
+function buildNdviExpression(west: number, south: number, east: number, north: number, startDate: string, endDate: string) {
+  // Simplified: skip bounds filter since computePixels clips to the grid region anyway
+  return {
+    values: {
+      "0": { constantValue: "COPERNICUS/S2_SR_HARMONIZED" },
+      "1": {
+        functionInvocationValue: {
+          functionName: "ImageCollection.load",
+          arguments: { id: { valueReference: "0" } },
+        },
+      },
+      // Date filter
+      "2": { constantValue: startDate },
+      "3": { constantValue: endDate },
+      "4": {
+        functionInvocationValue: {
+          functionName: "DateRange",
+          arguments: {
+            start: { valueReference: "2" },
+            end: { valueReference: "3" },
+          },
+        },
+      },
+      "5": { constantValue: "system:time_start" },
+      "6": {
+        functionInvocationValue: {
+          functionName: "Filter.dateRangeContains",
+          arguments: {
+            leftValue: { valueReference: "4" },
+            rightField: { valueReference: "5" },
+          },
+        },
+      },
+      "7": {
+        functionInvocationValue: {
+          functionName: "Collection.filter",
+          arguments: {
+            collection: { valueReference: "1" },
+            filter: { valueReference: "6" },
+          },
+        },
+      },
+      // Cloud filter
+      "8": { constantValue: "CLOUDY_PIXEL_PERCENTAGE" },
+      "9": { constantValue: 30 },
+      "10": {
+        functionInvocationValue: {
+          functionName: "Filter.lessThan",
+          arguments: {
+            leftField: { valueReference: "8" },
+            rightValue: { valueReference: "9" },
+          },
+        },
+      },
+      "11": {
+        functionInvocationValue: {
+          functionName: "Collection.filter",
+          arguments: {
+            collection: { valueReference: "7" },
+            filter: { valueReference: "10" },
+          },
+        },
+      },
+      // Median
+      "12": {
+        functionInvocationValue: {
+          functionName: "Reducer.median",
+          arguments: {},
+        },
+      },
+      "13": {
+        functionInvocationValue: {
+          functionName: "ImageCollection.reduce",
+          arguments: {
+            collection: { valueReference: "11" },
+            reducer: { valueReference: "12" },
+          },
+        },
+      },
+      // NDVI
+      "14": { constantValue: ["B8_median", "B4_median"] },
+      "15": {
+        functionInvocationValue: {
+          functionName: "Image.normalizedDifference",
+          arguments: {
+            input: { valueReference: "13" },
+            bandNames: { valueReference: "14" },
+          },
+        },
+      },
+    },
+    result: "15",
+  };
+}
+
 
 // ── Main handler ──────────────────────────────────────────────────
 
@@ -251,244 +366,75 @@ serve(async (req) => {
 
     console.log(`Detecting field at ${lat}, ${lng}`);
 
-    // Get GEE access token
     const token = await getGeeAccessToken();
 
-    // Build GEE expression: Sentinel-2 median composite → NDVI → sample grid
-    const bufferDeg = 500 / 111320; // ~500m in degrees
-    const west = lng - bufferDeg;
-    const east = lng + bufferDeg;
-    const south = lat - bufferDeg / Math.cos((lat * Math.PI) / 180);
-    const north = lat + bufferDeg / Math.cos((lat * Math.PI) / 180);
+    // Buffer ~500m around click point
+    const bufferDeg = 500 / 111320;
+    const cosLat = Math.cos((lat * Math.PI) / 180);
+    const west = lng - bufferDeg / cosLat;
+    const east = lng + bufferDeg / cosLat;
+    const south = lat - bufferDeg;
+    const north = lat + bufferDeg;
 
-    const gridSize = 64; // 64×64 pixel grid over the 1km buffer
+    const gridSize = 64;
     const cellLng = (east - west) / gridSize;
     const cellLat = (north - south) / gridSize;
 
-    // Build date range (last 3 months)
+    // Date range: last 3 months
     const now = new Date();
     const threeMonthsAgo = new Date(now);
     threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
     const startDate = threeMonthsAgo.toISOString().split("T")[0];
     const endDate = now.toISOString().split("T")[0];
 
-    // Use GEE REST API to compute NDVI grid
-    // We'll build the expression as a serialized computation graph
-    const region = {
-      functionInvocationValue: {
-        functionName: "ee.Geometry.Rectangle",
-        arguments: {
-          coords: { constantValue: [west, south, east, north] },
-        },
-      },
-    };
+    const expression = buildNdviExpression(west, south, east, north, startDate, endDate);
 
-    const s2Collection = {
-      functionInvocationValue: {
-        functionName: "Collection.filter",
-        arguments: {
-          collection: {
-            functionInvocationValue: {
-              functionName: "Collection.filter",
-              arguments: {
-                collection: {
-                  functionInvocationValue: {
-                    functionName: "Collection.filter",
-                    arguments: {
-                      collection: {
-                        functionInvocationValue: {
-                          functionName: "ImageCollection.load",
-                          arguments: {
-                            id: { constantValue: "COPERNICUS/S2_SR_HARMONIZED" },
-                          },
-                        },
-                      },
-                      filter: {
-                        functionInvocationValue: {
-                          functionName: "Filter.intersects",
-                          arguments: {
-                            leftField: { constantValue: ".all" },
-                            rightValue: region,
-                          },
-                        },
-                      },
-                    },
-                  },
-                },
-                filter: {
-                  functionInvocationValue: {
-                    functionName: "Filter.dateRangeContains",
-                    arguments: {
-                      leftValue: {
-                        functionInvocationValue: {
-                          functionName: "DateRange",
-                          arguments: {
-                            start: { constantValue: startDate },
-                            end: { constantValue: endDate },
-                          },
-                        },
-                      },
-                      rightField: { constantValue: "system:time_start" },
-                    },
-                  },
-                },
-              },
-            },
-          },
-          filter: {
-            functionInvocationValue: {
-              functionName: "Filter.lessThan",
-              arguments: {
-                leftField: { constantValue: "CLOUDY_PIXEL_PERCENTAGE" },
-                rightValue: { constantValue: 30 },
-              },
-            },
-          },
-        },
-      },
-    };
+    // Scale: degrees per pixel
+    const scaleX = (east - west) / gridSize;
+    const scaleY = (north - south) / gridSize;
 
-    // Compute median, then NDVI
-    const median = {
-      functionInvocationValue: {
-        functionName: "Collection.reduce",
-        arguments: {
-          collection: s2Collection,
-          reducer: {
-            functionInvocationValue: {
-              functionName: "Reducer.median",
-              arguments: {},
-            },
-          },
-        },
-      },
-    };
-
-    const nir = {
-      functionInvocationValue: {
-        functionName: "Image.select",
-        arguments: {
-          input: median,
-          bandSelectors: { constantValue: ["B8_median"] },
-        },
-      },
-    };
-
-    const red = {
-      functionInvocationValue: {
-        functionName: "Image.select",
-        arguments: {
-          input: median,
-          bandSelectors: { constantValue: ["B4_median"] },
-        },
-      },
-    };
-
-    const ndvi = {
-      functionInvocationValue: {
-        functionName: "Image.normalizedDifference",
-        arguments: {
-          input: median,
-          bandNames: { constantValue: ["B8_median", "B4_median"] },
-        },
-      },
-    };
-
-    // Sample NDVI as a list of values over the grid
-    // We'll use reduceRegion to get mean stats, plus getPixels for the grid
-    // Actually, let's use computePixels via the REST API
-
-    // For the grid approach, let's compute NDVI and sample it
-    // Use Image.sampleRectangle for the grid
-    const ndviSampled = {
-      functionInvocationValue: {
-        functionName: "Image.sampleRectangle",
-        arguments: {
-          image: {
-            functionInvocationValue: {
-              functionName: "Image.rename",
-              arguments: {
-                input: ndvi,
-                names: { constantValue: ["ndvi"] },
-              },
-            },
-          },
-          region: region,
-          defaultValue: { constantValue: 0 },
-        },
-      },
-    };
-
-    // Get the array from the sampled rectangle
-    const ndviArray = {
-      functionInvocationValue: {
-        functionName: "Element.get",
-        arguments: {
-          object: ndviSampled,
-          key: { constantValue: "ndvi" },
-        },
-      },
-    };
-
-    // Compute via GEE
-    console.log("Computing NDVI grid via GEE...");
-    const result = await geeCompute(token, ndviArray);
-
-    // Parse the result - it should be a 2D array
-    let ndviGrid: number[][] = [];
+    console.log("Computing NDVI grid via GEE computePixels...");
     
-    if (result?.result) {
-      // The result from sampleRectangle comes as an Array
-      const rawData = result.result;
-      if (Array.isArray(rawData)) {
-        ndviGrid = rawData;
-      } else if (typeof rawData === "object" && rawData.values) {
-        ndviGrid = rawData.values;
+    const pixelData = await geeComputePixels(token, expression, {
+      dimensions: { width: gridSize, height: gridSize },
+      affineTransform: {
+        scaleX: scaleX,
+        shearX: 0,
+        translateX: west,
+        shearY: 0,
+        scaleY: -scaleY,
+        translateY: north,
+      },
+      crsCode: "EPSG:4326",
+    });
+
+    // Parse NPY data into 2D grid
+    const { data, shape } = parseNpy(pixelData);
+    const h = shape[0] || gridSize;
+    const w = shape[1] || gridSize;
+    
+    const ndviGrid: number[][] = [];
+    for (let r = 0; r < h; r++) {
+      const row: number[] = [];
+      for (let c = 0; c < w; c++) {
+        const val = data[r * w + c];
+        row.push(isNaN(val) ? 0 : val);
       }
+      ndviGrid.push(row);
     }
 
-    if (ndviGrid.length === 0) {
-      // Fallback: try simpler approach with reduceRegion for basic stats
-      console.log("No grid data returned, trying reduceRegion...");
-      
-      // Return a simple circular polygon around the click point
-      const circleCoords: [number, number][] = [];
-      const radius = 0.001; // ~100m
-      for (let i = 0; i <= 32; i++) {
-        const angle = (i / 32) * 2 * Math.PI;
-        circleCoords.push([
-          lng + radius * Math.cos(angle),
-          lat + radius * Math.sin(angle),
-        ]);
-      }
+    console.log(`Grid size: ${w}x${h}, center NDVI=${ndviGrid[Math.floor(h/2)]?.[Math.floor(w/2)]}`);
 
+    if (ndviGrid.length === 0) {
       return new Response(
-        JSON.stringify({
-          field: {
-            coordinates: circleCoords,
-            stats: {
-              areaHectares: 3.14,
-              meanNdvi: 0.5,
-              stdNdvi: 0.1,
-              healthScore: 62,
-            },
-            crop: "Active Crop",
-            cropEmoji: "🌾",
-          },
-          warning: "Used fallback detection - GEE grid sampling returned empty",
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "No NDVI data returned from GEE" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Perform region growing from click point
-    const h = ndviGrid.length;
-    const w = ndviGrid[0]?.length || 0;
-    const clickRow = Math.floor(h / 2); // Click is at center of buffer
+    // Region growing from click point (center of grid)
+    const clickRow = Math.floor(h / 2);
     const clickCol = Math.floor(w / 2);
-
-    console.log(`Grid size: ${w}x${h}, click at row=${clickRow} col=${clickCol}`);
-
     const mask = regionGrow(ndviGrid, clickRow, clickCol, 0.12);
 
     // Convert mask to polygon

@@ -80,6 +80,48 @@ async function getGeeAccessToken(): Promise<string> {
   return access_token;
 }
 
+// ── Flatten nested expression to GEE DAG format ──────────────────
+
+function flattenExpression(nested: any): { values: Record<string, any>; result: string } {
+  const values: Record<string, any> = {};
+  let counter = 0;
+
+  function flatten(node: any): string {
+    if (node === null || node === undefined) {
+      const key = `_${counter++}`;
+      values[key] = { constantValue: null };
+      return key;
+    }
+    if (node.functionInvocationValue) {
+      const fiv = node.functionInvocationValue;
+      const flatArgs: Record<string, any> = {};
+      for (const [argName, argVal] of Object.entries(fiv.arguments || {})) {
+        const ref = flatten(argVal as any);
+        flatArgs[argName] = { valueReference: ref };
+      }
+      const key = `_${counter++}`;
+      values[key] = {
+        functionInvocationValue: {
+          functionName: fiv.functionName,
+          arguments: flatArgs,
+        },
+      };
+      return key;
+    }
+    if ("constantValue" in node) {
+      const key = `_${counter++}`;
+      values[key] = { constantValue: node.constantValue };
+      return key;
+    }
+    const key = `_${counter++}`;
+    values[key] = { constantValue: node };
+    return key;
+  }
+
+  const resultKey = flatten(nested);
+  return { values, result: resultKey };
+}
+
 // ── Main handler ──────────────────────────────────────────────────
 
 serve(async (req) => {
@@ -96,9 +138,8 @@ serve(async (req) => {
     const startDate = threeMonthsAgo.toISOString().split("T")[0];
     const endDate = now.toISOString().split("T")[0];
 
-    // Build the NDVI visualization expression for map tiles
-    // Sentinel-2 → cloud filter → median → NDVI → color map
-    const expression = {
+    // Build the NDVI visualization expression (nested, will be flattened)
+    const nestedExpression = {
       functionInvocationValue: {
         functionName: "Image.visualize",
         arguments: {
@@ -184,6 +225,8 @@ serve(async (req) => {
       },
     };
 
+    const expression = flattenExpression(nestedExpression);
+
     // Request map tiles from GEE
     const mapResp = await fetch(
       `https://earthengine.googleapis.com/v1/projects/${projectId}/maps`,
@@ -207,15 +250,12 @@ serve(async (req) => {
     }
 
     const mapData = await mapResp.json();
-    // mapData should contain { name, tilesets: [{ id, tileInfo: { zoom, bbox } }] }
-    // The tile URL pattern is: https://earthengine.googleapis.com/v1/{name}/tiles/{z}/{x}/{y}
-
     const tileUrl = `https://earthengine.googleapis.com/v1/${mapData.name}/tiles/{z}/{x}/{y}`;
 
     return new Response(
       JSON.stringify({
         tileUrl,
-        token, // Frontend needs the token for authenticated tile requests
+        token,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
