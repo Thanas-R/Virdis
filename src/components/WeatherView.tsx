@@ -108,7 +108,9 @@ function setGeeCache(fieldId: string, data: any) {
   localStorage.setItem(GEE_ANALYTICS_CACHE_KEY, JSON.stringify(cache));
 }
 
-const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
+const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProps) => {
+  const [compareField, setCompareField] = useState<Field | null>(null);
+  const [showCompareSelector, setShowCompareSelector] = useState(false);
   const [endDate, setEndDate] = useState<Date>(new Date());
   const [startDate, setStartDate] = useState<Date>(() => {
     const d = new Date();
