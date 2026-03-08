@@ -40,13 +40,13 @@ const weatherDescriptions: Record<number, string> = {
 };
 
 const LAND_USE_COLORS: Record<string, string> = {
-  "Cropland": "#EAB947",
-  "Tree cover": "#2d6a4f",
-  "Grassland": "#7BC75B",
-  "Built-up": "#ef476f",
-  "Water": "#61AFEF",
-  "Bare/sparse": "#d4a373",
-  "Shrubland": "#95d5b2",
+  "Cropland": "#4CAF50",
+  "Tree cover": "#2E7D32",
+  "Grassland": "#8BC34A",
+  "Built-up": "#E53935",
+  "Water": "#2196F3",
+  "Bare/sparse": "#D4A373",
+  "Shrubland": "#A5D6A7",
   "Wetland": "#457b9d",
   "Snow/ice": "#e0e1dd",
   "Mangroves": "#1b4332",
