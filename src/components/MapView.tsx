@@ -152,9 +152,11 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
     map.on("load", () => { hideExtraLabels(map); setMapLoaded(true); refreshFieldLayers(map, allFieldsRef.current, allFieldsRef.current); });
     map.on("moveend", () => saveMapPosition(map));
     map.on("click", (e) => {
+      console.log("Map clicked:", e.lngLat.lat, e.lngLat.lng, "| drawMode:", drawModeRef.current, "| autoField:", autoFieldModeRef.current);
       if (drawModeRef.current) return;
+      if (editBoundaryFieldIdRef.current) return;
       if (autoFieldModeRef.current) {
-        // Auto field mode: send click to GEE
+        console.log("Auto-detect triggered at:", e.lngLat.lat, e.lngLat.lng);
         handleAutoFieldClick(e.lngLat.lat, e.lngLat.lng);
         return;
       }
