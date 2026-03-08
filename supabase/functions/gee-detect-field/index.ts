@@ -275,39 +275,39 @@ serve(async (req) => {
     // Use GEE REST API to compute NDVI grid
     // We'll build the expression as a serialized computation graph
     const region = {
-      functionInvocationValue: {
-        functionName: "ee.Geometry.Rectangle",
+      function_invocation_value: {
+        function_name: "ee.Geometry.Rectangle",
         arguments: {
-          coords: { constantValue: [west, south, east, north] },
+          coords: { constant_value: [west, south, east, north] },
         },
       },
     };
 
     const s2Collection = {
-      functionInvocationValue: {
-        functionName: "Collection.filter",
+      function_invocation_value: {
+        function_name: "Collection.filter",
         arguments: {
           collection: {
-            functionInvocationValue: {
-              functionName: "Collection.filter",
+            function_invocation_value: {
+              function_name: "Collection.filter",
               arguments: {
                 collection: {
-                  functionInvocationValue: {
-                    functionName: "Collection.filter",
+                  function_invocation_value: {
+                    function_name: "Collection.filter",
                     arguments: {
                       collection: {
-                        functionInvocationValue: {
-                          functionName: "ImageCollection.load",
+                        function_invocation_value: {
+                          function_name: "ImageCollection.load",
                           arguments: {
-                            id: { constantValue: "COPERNICUS/S2_SR_HARMONIZED" },
+                            id: { constant_value: "COPERNICUS/S2_SR_HARMONIZED" },
                           },
                         },
                       },
                       filter: {
-                        functionInvocationValue: {
-                          functionName: "Filter.intersects",
+                        function_invocation_value: {
+                          function_name: "Filter.intersects",
                           arguments: {
-                            leftField: { constantValue: ".all" },
+                            leftField: { constant_value: ".all" },
                             rightValue: region,
                           },
                         },
@@ -316,19 +316,19 @@ serve(async (req) => {
                   },
                 },
                 filter: {
-                  functionInvocationValue: {
-                    functionName: "Filter.dateRangeContains",
+                  function_invocation_value: {
+                    function_name: "Filter.dateRangeContains",
                     arguments: {
                       leftValue: {
-                        functionInvocationValue: {
-                          functionName: "DateRange",
+                        function_invocation_value: {
+                          function_name: "DateRange",
                           arguments: {
-                            start: { constantValue: startDate },
-                            end: { constantValue: endDate },
+                            start: { constant_value: startDate },
+                            end: { constant_value: endDate },
                           },
                         },
                       },
-                      rightField: { constantValue: "system:time_start" },
+                      rightField: { constant_value: "system:time_start" },
                     },
                   },
                 },
@@ -336,11 +336,11 @@ serve(async (req) => {
             },
           },
           filter: {
-            functionInvocationValue: {
-              functionName: "Filter.lessThan",
+            function_invocation_value: {
+              function_name: "Filter.lessThan",
               arguments: {
-                leftField: { constantValue: "CLOUDY_PIXEL_PERCENTAGE" },
-                rightValue: { constantValue: 30 },
+                leftField: { constant_value: "CLOUDY_PIXEL_PERCENTAGE" },
+                rightValue: { constant_value: 30 },
               },
             },
           },
@@ -350,13 +350,13 @@ serve(async (req) => {
 
     // Compute median, then NDVI
     const median = {
-      functionInvocationValue: {
-        functionName: "Collection.reduce",
+      function_invocation_value: {
+        function_name: "Collection.reduce",
         arguments: {
           collection: s2Collection,
           reducer: {
-            functionInvocationValue: {
-              functionName: "Reducer.median",
+            function_invocation_value: {
+              function_name: "Reducer.median",
               arguments: {},
             },
           },
@@ -364,57 +364,32 @@ serve(async (req) => {
       },
     };
 
-    const nir = {
-      functionInvocationValue: {
-        functionName: "Image.select",
-        arguments: {
-          input: median,
-          bandSelectors: { constantValue: ["B8_median"] },
-        },
-      },
-    };
-
-    const red = {
-      functionInvocationValue: {
-        functionName: "Image.select",
-        arguments: {
-          input: median,
-          bandSelectors: { constantValue: ["B4_median"] },
-        },
-      },
-    };
-
     const ndvi = {
-      functionInvocationValue: {
-        functionName: "Image.normalizedDifference",
+      function_invocation_value: {
+        function_name: "Image.normalizedDifference",
         arguments: {
           input: median,
-          bandNames: { constantValue: ["B8_median", "B4_median"] },
+          bandNames: { constant_value: ["B8_median", "B4_median"] },
         },
       },
     };
 
-    // Sample NDVI as a list of values over the grid
-    // We'll use reduceRegion to get mean stats, plus getPixels for the grid
-    // Actually, let's use computePixels via the REST API
-
-    // For the grid approach, let's compute NDVI and sample it
-    // Use Image.sampleRectangle for the grid
+    // Sample NDVI as a grid over the region
     const ndviSampled = {
-      functionInvocationValue: {
-        functionName: "Image.sampleRectangle",
+      function_invocation_value: {
+        function_name: "Image.sampleRectangle",
         arguments: {
           image: {
-            functionInvocationValue: {
-              functionName: "Image.rename",
+            function_invocation_value: {
+              function_name: "Image.rename",
               arguments: {
                 input: ndvi,
-                names: { constantValue: ["ndvi"] },
+                names: { constant_value: ["ndvi"] },
               },
             },
           },
           region: region,
-          defaultValue: { constantValue: 0 },
+          defaultValue: { constant_value: 0 },
         },
       },
     };
