@@ -9,6 +9,7 @@ import MobileDrawPrompt from "./MobileDrawPrompt";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import NdviLegend from "./NdviLegend";
 
 const MAP_STYLES = {
   dark: "mapbox://styles/mapbox/dark-v11",
