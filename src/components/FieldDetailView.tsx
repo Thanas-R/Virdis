@@ -118,14 +118,19 @@ function GrowthStageSection({ polygon, fieldId }: { polygon: [number, number][];
       setData(cached.data);
       return;
     }
-    const fetch = async () => {
+    const fetchData = async () => {
       setLoading(true);
       try {
-        const { data: result, error } = await supabase.functions.invoke("gee-analytics", {
-          body: { polygon, analyses: ["growth_stage"] },
+        const { data: result, error } = await supabase.functions.invoke("ndvi-timeseries", {
+          body: { polygon },
         });
         if (error) throw error;
-        const gs = result?.growth_stage || null;
+        const gs = result?.growth_stage ? {
+          stage: result.growth_stage,
+          progress: result.growth_progress,
+          current_ndvi: result.latest_ndvi,
+          date_range: result.date_range,
+        } : null;
         setData(gs);
         if (gs) {
           const c = getGrowthCache();
