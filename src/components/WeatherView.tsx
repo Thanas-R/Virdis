@@ -68,22 +68,6 @@ const WeatherView = ({ activeField, selectedFields }: WeatherViewProps) => {
 
   const effectiveField = activeField || selectedFields[0];
 
-  // Simulated vegetation indices based on soil moisture + weather
-  const vegetationIndices = soilMoistureData.map((d, i) => ({
-    month: d.month,
-    ndvi: Math.min(0.9, Math.max(0.1, 0.3 + d.shallow * 1.5 + Math.random() * 0.15)),
-    evi: Math.min(0.8, Math.max(0.05, 0.2 + d.shallow * 1.2 + Math.random() * 0.1)),
-    waterStress: Math.max(0, 100 - d.shallow * 300 - (monthlyData[i]?.precipitation || 0) * 0.5)
-  }));
-
-  const suitabilityData = effectiveField ? [
-  { metric: "Soil Quality", value: 72 },
-  { metric: "Water Access", value: 65 },
-  { metric: "Climate", value: 80 },
-  { metric: "Drainage", value: 58 },
-  { metric: "Topography", value: 85 },
-  { metric: "Nutrient Level", value: 70 }] :
-  [];
 
   // Fetch live weather
   useEffect(() => {
