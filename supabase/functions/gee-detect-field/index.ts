@@ -320,12 +320,11 @@ serve(async (req) => {
 
     // Use GEE REST API to compute NDVI grid
     // We'll build the expression as a serialized computation graph
+    // Use GeoJSON constant for region instead of function call
     const region = {
-      functionInvocationValue: {
-        functionName: "ee.Geometry.Rectangle",
-        arguments: {
-          coords: { constantValue: [west, south, east, north] },
-        },
+      constantValue: {
+        type: "Polygon",
+        coordinates: [[[west, south], [east, south], [east, north], [west, north], [west, south]]],
       },
     };
 
