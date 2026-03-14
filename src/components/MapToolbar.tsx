@@ -1,5 +1,6 @@
 import { Layers, Plus, Minus, Map, PenTool, Compass, LocateFixed, Satellite } from "lucide-react";
 import { useState } from "react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type MapStyle = "dark" | "satellite";
 
@@ -52,21 +53,28 @@ const MapToolbar = ({
   ];
 
   return (
-    <div className="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col gap-2 z-10 opacity-85">
-      {items.map(({ icon: Icon, onClick, label, active }) => (
-        <button
-          key={label}
-          onClick={onClick}
-          className={`w-10 h-10 rounded-lg backdrop-blur-sm border border-border flex items-center justify-center transition-colors ${
-            active ? "text-primary bg-accent" : "text-foreground"
-          }`}
-          style={{ backgroundColor: active ? undefined : "#041009" }}
-          title={label}
-        >
-          <Icon className="w-4 h-4" />
-        </button>
-      ))}
-    </div>
+    <TooltipProvider delayDuration={200}>
+      <div className="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col gap-2 z-10 opacity-85">
+        {items.map(({ icon: Icon, onClick, label, active }) => (
+          <Tooltip key={label}>
+            <TooltipTrigger asChild>
+              <button
+                onClick={onClick}
+                className={`w-10 h-10 rounded-lg backdrop-blur-sm border border-border flex items-center justify-center transition-colors ${
+                  active ? "text-primary bg-accent" : "text-foreground"
+                }`}
+                style={{ backgroundColor: active ? undefined : "#041009" }}
+              >
+                <Icon className="w-4 h-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              {label}
+            </TooltipContent>
+          </Tooltip>
+        ))}
+      </div>
+    </TooltipProvider>
   );
 };
 
