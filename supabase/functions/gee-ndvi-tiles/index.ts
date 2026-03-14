@@ -80,16 +80,7 @@ serve(async (req) => {
     const token = await getGeeAccessToken();
     const projectId = Deno.env.get("GEE_PROJECT_ID") || "earthengine-legacy";
 
-    // Parse optional coordinates for clipping
-    let coordinates: [number, number][][] | null = null;
-    try {
-      const body = await req.json();
-      if (body?.coordinates && Array.isArray(body.coordinates)) {
-        coordinates = body.coordinates; // array of field coordinate rings
-      }
-    } catch {
-      // No body or invalid JSON — proceed without clipping
-    }
+    // No clipping — NDVI is rendered globally
 
     // Build date range (last 3 months)
     const now = new Date();
@@ -174,33 +165,8 @@ serve(async (req) => {
       },
     };
 
-    // Optionally clip to a union of field polygons
-    let ndviToVisualize = ndvi;
-
-    if (coordinates && coordinates.length > 0) {
-      // Build a GEE MultiPolygon geometry from all field coordinate rings
-      const allRings = coordinates.map(ring => ring);
-      const unionGeometry = {
-        functionInvocationValue: {
-          functionName: "GeometryConstructors.MultiPolygon",
-          arguments: {
-            coordinates: { constantValue: allRings },
-            geodesic: { constantValue: false },
-            evenOdd: { constantValue: true },
-          },
-        },
-      };
-
-      ndviToVisualize = {
-        functionInvocationValue: {
-          functionName: "Image.clip",
-          arguments: {
-            input: ndvi,
-            geometry: unionGeometry,
-          },
-        },
-      };
-    }
+    // No clipping — show NDVI globally
+    const ndviToVisualize = ndvi;
 
     // Visualize with NDVI palette
     const visualized = {

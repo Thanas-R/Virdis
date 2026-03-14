@@ -409,11 +409,7 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
   const loadGeeNdviTiles = async () => {
     try {
       toast.info("Loading NDVI overlay…");
-      // Send field coordinates so GEE clips tiles to farm boundaries
-      const fieldCoords = selectedFields.map(f => f.coordinates[0]);
-      const { data, error } = await supabase.functions.invoke("gee-ndvi-tiles", {
-        body: { coordinates: fieldCoords },
-      });
+      const { data, error } = await supabase.functions.invoke("gee-ndvi-tiles");
       if (error) throw error;
       if (data?.tileUrl) {
         // Clear old source/layer before setting new URL (new clip region)
@@ -446,10 +442,12 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
         onToggleNdvi={() => setShowNdvi(prev => !prev)} showNdvi={showNdvi} />
 
       {drawMode && isMobile && (
-        <MobileDrawPrompt vertexCount={drawVertices.length}
-          onSave={() => { if (drawVertices.length >= 3) { setDrawMode(false); setShowNewFieldDialog(true); } }}
-          onCancel={() => { setDrawMode(false); setDrawVertices([]); }}
-          onUndo={() => setDrawVertices(prev => prev.slice(0, -1))} />
+        <div className="absolute bottom-20 left-4 right-4 z-[60]">
+          <MobileDrawPrompt vertexCount={drawVertices.length}
+            onSave={() => { if (drawVertices.length >= 3) { setDrawMode(false); setShowNewFieldDialog(true); } }}
+            onCancel={() => { setDrawMode(false); setDrawVertices([]); }}
+            onUndo={() => setDrawVertices(prev => prev.slice(0, -1))} />
+        </div>
       )}
 
       {drawMode && !isMobile && (
@@ -464,7 +462,7 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
       )}
 
       {editBoundaryFieldId && (
-        <div className="absolute bottom-6 left-4 z-10 bg-card/90 backdrop-blur-sm rounded-lg border border-border px-4 py-2.5 text-xs text-foreground space-y-1">
+        <div className={`absolute ${isMobile ? 'bottom-20' : 'bottom-6'} left-4 z-10 bg-card/90 backdrop-blur-sm rounded-lg border border-border px-4 py-2.5 text-xs text-foreground space-y-1`}>
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: "#EAB947" }} />
             <span className="font-medium">Editing Boundary</span>
