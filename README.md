@@ -20,7 +20,7 @@ The platform allows farmers, agronomists, and agricultural analysts to map crop 
 > ### Live Site: https://virdis.vercel.app
 
 <br>
-> <img src="src/assets/preview-img.png" alt="Virdis platform preview" width="100%">
+> <img src="public/project-virdis.png" alt="Virdis platform preview" width="100%">
 
 
 ## What Virdis Does
