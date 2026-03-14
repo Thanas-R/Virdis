@@ -130,8 +130,8 @@ Weather data is powered by Open-Meteo.
           ▼
     Edge Functions (Supabase)
           │
-     ┌────┼───────────────┬───────────────┐
-     ▼    ▼               ▼               ▼
+     ┌────────────────────┼───────────────┬───────────────┐
+     ▼                    ▼               ▼               ▼
     NDVI Tiles       Field Detection   AI Analysis   Mapbox Token
     (GEE)            (GEE)             (Gemini)      (Mapbox API)
           │
