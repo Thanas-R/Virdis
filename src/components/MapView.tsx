@@ -442,10 +442,12 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
         onToggleNdvi={() => setShowNdvi(prev => !prev)} showNdvi={showNdvi} />
 
       {drawMode && isMobile && (
-        <MobileDrawPrompt vertexCount={drawVertices.length}
-          onSave={() => { if (drawVertices.length >= 3) { setDrawMode(false); setShowNewFieldDialog(true); } }}
-          onCancel={() => { setDrawMode(false); setDrawVertices([]); }}
-          onUndo={() => setDrawVertices(prev => prev.slice(0, -1))} />
+        <div className="absolute bottom-20 left-4 right-4 z-[60]">
+          <MobileDrawPrompt vertexCount={drawVertices.length}
+            onSave={() => { if (drawVertices.length >= 3) { setDrawMode(false); setShowNewFieldDialog(true); } }}
+            onCancel={() => { setDrawMode(false); setDrawVertices([]); }}
+            onUndo={() => setDrawVertices(prev => prev.slice(0, -1))} />
+        </div>
       )}
 
       {drawMode && !isMobile && (
