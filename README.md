@@ -1,375 +1,163 @@
-# Virdis — Precision Agriculture Field Monitoring Platform
+# Virdis
 
-**Virdis** is a modern precision-agriculture platform that allows farmers, agronomists, and agricultural analysts to **map fields, monitor crop health using satellite imagery, analyze vegetation indices (NDVI), and receive AI-powered recommendations** — all from a single interactive dashboard.
+![React](https://img.shields.io/badge/React-18-000000?style=flat-square&logo=react)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-Build-646CFF?style=flat-square&logo=vite&logoColor=white)
+![TailwindCSS](https://img.shields.io/badge/TailwindCSS-Framework-000000?style=flat-square&logo=tailwindcss)
+![Mapbox](https://img.shields.io/badge/Mapbox-GL_JS-000000?style=flat-square&logo=mapbox)
+![Supabase](https://img.shields.io/badge/Supabase-Backend-3ECF8E?style=flat-square&logo=supabase&logoColor=white)
+![Gemini](https://img.shields.io/badge/Gemini-2.5_Flash-1A73E8?style=flat-square&logo=google)
+![EarthEngine](https://img.shields.io/badge/Google_Earth_Engine-Sentinel--2-4285F4?style=flat-square&logo=googleearth)
+![License](https://img.shields.io/badge/License-MIT-000000?style=flat-square)
 
-The platform combines **satellite remote sensing, geospatial mapping, weather analytics, and AI field analysis** into a unified web application.
+Virdis is a precision agriculture field monitoring platform that combines satellite imagery, geospatial mapping, weather analytics, and AI-driven agronomic insights into a single web dashboard.
 
----
+The platform allows farmers, agronomists, and agricultural analysts to map crop fields, monitor vegetation health using NDVI, and receive AI-generated recommendations for irrigation, crop stress, and field management.
 
-# What Virdis Does
+
+## Preview
+
+> ### Live Site: https://virdis.vercel.app
+
+<br>
+> <img src="src/assets/preview-img.png" alt="Virdis platform preview" width="100%">
+
+
+## What Virdis Does
 
 Virdis enables users to:
 
-• Draw and manage crop fields on an interactive satellite map
-• Automatically detect fields from satellite imagery
-• Monitor crop health using NDVI vegetation analysis
-• View real-time weather data for each field
-• Get AI-generated agronomy insights and recommendations
-• Track field analytics and historical yield data
+- Map and manage crop fields on an interactive satellite map  
+- Monitor crop health using NDVI vegetation analysis  
+- Automatically detect fields from satellite imagery  
+- View real-time weather data for each field  
+- Receive AI-powered agronomy recommendations  
+- Track vegetation health and field analytics over time  
 
-This allows farmers and agricultural analysts to **identify crop stress early, optimize irrigation, and improve yield outcomes.**
+The goal is to help identify crop stress early and support better irrigation and yield decisions.
 
----
 
-# Key Features
+## Key Features
 
-## Interactive Satellite Map
+### Interactive Satellite Mapping
 
-* High-resolution satellite basemap using Mapbox
-* Polygon drawing for custom field boundaries
-* Field editing and deletion
-* Smooth fly-to animations
-* Field highlighting and color coding
-* Layer visibility toggles
+- Satellite basemap powered by Mapbox  
+- Polygon drawing for custom field boundaries  
+- Field editing and deletion  
+- Map fly-to animations and field highlighting  
+- Layer visibility toggles  
 
----
+### NDVI Crop Health Monitoring
 
-## NDVI Vegetation Health Monitoring
+Sentinel-2 imagery is processed through Google Earth Engine to calculate NDVI.
+[NDVI = (NIR - Red) / (NIR + Red)]
 
-Uses **Sentinel-2 satellite imagery via Google Earth Engine**.
 
-NDVI (Normalized Difference Vegetation Index):
-
-```
-NDVI = (NIR - Red) / (NIR + Red)
-```
-
-Color scale:
-
-| NDVI   | Meaning             |
-| ------ | ------------------- |
-| Red    | Stressed vegetation |
+| NDVI Value | Vegetation Health |
+|-------------|------------------|
+| Red | Stressed vegetation |
 | Yellow | Moderate vegetation |
-| Green  | Healthy vegetation  |
+| Green | Healthy vegetation |
 
-NDVI overlay appears as a semi-transparent raster layer above satellite imagery.
+NDVI data is displayed as a semi-transparent raster layer above satellite imagery.
 
----
+### Automatic Field Detection
 
-## Auto Field Detection
-
-Users can automatically detect a field by **clicking on the map**.
+Users can detect crop fields by clicking on the map.
 
 Process:
 
-1. User clicks location
-2. Backend queries Sentinel-2 imagery
-3. NDVI calculated from satellite bands
-4. Region-growing segmentation detects connected vegetation area
-5. Boundary converted to GeoJSON polygon
+1. User selects a location  
+2. Sentinel-2 imagery is queried  
+3. NDVI is calculated  
+4. Region-growing segmentation detects vegetation boundaries  
+5. Field polygon and statistics are returned  
 
-Output includes:
+Returned data includes field area, vegetation health score, and NDVI statistics.
 
-* Field boundary
-* Area (hectares)
-* Mean NDVI
-* NDVI variability
-* Vegetation health score
+### AI Agronomic Insights
 
----
+AI analyzes vegetation metrics and field data to generate:
 
-## AI Field Analysis
-
-AI generates agronomic insights including:
-
-• Crop health assessment
-• Irrigation recommendations
-• Pest & disease risk
-• Field scouting suggestions
-• Vegetation stress indicators
+- Crop health assessments  
+- Irrigation recommendations  
+- Pest and disease risk indicators  
+- Field scouting suggestions  
 
 AI results are cached to reduce API usage.
 
----
+### Weather Monitoring
 
-## Weather Monitoring
+Per-field weather data including:
 
-Weather data per field including:
+- Temperature  
+- Rainfall  
+- Humidity  
+- Wind speed  
 
-• Temperature
-• Wind speed
-• Humidity
-• Rainfall
+Weather data is powered by Open-Meteo.
 
-Data powered by Open-Meteo API.
 
----
+## Tech Stack
 
-## Field Management
+| Layer | Technology | Purpose |
+|------|-------------|---------|
+| Frontend | React 18 + TypeScript | UI framework |
+| Build Tool | Vite | Development and bundling |
+| Styling | Tailwind CSS + shadcn/ui | Interface design |
+| Mapping | Mapbox GL JS | Satellite map rendering |
+| Charts | Recharts | Data visualization |
+| Routing | React Router | SPA navigation |
+| State | TanStack React Query | Server state management |
+| Backend | Supabase Edge Functions | APIs and backend logic |
+| Database | Supabase PostgreSQL | Data storage |
+| Satellite Data | Google Earth Engine | Sentinel-2 NDVI processing |
+| AI | Gemini 2.5 Flash | Agronomic analysis |
+| Weather | Open-Meteo API | Weather data |
 
-Users can:
 
-• Create fields
-• Edit boundaries
-• Assign crops
-• Group fields
-• Add colors
-• Store location metadata
+## System Architecture
 
-Over **190 crop types** are supported.
 
----
-
-# Tech Stack
-
-| Layer          | Technology               | Purpose                  |
-| -------------- | ------------------------ | ------------------------ |
-| Frontend       | React 18 + TypeScript    | UI framework             |
-| Build Tool     | Vite 5                   | Fast dev environment     |
-| Styling        | Tailwind CSS + shadcn/ui | UI design system         |
-| Mapping        | Mapbox GL JS             | Satellite map rendering  |
-| Charts         | Recharts                 | Data visualization       |
-| Routing        | React Router             | SPA navigation           |
-| State          | TanStack React Query     | Server state management  |
-| Backend        | Cloud (Supabase)         | Edge functions + DB      |
-| Satellite Data | Google Earth Engine      | Sentinel-2 NDVI analysis |
-| AI             | Gemini 2.5 Flash         | Agronomy insights        |
-| Weather        | Open-Meteo API           | Weather data             |
-
----
-
-# System Architecture
-
-```
-Frontend (React + Mapbox)
-        │
-        ▼
+User / Browser
+│
+▼
+Frontend
+React + Mapbox GL JS + Tailwind
+│
+▼
 Edge Functions (Supabase)
-        │
- ┌──────┼─────────────┐
- ▼      ▼             ▼
-GEE NDVI Tiles   Field Detection   AI Analysis
-        │
-        ▼
+│
+┌────┼───────────────┬───────────────┐
+▼ ▼ ▼ ▼
+NDVI Tiles Field Detection AI Analysis Mapbox Token
+(GEE) (GEE) (Gemini) (Mapbox API)
+│
+▼
 Google Earth Engine
-(Sentinel-2 Satellite Data)
-```
+Sentinel-2 Satellite Data
 
----
+## Installation
 
-# Core Components
 
-### MapView.tsx
-
-Handles:
-
-* Mapbox map rendering
-* Field polygons
-* NDVI layer
-* Click detection
-* Drawing tools
-
----
-
-### FieldListPanel.tsx
-
-Sidebar for:
-
-* Field management
-* Searching
-* Filtering
-* Sorting
-
----
-
-### FieldDetailView.tsx
-
-Displays:
-
-* Weather data
-* Yield analytics
-* AI insights
-* Growth stages
-
----
-
-### DetectedFieldsReview.tsx
-
-Allows users to:
-
-* Review automatically detected fields
-* Accept or reject boundaries
-
----
-
-# Backend Edge Functions
-
-| Function         | Purpose                      |
-| ---------------- | ---------------------------- |
-| get-mapbox-token | Returns Mapbox token         |
-| gee-detect-field | Single-click field detection |
-| gee-ndvi-tiles   | Generates NDVI map tiles     |
-| detect-fields    | AI vision-based detection    |
-| analyze-field    | AI agronomy analysis         |
-
----
-
-# Google Earth Engine Integration
-
-Authentication uses a **Service Account JSON key**.
-
-Environment variable:
-
-```
-GOOGLE_APPLICATION_CREDENTIALS=/secure/path/service-account.json
-```
-
-Workflow:
-
-1. Backend authenticates with Earth Engine
-2. Sentinel-2 imagery queried
-3. NDVI calculated
-4. Raster or field polygon returned to frontend
-
----
-
-# Database Schema
-
-### profiles
-
-| Column     | Type      |
-| ---------- | --------- |
-| id         | uuid      |
-| user_id    | uuid      |
-| username   | text      |
-| avatar_url | text      |
-| created_at | timestamp |
-
----
-
-### user_saved_fields
-
-| Column            | Type    |
-| ----------------- | ------- |
-| id                | uuid    |
-| user_id           | uuid    |
-| field_id          | text    |
-| field_name        | text    |
-| field_crop        | text    |
-| field_area        | numeric |
-| field_coordinates | jsonb   |
-| field_color       | text    |
-| field_group       | text    |
-
----
-
-# Responsive Design
-
-### Desktop
-
-* Map left
-* Field panel right
-* Analytics toggle
-
-### Mobile
-
-* Full screen map
-* Bottom navigation
-* Swipe gestures
-* Slide-up panels
-
----
-
-# Local State
-
-Stored in browser:
-
-```
-farm-fields-v7
-farm-sel-v7
-field-ai-analysis-cache
-```
-
-Used for:
-
-* saved fields
-* selected field
-* cached AI results
-
----
-
-# Example Data Flow
-
-User clicks map to detect field:
-
-```
-User click
-   ↓
-MapView captures lat/lon
-   ↓
-Edge Function: gee-detect-field
-   ↓
-Sentinel-2 query
-   ↓
-NDVI calculation
-   ↓
-Region growing segmentation
-   ↓
-Polygon + stats returned
-   ↓
-Frontend renders field
-```
-
----
-
-# Design System
-
-Theme: **Dark agricultural UI**
-
-Primary color palette:
-
-```
-#006837  Deep vegetation green
-#2e7d32  Crop green
-#fee08b  Mid vegetation
-#d73027  Stressed vegetation
-```
-
-UI framework:
-
-* shadcn/ui
-* Radix UI primitives
-* Tailwind utilities
-
----
-
-# Installation
-
-```
 git clone https://github.com/your-org/virdis
+
 cd virdis
 npm install
 npm run dev
-```
 
----
 
-# Environment Variables
 
-```
+## Environment Variables
+
+
 MAPBOX_TOKEN=
 GEE_SERVICE_ACCOUNT_KEY=
 OPEN_METEO_API_URL=
 SUPABASE_URL=
 SUPABASE_ANON_KEY=
-```
 
----
 
-# Planned Features
+## License
 
-Future roadmap for Virdis:
-
-• Soil moisture index
-• Crop yield prediction models
-•
+MIT License
