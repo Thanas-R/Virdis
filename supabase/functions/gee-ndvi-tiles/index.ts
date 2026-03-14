@@ -80,16 +80,7 @@ serve(async (req) => {
     const token = await getGeeAccessToken();
     const projectId = Deno.env.get("GEE_PROJECT_ID") || "earthengine-legacy";
 
-    // Parse optional coordinates for clipping
-    let coordinates: [number, number][][] | null = null;
-    try {
-      const body = await req.json();
-      if (body?.coordinates && Array.isArray(body.coordinates)) {
-        coordinates = body.coordinates; // array of field coordinate rings
-      }
-    } catch {
-      // No body or invalid JSON — proceed without clipping
-    }
+    // No clipping — NDVI is rendered globally
 
     // Build date range (last 3 months)
     const now = new Date();
