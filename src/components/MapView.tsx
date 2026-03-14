@@ -409,11 +409,7 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
   const loadGeeNdviTiles = async () => {
     try {
       toast.info("Loading NDVI overlay…");
-      // Send field coordinates so GEE clips tiles to farm boundaries
-      const fieldCoords = selectedFields.map(f => f.coordinates[0]);
-      const { data, error } = await supabase.functions.invoke("gee-ndvi-tiles", {
-        body: { coordinates: fieldCoords },
-      });
+      const { data, error } = await supabase.functions.invoke("gee-ndvi-tiles");
       if (error) throw error;
       if (data?.tileUrl) {
         // Clear old source/layer before setting new URL (new clip region)
