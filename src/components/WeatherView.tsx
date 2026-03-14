@@ -432,18 +432,18 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
           </div>
         ) : (
 
-        <div key={effectiveField.id} className="animate-fade-in space-y-8">
+        <div key={effectiveField.id} className={`animate-fade-in ${isMobile ? 'space-y-6' : 'space-y-8'}`}>
             {/* Key Metrics Cards */}
-            <div className="grid grid-cols-4 gap-3">
+            <div className={`grid ${isMobile ? 'grid-cols-4 gap-1.5' : 'grid-cols-4 gap-3'}`}>
               {[
             { label: "Avg NDVI", value: ndviTimeSeries?.mean_ndvi != null ? ndviTimeSeries.mean_ndvi.toFixed(3) : (vegetation?.mean_ndvi != null ? vegetation.mean_ndvi.toFixed(3) : "N/A"), icon: Leaf, color: CHART_GREEN },
-            { label: "Avg Moisture", value: soilMoistureData.length > 0 ? `${(soilMoistureData.reduce((s: number, d: any) => s + d.shallow, 0) / soilMoistureData.length).toFixed(1)}%` : "N/A", icon: Droplets, color: CHART_BLUE },
-            { label: "Temp Range", value: monthlyData.length > 0 ? `${Math.min(...monthlyData.map((d) => d.tempMin))}-${Math.max(...monthlyData.map((d) => d.tempMax))}°C` : "N/A", icon: Thermometer, color: CHART_GOLD },
-            { label: "Total Rain", value: monthlyData.length > 0 ? `${monthlyData[monthlyData.length - 1]?.accumulated || 0} mm` : "N/A", icon: TrendingUp, color: CHART_CREAM }].
+            { label: "Moisture", value: soilMoistureData.length > 0 ? `${(soilMoistureData.reduce((s: number, d: any) => s + d.shallow, 0) / soilMoistureData.length).toFixed(1)}%` : "N/A", icon: Droplets, color: CHART_BLUE },
+            { label: "Temp", value: monthlyData.length > 0 ? `${Math.min(...monthlyData.map((d) => d.tempMin))}-${Math.max(...monthlyData.map((d) => d.tempMax))}°C` : "N/A", icon: Thermometer, color: CHART_GOLD },
+            { label: "Rain", value: monthlyData.length > 0 ? `${monthlyData[monthlyData.length - 1]?.accumulated || 0}mm` : "N/A", icon: TrendingUp, color: CHART_CREAM }].
             map((m, i) =>
-            <div key={i} className="p-3 rounded-xl border border-border bg-accent/15 space-y-1">
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><m.icon className="w-3.5 h-3.5" />{m.label}</div>
-                  <div className="text-lg font-semibold text-foreground">{m.value}</div>
+            <div key={i} className={`${isMobile ? 'p-2' : 'p-3'} rounded-xl border border-border bg-accent/15 space-y-0.5`}>
+                  <div className={`flex items-center gap-1 ${isMobile ? 'text-[9px]' : 'text-xs'} text-muted-foreground`}><m.icon className={`${isMobile ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'}`} />{m.label}</div>
+                  <div className={`${isMobile ? 'text-xs' : 'text-lg'} font-semibold text-foreground`}>{m.value}</div>
                 </div>
             )}
             </div>
