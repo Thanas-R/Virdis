@@ -134,10 +134,10 @@ Weather data is powered by Open-Meteo.
      ▼                    ▼               ▼               ▼
     NDVI Tiles       Field Detection   AI Analysis   Mapbox Token
     (GEE)            (GEE)             (Gemini)      (Mapbox API)
-                │
-                ▼
-        Google Earth Engine
-      Sentinel-2 Satellite Data
+                                 │
+                                 ▼
+                        Google Earth Engine
+                     Sentinel-2 Satellite Data
 
 ## Installation
 
