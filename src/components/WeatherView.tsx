@@ -343,8 +343,8 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
                   <span className="flex items-center gap-1.5"><Wind className="w-3.5 h-3.5" />{liveWeather.windSpeed} km/h</span>
                 </div>
                 <div className="flex-1" />
-                {/* Compare button */}
-                {!compareField && (allFields || selectedFields).length > 1 && (
+                {/* Compare button — desktop only */}
+                {!isMobile && !compareField && (allFields || selectedFields).length > 1 && (
                   <div className="relative">
                     <button
                       onClick={() => setShowCompareSelector(!showCompareSelector)}
@@ -370,7 +370,7 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
                     )}
                   </div>
                 )}
-                {compareField && (
+                {!isMobile && compareField && (
                   <button
                     onClick={() => setCompareField(null)}
                     className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-primary/40 bg-primary/10 text-foreground hover:bg-primary/20 transition-colors"
