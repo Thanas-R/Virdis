@@ -297,9 +297,9 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
   return (
     <div className="relative w-full h-full flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-4 px-6 py-3 border-b border-border flex-wrap">
-        <h1 className="text-lg font-semibold text-foreground">Field Analytics</h1>
-        {effectiveField && (
+      <div className="flex items-center gap-3 px-4 md:px-6 py-2 md:py-3 border-b border-border flex-wrap">
+        <h1 className="text-base md:text-lg font-semibold text-foreground">Field Analytics</h1>
+        {effectiveField && !isMobile && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: effectiveField.color }} />
             {effectiveField.name} - {effectiveField.crop} - {haToAcres(effectiveField.area)} acres
@@ -307,24 +307,48 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
         )}
         <div className="flex-1" />
 
-        <Popover>
-          <PopoverTrigger asChild>
-            <button className="flex items-center gap-2 border border-border rounded-lg px-3 py-2 hover:bg-accent/30 transition-colors">
-              <div><div className="text-xs text-muted-foreground">Start</div><div className="text-sm text-foreground">{format(startDate, "MMM d, yyyy")}</div></div>
-              <CalendarArrowUp className="w-4 h-4 text-muted-foreground" />
-            </button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={startDate} onSelect={(d) => d && setStartDate(d)} className="pointer-events-auto" /></PopoverContent>
-        </Popover>
-        <Popover>
-          <PopoverTrigger asChild>
-            <button className="flex items-center gap-2 border border-border rounded-lg px-3 py-2 hover:bg-accent/30 transition-colors">
-              <div><div className="text-xs text-muted-foreground">End</div><div className="text-sm text-foreground">{format(endDate, "MMM d, yyyy")}</div></div>
-              <CalendarArrowDown className="w-4 h-4 text-muted-foreground" />
-            </button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={endDate} onSelect={(d) => d && setEndDate(d)} className="pointer-events-auto" /></PopoverContent>
-        </Popover>
+        {/* Calendar controls - compact icons on mobile */}
+        {isMobile ? (
+          <div className="flex items-center gap-1.5">
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="w-8 h-8 flex items-center justify-center rounded-lg border border-border hover:bg-accent/30 transition-colors" title={format(startDate, "MMM d, yyyy")}>
+                  <CalendarArrowUp className="w-3.5 h-3.5 text-muted-foreground" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end"><Calendar mode="single" selected={startDate} onSelect={(d) => d && setStartDate(d)} className="pointer-events-auto" /></PopoverContent>
+            </Popover>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="w-8 h-8 flex items-center justify-center rounded-lg border border-border hover:bg-accent/30 transition-colors" title={format(endDate, "MMM d, yyyy")}>
+                  <CalendarArrowDown className="w-3.5 h-3.5 text-muted-foreground" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end"><Calendar mode="single" selected={endDate} onSelect={(d) => d && setEndDate(d)} className="pointer-events-auto" /></PopoverContent>
+            </Popover>
+          </div>
+        ) : (
+          <>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="flex items-center gap-2 border border-border rounded-lg px-3 py-2 hover:bg-accent/30 transition-colors">
+                  <div><div className="text-xs text-muted-foreground">Start</div><div className="text-sm text-foreground">{format(startDate, "MMM d, yyyy")}</div></div>
+                  <CalendarArrowUp className="w-4 h-4 text-muted-foreground" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={startDate} onSelect={(d) => d && setStartDate(d)} className="pointer-events-auto" /></PopoverContent>
+            </Popover>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="flex items-center gap-2 border border-border rounded-lg px-3 py-2 hover:bg-accent/30 transition-colors">
+                  <div><div className="text-xs text-muted-foreground">End</div><div className="text-sm text-foreground">{format(endDate, "MMM d, yyyy")}</div></div>
+                  <CalendarArrowDown className="w-4 h-4 text-muted-foreground" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={endDate} onSelect={(d) => d && setEndDate(d)} className="pointer-events-auto" /></PopoverContent>
+            </Popover>
+          </>
+        )}
       </div>
 
       {/* Live Weather */}
