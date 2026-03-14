@@ -12,7 +12,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
 
-const CHART_GOLD = "#EAB947";
+const CHART_GOLD = "#C6B77E";
 const CHART_CREAM = "#F7F4E4";
 const CHART_GREEN = "#7BC75B";
 const CHART_BLUE = "#61AFEF";
@@ -406,7 +406,7 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
                     <X className="w-3 h-3 ml-1 text-muted-foreground" />
                   </button>
                 )}
-                {!isMobile && <span className="text-xs italic" style={{ color: "#EAB947" }}>⚠ Data may not always be accurate</span>}
+                {!isMobile && <span className="text-xs italic" style={{ color: "#C6B77E" }}>⚠ Data may not always be accurate</span>}
               </div> :
         <div className="text-sm text-muted-foreground">Weather unavailable</div>
         }
