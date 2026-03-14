@@ -121,42 +121,43 @@ Weather data is powered by Open-Meteo.
 
 ## System Architecture
 
-
-User / Browser
-│
-▼
-Frontend
-React + Mapbox GL JS + Tailwind
-│
-▼
-Edge Functions (Supabase)
-│
-┌────┼───────────────┬───────────────┐
-▼ ▼ ▼ ▼
-NDVI Tiles Field Detection AI Analysis Mapbox Token
-(GEE) (GEE) (Gemini) (Mapbox API)
-│
-▼
-Google Earth Engine
-Sentinel-2 Satellite Data
+    User / Browser
+          │
+          ▼
+    Frontend
+    React + Mapbox GL JS + Tailwind
+          │
+          ▼
+    Edge Functions (Supabase)
+          │
+     ┌────┼───────────────┬───────────────┐
+     ▼    ▼               ▼               ▼
+    NDVI Tiles       Field Detection   AI Analysis   Mapbox Token
+    (GEE)            (GEE)             (Gemini)      (Mapbox API)
+          │
+          ▼
+    Google Earth Engine
+    Sentinel-2 Satellite Data
 
 ## Installation
 
+``` bash
 git clone https://github.com/your-org/virdis
 cd virdis
 npm install
 npm run dev
+```
 
 ## Environment Variables
 
-Create a .env file in the root directory and add the following:
-
-Code snippet
+``` env
 MAPBOX_TOKEN=
 GEE_SERVICE_ACCOUNT_KEY=
 OPEN_METEO_API_URL=
 SUPABASE_URL=
 SUPABASE_ANON_KEY=
+```
 
 ## License
+
 MIT License
