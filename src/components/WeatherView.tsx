@@ -297,9 +297,9 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
   return (
     <div className="relative w-full h-full flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-4 px-6 py-3 border-b border-border flex-wrap">
-        <h1 className="text-lg font-semibold text-foreground">Field Analytics</h1>
-        {effectiveField && (
+      <div className="flex items-center gap-3 px-4 md:px-6 py-2 md:py-3 border-b border-border flex-wrap">
+        <h1 className="text-base md:text-lg font-semibold text-foreground">Field Analytics</h1>
+        {effectiveField && !isMobile && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: effectiveField.color }} />
             {effectiveField.name} - {effectiveField.crop} - {haToAcres(effectiveField.area)} acres
@@ -307,42 +307,66 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
         )}
         <div className="flex-1" />
 
-        <Popover>
-          <PopoverTrigger asChild>
-            <button className="flex items-center gap-2 border border-border rounded-lg px-3 py-2 hover:bg-accent/30 transition-colors">
-              <div><div className="text-xs text-muted-foreground">Start</div><div className="text-sm text-foreground">{format(startDate, "MMM d, yyyy")}</div></div>
-              <CalendarArrowUp className="w-4 h-4 text-muted-foreground" />
-            </button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={startDate} onSelect={(d) => d && setStartDate(d)} className="pointer-events-auto" /></PopoverContent>
-        </Popover>
-        <Popover>
-          <PopoverTrigger asChild>
-            <button className="flex items-center gap-2 border border-border rounded-lg px-3 py-2 hover:bg-accent/30 transition-colors">
-              <div><div className="text-xs text-muted-foreground">End</div><div className="text-sm text-foreground">{format(endDate, "MMM d, yyyy")}</div></div>
-              <CalendarArrowDown className="w-4 h-4 text-muted-foreground" />
-            </button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={endDate} onSelect={(d) => d && setEndDate(d)} className="pointer-events-auto" /></PopoverContent>
-        </Popover>
+        {/* Calendar controls - compact icons on mobile */}
+        {isMobile ? (
+          <div className="flex items-center gap-1.5">
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="w-8 h-8 flex items-center justify-center rounded-lg border border-border hover:bg-accent/30 transition-colors" title={format(startDate, "MMM d, yyyy")}>
+                  <CalendarArrowUp className="w-3.5 h-3.5 text-muted-foreground" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end"><Calendar mode="single" selected={startDate} onSelect={(d) => d && setStartDate(d)} className="pointer-events-auto" /></PopoverContent>
+            </Popover>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="w-8 h-8 flex items-center justify-center rounded-lg border border-border hover:bg-accent/30 transition-colors" title={format(endDate, "MMM d, yyyy")}>
+                  <CalendarArrowDown className="w-3.5 h-3.5 text-muted-foreground" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end"><Calendar mode="single" selected={endDate} onSelect={(d) => d && setEndDate(d)} className="pointer-events-auto" /></PopoverContent>
+            </Popover>
+          </div>
+        ) : (
+          <>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="flex items-center gap-2 border border-border rounded-lg px-3 py-2 hover:bg-accent/30 transition-colors">
+                  <div><div className="text-xs text-muted-foreground">Start</div><div className="text-sm text-foreground">{format(startDate, "MMM d, yyyy")}</div></div>
+                  <CalendarArrowUp className="w-4 h-4 text-muted-foreground" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={startDate} onSelect={(d) => d && setStartDate(d)} className="pointer-events-auto" /></PopoverContent>
+            </Popover>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="flex items-center gap-2 border border-border rounded-lg px-3 py-2 hover:bg-accent/30 transition-colors">
+                  <div><div className="text-xs text-muted-foreground">End</div><div className="text-sm text-foreground">{format(endDate, "MMM d, yyyy")}</div></div>
+                  <CalendarArrowDown className="w-4 h-4 text-muted-foreground" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={endDate} onSelect={(d) => d && setEndDate(d)} className="pointer-events-auto" /></PopoverContent>
+            </Popover>
+          </>
+        )}
       </div>
 
       {/* Live Weather */}
       {effectiveField &&
-      <div className="px-6 py-3 border-b border-border">
-          {liveLoading ? <div className="text-sm text-muted-foreground animate-pulse">Loading live conditions…</div> :
+      <div className="px-4 md:px-6 py-2 md:py-3 border-b border-border">
+          {liveLoading ? <div className="text-xs md:text-sm text-muted-foreground animate-pulse">Loading live conditions…</div> :
         liveWeather ?
-        <div className="flex items-center gap-6">
-                <div className="flex items-center gap-3">
-                  <div className="text-3xl font-light text-foreground">{liveWeather.temperature}°C</div>
+        <div className="flex items-center gap-3 md:gap-6">
+                <div className="flex items-center gap-2 md:gap-3">
+                  <div className={`${isMobile ? 'text-xl' : 'text-3xl'} font-light text-foreground`}>{liveWeather.temperature}°C</div>
                   <div>
-                    <div className="text-sm text-foreground">{weatherDescriptions[liveWeather.weatherCode] || "Unknown"}</div>
-                    <div className="text-xs text-muted-foreground">Feels like {liveWeather.feelsLike}°C</div>
+                    <div className={`${isMobile ? 'text-xs' : 'text-sm'} text-foreground`}>{weatherDescriptions[liveWeather.weatherCode] || "Unknown"}</div>
+                    <div className="text-[10px] md:text-xs text-muted-foreground">Feels like {liveWeather.feelsLike}°C</div>
                   </div>
                 </div>
-                <div className="flex gap-5 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1.5"><Droplets className="w-3.5 h-3.5" />{liveWeather.humidity}%</span>
-                  <span className="flex items-center gap-1.5"><Wind className="w-3.5 h-3.5" />{liveWeather.windSpeed} km/h</span>
+                <div className="flex gap-3 md:gap-5 text-[10px] md:text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1"><Droplets className="w-3 h-3" />{liveWeather.humidity}%</span>
+                  <span className="flex items-center gap-1"><Wind className="w-3 h-3" />{liveWeather.windSpeed} km/h</span>
                 </div>
                 <div className="flex-1" />
                 {/* Compare button — desktop only */}
@@ -382,7 +406,7 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
                     <X className="w-3 h-3 ml-1 text-muted-foreground" />
                   </button>
                 )}
-                <span className="text-xs italic" style={{ color: "#EAB947" }}>⚠ Data may not always be accurate</span>
+                {!isMobile && <span className="text-xs italic" style={{ color: "#EAB947" }}>⚠ Data may not always be accurate</span>}
               </div> :
         <div className="text-sm text-muted-foreground">Weather unavailable</div>
         }
@@ -390,7 +414,7 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
       }
 
       {/* Charts */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-8">
+      <div className={`flex-1 overflow-y-auto ${isMobile ? 'p-4 pb-24 space-y-6' : 'p-6 space-y-8'}`}>
         {!effectiveField ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <Sprout className="w-10 h-10 text-muted-foreground mb-3" />
@@ -408,18 +432,18 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
           </div>
         ) : (
 
-        <div key={effectiveField.id} className="animate-fade-in space-y-8">
+        <div key={effectiveField.id} className={`animate-fade-in ${isMobile ? 'space-y-6' : 'space-y-8'}`}>
             {/* Key Metrics Cards */}
-            <div className="grid grid-cols-4 gap-3">
+            <div className={`grid ${isMobile ? 'grid-cols-4 gap-1.5' : 'grid-cols-4 gap-3'}`}>
               {[
             { label: "Avg NDVI", value: ndviTimeSeries?.mean_ndvi != null ? ndviTimeSeries.mean_ndvi.toFixed(3) : (vegetation?.mean_ndvi != null ? vegetation.mean_ndvi.toFixed(3) : "N/A"), icon: Leaf, color: CHART_GREEN },
-            { label: "Avg Moisture", value: soilMoistureData.length > 0 ? `${(soilMoistureData.reduce((s: number, d: any) => s + d.shallow, 0) / soilMoistureData.length).toFixed(1)}%` : "N/A", icon: Droplets, color: CHART_BLUE },
-            { label: "Temp Range", value: monthlyData.length > 0 ? `${Math.min(...monthlyData.map((d) => d.tempMin))}-${Math.max(...monthlyData.map((d) => d.tempMax))}°C` : "N/A", icon: Thermometer, color: CHART_GOLD },
-            { label: "Total Rain", value: monthlyData.length > 0 ? `${monthlyData[monthlyData.length - 1]?.accumulated || 0} mm` : "N/A", icon: TrendingUp, color: CHART_CREAM }].
+            { label: "Moisture", value: soilMoistureData.length > 0 ? `${(soilMoistureData.reduce((s: number, d: any) => s + d.shallow, 0) / soilMoistureData.length).toFixed(1)}%` : "N/A", icon: Droplets, color: CHART_BLUE },
+            { label: "Temp", value: monthlyData.length > 0 ? `${Math.min(...monthlyData.map((d) => d.tempMin))}-${Math.max(...monthlyData.map((d) => d.tempMax))}°C` : "N/A", icon: Thermometer, color: CHART_GOLD },
+            { label: "Rain", value: monthlyData.length > 0 ? `${monthlyData[monthlyData.length - 1]?.accumulated || 0}mm` : "N/A", icon: TrendingUp, color: CHART_CREAM }].
             map((m, i) =>
-            <div key={i} className="p-3 rounded-xl border border-border bg-accent/15 space-y-1">
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><m.icon className="w-3.5 h-3.5" />{m.label}</div>
-                  <div className="text-lg font-semibold text-foreground">{m.value}</div>
+            <div key={i} className={`${isMobile ? 'p-2' : 'p-3'} rounded-xl border border-border bg-accent/15 space-y-0.5`}>
+                  <div className={`flex items-center gap-1 ${isMobile ? 'text-[9px]' : 'text-xs'} text-muted-foreground`}><m.icon className={`${isMobile ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'}`} />{m.label}</div>
+                  <div className={`${isMobile ? 'text-xs' : 'text-lg'} font-semibold text-foreground`}>{m.value}</div>
                 </div>
             )}
             </div>

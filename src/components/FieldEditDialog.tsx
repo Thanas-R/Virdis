@@ -46,8 +46,8 @@ const FieldEditDialog = ({ field, onSave, onDelete, onClose }: FieldEditDialogPr
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-card rounded-xl border border-border p-5 w-80 space-y-4 shadow-2xl animate-fade-in mx-[5px] max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm pb-[env(safe-area-inset-bottom)]">
+      <div className="bg-card rounded-xl border border-border p-5 w-80 space-y-4 shadow-2xl animate-fade-in mx-[5px] max-h-[85vh] overflow-y-auto mb-16 sm:mb-0">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-foreground">Edit Field</h3>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors"><X className="w-4 h-4" /></button>
