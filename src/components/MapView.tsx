@@ -300,7 +300,7 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
           (map.getSource("draw-points") as mapboxgl.GeoJSONSource).setData(pointData);
         } else {
           map.addSource("draw-points", { type: "geojson", data: pointData });
-          map.addLayer({ id: "draw-points", type: "circle", source: "draw-points", paint: { "circle-radius": 5, "circle-color": "#56B6C2", "circle-stroke-width": 2, "circle-stroke-color": "#fff" } });
+          map.addLayer({ id: "draw-points", type: "circle", source: "draw-points", paint: { "circle-radius": 5, "circle-color": "#ffffff", "circle-stroke-width": 2, "circle-stroke-color": "#fff" } });
         }
       }
       return;
@@ -315,14 +315,14 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
       (map.getSource("draw-preview") as mapboxgl.GeoJSONSource).setData(polyData);
     } else {
       map.addSource("draw-preview", { type: "geojson", data: polyData });
-      map.addLayer({ id: "draw-fill", type: "fill", source: "draw-preview", paint: { "fill-color": "#56B6C2", "fill-opacity": 0.2 } });
-      map.addLayer({ id: "draw-line", type: "line", source: "draw-preview", paint: { "line-color": "#56B6C2", "line-width": 2, "line-dasharray": [2, 2] } });
+      map.addLayer({ id: "draw-fill", type: "fill", source: "draw-preview", paint: { "fill-color": "#ffffff", "fill-opacity": 0.2 } });
+      map.addLayer({ id: "draw-line", type: "line", source: "draw-preview", paint: { "line-color": "#ffffff", "line-width": 2, "line-dasharray": [2, 2] } });
     }
     if (map.getSource("draw-points")) {
       (map.getSource("draw-points") as mapboxgl.GeoJSONSource).setData(pointData);
     } else {
       map.addSource("draw-points", { type: "geojson", data: pointData });
-      map.addLayer({ id: "draw-points", type: "circle", source: "draw-points", paint: { "circle-radius": 5, "circle-color": "#56B6C2", "circle-stroke-width": 2, "circle-stroke-color": "#fff" } });
+      map.addLayer({ id: "draw-points", type: "circle", source: "draw-points", paint: { "circle-radius": 5, "circle-color": "#ffffff", "circle-stroke-width": 2, "circle-stroke-color": "#fff" } });
     }
   }, [drawVertices, mapLoaded]);
 
@@ -453,7 +453,7 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
       {drawMode && !isMobile && (
         <div className="absolute bottom-6 left-4 z-10 bg-card/90 backdrop-blur-sm rounded-lg border border-border px-4 py-2.5 text-xs text-foreground space-y-1">
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: "#56B6C2" }} />
+            <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: "#ffffff" }} />
             <span className="font-medium">Drawing Mode</span>
           </div>
           <div className="text-muted-foreground">Click to add points · Backspace to undo</div>
@@ -464,7 +464,7 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
       {editBoundaryFieldId && (
         <div className={`absolute ${isMobile ? 'bottom-20' : 'bottom-6'} left-4 z-10 bg-card/90 backdrop-blur-sm rounded-lg border border-border px-4 py-2.5 text-xs text-foreground space-y-1`}>
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: "#56B6C2" }} />
+            <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: "#ffffff" }} />
             <span className="font-medium">Editing Boundary</span>
           </div>
           <div className="text-muted-foreground">Drag vertices to reshape</div>
