@@ -142,25 +142,21 @@ Sentinel-2 Satellite Data
 
 ## Installation
 
-
 git clone https://github.com/your-org/virdis
-
 cd virdis
 npm install
 npm run dev
 
-
-
 ## Environment Variables
 
+Create a .env file in the root directory and add the following:
 
+Code snippet
 MAPBOX_TOKEN=
 GEE_SERVICE_ACCOUNT_KEY=
 OPEN_METEO_API_URL=
 SUPABASE_URL=
 SUPABASE_ANON_KEY=
 
-
 ## License
-
 MIT License
