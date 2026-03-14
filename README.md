@@ -131,9 +131,9 @@ Over **190 crop types** are supported.
 | Charts         | Recharts                 | Data visualization       |
 | Routing        | React Router             | SPA navigation           |
 | State          | TanStack React Query     | Server state management  |
-| Backend        | Lovable Cloud (Supabase) | Edge functions + DB      |
+| Backend        | Cloud (Supabase)         | Edge functions + DB      |
 | Satellite Data | Google Earth Engine      | Sentinel-2 NDVI analysis |
-| AI             | Lovable AI Gateway       | Agronomy insights        |
+| AI             | Gemini 2.5 Flash         | Agronomy insights        |
 | Weather        | Open-Meteo API           | Weather data             |
 
 ---
@@ -144,7 +144,7 @@ Over **190 crop types** are supported.
 Frontend (React + Mapbox)
         │
         ▼
-Edge Functions (Supabase / Lovable)
+Edge Functions (Supabase)
         │
  ┌──────┼─────────────┐
  ▼      ▼             ▼
