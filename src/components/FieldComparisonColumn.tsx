@@ -8,7 +8,7 @@ import { Field, haToAcres } from "@/data/fields";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 
-const CHART_GOLD = "#C6B77E";
+const CHART_GOLD = "#EAB947";
 const CHART_CREAM = "#F7F4E4";
 const CHART_GREEN = "#7BC75B";
 const CHART_BLUE = "#61AFEF";
