@@ -17,8 +17,8 @@ The platform allows farmers, agronomists, and agricultural analysts to map crop 
 
 ## Preview
 
-### [![Live Site](https://img.shields.io/badge/Live%20Site-virdis.vercel.app-006837?style=flat-square)](https://virdis.vercel.app)
-
+ [![Open Virdis](https://img.shields.io/badge/Open-Virdis%20Live%20Site-006837?style=for-the-badge)](https://virdis.vercel.app)
+ 
  <br>
 
 > <a href="https://virdis.vercel.app">
