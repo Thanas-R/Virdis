@@ -110,6 +110,7 @@ function setGeeCache(fieldId: string, data: any) {
 }
 
 const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProps) => {
+  const isMobile = useIsMobile();
   const [compareField, setCompareField] = useState<Field | null>(null);
   const [showCompareSelector, setShowCompareSelector] = useState(false);
   const [endDate, setEndDate] = useState<Date>(new Date());

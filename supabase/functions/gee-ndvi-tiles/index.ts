@@ -165,33 +165,8 @@ serve(async (req) => {
       },
     };
 
-    // Optionally clip to a union of field polygons
-    let ndviToVisualize = ndvi;
-
-    if (coordinates && coordinates.length > 0) {
-      // Build a GEE MultiPolygon geometry from all field coordinate rings
-      const allRings = coordinates.map(ring => ring);
-      const unionGeometry = {
-        functionInvocationValue: {
-          functionName: "GeometryConstructors.MultiPolygon",
-          arguments: {
-            coordinates: { constantValue: allRings },
-            geodesic: { constantValue: false },
-            evenOdd: { constantValue: true },
-          },
-        },
-      };
-
-      ndviToVisualize = {
-        functionInvocationValue: {
-          functionName: "Image.clip",
-          arguments: {
-            input: ndvi,
-            geometry: unionGeometry,
-          },
-        },
-      };
-    }
+    // No clipping — show NDVI globally
+    const ndviToVisualize = ndvi;
 
     // Visualize with NDVI palette
     const visualized = {
