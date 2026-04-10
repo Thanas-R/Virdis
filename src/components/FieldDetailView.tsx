@@ -37,8 +37,8 @@ const weatherCodes: Record<number, string> = {
   80: "Slight showers", 81: "Moderate showers", 82: "Violent showers", 95: "Thunderstorm",
 };
 
-const ANALYSIS_CACHE_KEY = "field-ai-analysis-cache";
-const NDVI_CACHE_KEY = "field-ndvi-cache";
+const ANALYSIS_CACHE_KEY = "region-ai-analysis-cache";
+const NDVI_CACHE_KEY = "region-ndvi-cache";
 
 type AnalysisBlock =
   | { type: "markdown"; content: string }
@@ -101,7 +101,7 @@ function ndviLabel(val: number): string {
   return "Critical";
 }
 
-const GROWTH_STAGE_CACHE_KEY = "field-growth-stage-cache";
+const GROWTH_STAGE_CACHE_KEY = "region-growth-stage-cache";
 
 function getGrowthCache(): Record<string, { data: any; timestamp: number }> {
   try { const c = localStorage.getItem(GROWTH_STAGE_CACHE_KEY); return c ? JSON.parse(c) : {}; } catch { return {}; }
@@ -174,7 +174,7 @@ function GrowthStageSection({ polygon, fieldId }: { polygon: [number, number][];
         </div>
       ) : (
         <div className="p-4 rounded-xl border border-border bg-accent/10 text-sm text-muted-foreground">
-          No satellite data available for this field.
+          No satellite data available for this region.
         </div>
       )}
     </div>
@@ -296,7 +296,7 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
       <div className="flex-1 overflow-y-auto p-4 space-y-5">
         {/* Field Info */}
         <div className="p-4 rounded-xl border border-border bg-accent/15">
-          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Field Info</h3>
+          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Region Info</h3>
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <span className="text-xs text-muted-foreground">Area</span>
@@ -380,7 +380,7 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
             </div>
           ) : (
             <div className="p-4 rounded-xl border border-border bg-accent/10 text-sm text-muted-foreground">
-              No satellite data available for this field. Click Refresh to analyze.
+              No satellite data available for this region. Click Refresh to analyze.
             </div>
           )}
         </div>
@@ -415,7 +415,7 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
         <div>
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-              <Brain className="w-3.5 h-3.5" /> AI Field Analysis
+              <Brain className="w-3.5 h-3.5" /> AI Region Analysis
             </h3>
             <button onClick={fetchAiAnalysis} disabled={aiLoading}
               className="text-xs px-3 py-1 rounded-md border border-border text-foreground hover:bg-accent transition-colors disabled:opacity-50">
@@ -426,7 +426,7 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
             <div className="p-4 rounded-xl border border-border bg-accent/15">
               {aiLoading ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="w-4 h-4 animate-spin" /> Generating field analysis...
+                  <Loader2 className="w-4 h-4 animate-spin" /> Generating region analysis...
                 </div>
               ) : (
                 <div className="prose prose-sm prose-invert max-w-none text-foreground
