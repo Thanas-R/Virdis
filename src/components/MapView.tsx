@@ -457,8 +457,8 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
             <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: "#56B6C2" }} />
             <span className="font-medium">Drawing Mode</span>
           </div>
-          <div className="text-muted-foreground">Click to add points · Backspace to undo</div>
-          <div className="text-muted-foreground">Enter to save · Esc to exit</div>
+          <div className="text-muted-foreground">Click to add boundary points - Backspace to undo</div>
+          <div className="text-muted-foreground">Enter to save - Esc to exit</div>
         </div>
       )}
 
