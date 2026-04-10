@@ -1,4 +1,4 @@
-import { Layers, Plus, Minus, Map, PenTool, Compass, LocateFixed, Satellite } from "lucide-react";
+import { Layers, Plus, Minus, Map, PenTool, Compass, LocateFixed, Satellite, Crosshair } from "lucide-react";
 import { useState } from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -13,6 +13,7 @@ interface MapToolbarProps {
   onResetNorth?: () => void;
   onLocateUser?: () => void;
   onToggleNdvi?: () => void;
+  onAutoDetect?: () => void;
   isDrawing?: boolean;
   showFields?: boolean;
   showNdvi?: boolean;
@@ -28,6 +29,7 @@ const MapToolbar = ({
   onResetNorth,
   onLocateUser,
   onToggleNdvi,
+  onAutoDetect,
   isDrawing,
   showFields = true,
   showNdvi = false,
@@ -42,11 +44,12 @@ const MapToolbar = ({
   };
 
   const items = [
-    { icon: Layers, onClick: onToggleLayers ?? (() => {}), label: showFields ? "Hide Fields" : "Show Fields", active: showFields },
+    { icon: Layers, onClick: onToggleLayers ?? (() => {}), label: showFields ? "Hide Regions" : "Show Regions", active: showFields },
     { icon: Plus, onClick: onZoomIn, label: "Zoom In" },
     { icon: Minus, onClick: onZoomOut, label: "Zoom Out" },
     { icon: Map, onClick: handleStyleToggle, label: currentStyle === "dark" ? "Satellite" : "Dark Mode", active: currentStyle === "satellite" },
-    { icon: PenTool, onClick: onToggleDraw ?? (() => {}), label: "Draw Field", active: isDrawing },
+    { icon: Crosshair, onClick: onAutoDetect ?? (() => {}), label: "Auto-Detect Region" },
+    { icon: PenTool, onClick: onToggleDraw ?? (() => {}), label: "Draw Manually", active: isDrawing },
     { icon: Satellite, onClick: onToggleNdvi ?? (() => {}), label: showNdvi ? "Hide NDVI" : "NDVI Overlay", active: showNdvi },
     { icon: Compass, onClick: onResetNorth ?? (() => {}), label: "Reset North" },
     { icon: LocateFixed, onClick: onLocateUser ?? (() => {}), label: "My Location" },

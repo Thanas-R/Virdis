@@ -19,7 +19,6 @@ function calculateAreaAcres(coords: [number, number][]): number {
     area -= coords[j][0] * coords[i][1];
   }
   area = Math.abs(area) / 2;
-  // Convert to sq meters then to acres (1 acre = 4046.86 sq m)
   area = (area * 111000 * 85000) / 4046.86;
   return Math.round(area * 10) / 10;
 }
@@ -50,7 +49,6 @@ const NewFieldDialog = ({ coordinates, mapToken, onSave, onCancel }: NewFieldDia
   const [showCropDropdown, setShowCropDropdown] = useState(false);
 
   const estimatedAcres = calculateAreaAcres(coordinates);
-  // Store as hectares internally
   const estimatedHa = Math.round((estimatedAcres / 2.47105) * 10) / 10;
 
   useEffect(() => {
@@ -102,21 +100,20 @@ const NewFieldDialog = ({ coordinates, mapToken, onSave, onCancel }: NewFieldDia
     <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="bg-card rounded-xl border border-border p-5 w-80 space-y-4 shadow-2xl animate-fade-in max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-foreground">New Field</h3>
+          <h3 className="text-sm font-semibold text-foreground">New Region</h3>
           <button onClick={onCancel} className="text-muted-foreground hover:text-foreground transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         <div>
-          <label className="text-xs text-muted-foreground block mb-1">Field Name</label>
-          <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Field#7890"
+          <label className="text-xs text-muted-foreground block mb-1">Region Name</label>
+          <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Region#7890"
             className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" autoFocus />
         </div>
 
-        {/* Crop selector with search */}
         <div className="relative">
-          <label className="text-xs text-muted-foreground block mb-1">Crop</label>
+          <label className="text-xs text-muted-foreground block mb-1">Crop / Land Use</label>
           <button
             type="button"
             onClick={() => setShowCropDropdown(!showCropDropdown)}
@@ -163,7 +160,7 @@ const NewFieldDialog = ({ coordinates, mapToken, onSave, onCancel }: NewFieldDia
 
         <div>
           <label className="text-xs text-muted-foreground block mb-1">Location</label>
-          <LocationAutocomplete value={location} onChange={setLocation} placeholder="Search location…" mapToken={mapToken} />
+          <LocationAutocomplete value={location} onChange={setLocation} placeholder="Search location..." mapToken={mapToken} />
         </div>
 
         <div>
@@ -179,7 +176,7 @@ const NewFieldDialog = ({ coordinates, mapToken, onSave, onCancel }: NewFieldDia
 
         <div className="flex gap-3 pt-1">
           <button onClick={onCancel} className="flex-1 py-2.5 rounded-lg border border-border text-sm text-foreground hover:bg-accent transition-colors">Cancel</button>
-          <button onClick={handleSave} disabled={!name.trim()} className="flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors bg-primary text-primary-foreground disabled:opacity-50">Save Field</button>
+          <button onClick={handleSave} disabled={!name.trim()} className="flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors bg-primary text-primary-foreground disabled:opacity-50">Save Region</button>
         </div>
       </div>
     </div>
