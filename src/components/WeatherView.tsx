@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { CalendarArrowUp, CalendarArrowDown, Droplets, Wind, Sprout, Thermometer, Leaf, TrendingUp, Loader2, GitCompareArrows, X } from "lucide-react";
+import { CalendarArrowUp, CalendarArrowDown, Droplets, Wind, Sprout, Thermometer, Leaf, TrendingUp, Loader2, GitCompareArrows, X, CloudRain, Factory, Building2 } from "lucide-react";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   Area, AreaChart, PieChart, Pie, Cell, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
@@ -16,6 +16,7 @@ const CHART_GOLD = "#C6B77E";
 const CHART_CREAM = "#F7F4E4";
 const CHART_GREEN = "#7BC75B";
 const CHART_BLUE = "#61AFEF";
+const CHART_PURPLE = "#C678DD";
 
 const tooltipStyle = {
   backgroundColor: "hsl(150, 18%, 14%)",
@@ -31,6 +32,13 @@ interface LiveWeather {
   windSpeed: number;
   weatherCode: number;
   feelsLike: number;
+}
+
+interface AqiData {
+  pm2_5: number;
+  pm10: number;
+  european_aqi: number;
+  us_aqi: number;
 }
 
 const weatherDescriptions: Record<number, string> = {
@@ -54,6 +62,21 @@ const LAND_USE_COLORS: Record<string, string> = {
   "Mangroves": "#1b4332",
   "Moss/lichen": "#b5e48c",
 };
+
+function getAqiLabel(aqi: number): { label: string; color: string } {
+  if (aqi <= 20) return { label: "Good", color: CHART_GREEN };
+  if (aqi <= 40) return { label: "Fair", color: "#CDDC39" };
+  if (aqi <= 60) return { label: "Moderate", color: CHART_GOLD };
+  if (aqi <= 80) return { label: "Poor", color: "#FF9800" };
+  if (aqi <= 100) return { label: "Very Poor", color: "#d73027" };
+  return { label: "Hazardous", color: "#7B1FA2" };
+}
+
+function isUrbanRegion(landUseData: any): boolean {
+  if (!landUseData) return false;
+  const builtUp = landUseData["Built-up"] || 0;
+  return builtUp >= 30;
+}
 
 const CustomLandUseTooltip = ({ active, payload }: any) => {
   if (!active || !payload?.length) return null;
@@ -109,6 +132,16 @@ function setGeeCache(fieldId: string, data: any) {
   localStorage.setItem(GEE_ANALYTICS_CACHE_KEY, JSON.stringify(cache));
 }
 
+// Urban gardening suggestions
+const URBAN_GARDENING_TIPS = [
+  { crop: "Tomatoes", difficulty: "Easy", space: "Container/Balcony", season: "Spring-Summer" },
+  { crop: "Herbs (Basil, Mint)", difficulty: "Easy", space: "Windowsill", season: "Year-round" },
+  { crop: "Lettuce & Greens", difficulty: "Easy", space: "Container", season: "Spring-Fall" },
+  { crop: "Peppers", difficulty: "Medium", space: "Container/Balcony", season: "Summer" },
+  { crop: "Microgreens", difficulty: "Easy", space: "Indoor tray", season: "Year-round" },
+  { crop: "Strawberries", difficulty: "Medium", space: "Hanging basket", season: "Spring-Summer" },
+];
+
 const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProps) => {
   const isMobile = useIsMobile();
   const [compareField, setCompareField] = useState<Field | null>(null);
@@ -126,6 +159,10 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
   const [liveWeather, setLiveWeather] = useState<LiveWeather | null>(null);
   const [liveLoading, setLiveLoading] = useState(false);
 
+  // AQI state
+  const [aqiData, setAqiData] = useState<AqiData | null>(null);
+  const [aqiLoading, setAqiLoading] = useState(false);
+
   // GEE analytics state
   const [geeData, setGeeData] = useState<any>(null);
   const [geeLoading, setGeeLoading] = useState(false);
@@ -135,6 +172,8 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
   const [ndviTsLoading, setNdviTsLoading] = useState(false);
 
   const effectiveField = activeField || selectedFields[0];
+
+  const urban = isUrbanRegion(geeData?.land_use);
 
   // Fetch GEE analytics
   useEffect(() => {
@@ -205,6 +244,29 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
       {setLiveLoading(false);}
     };
     fetchLive();
+  }, [effectiveField]);
+
+  // Fetch AQI data
+  useEffect(() => {
+    if (!effectiveField) { setAqiData(null); return; }
+    const fetchAqi = async () => {
+      setAqiLoading(true);
+      try {
+        const { lat, lng } = getFieldCenter(effectiveField);
+        const res = await fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lng}&current=pm2_5,pm10,european_aqi,us_aqi`);
+        const data = await res.json();
+        if (data.current) {
+          setAqiData({
+            pm2_5: data.current.pm2_5,
+            pm10: data.current.pm10,
+            european_aqi: data.current.european_aqi,
+            us_aqi: data.current.us_aqi,
+          });
+        }
+      } catch { setAqiData(null); }
+      finally { setAqiLoading(false); }
+    };
+    fetchAqi();
   }, [effectiveField]);
 
   // Fetch historical weather + soil moisture
@@ -298,11 +360,14 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
     <div className="relative w-full h-full flex flex-col overflow-hidden">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 md:px-6 py-2 md:py-3 border-b border-border flex-wrap">
-        <h1 className="text-base md:text-lg font-semibold text-foreground">Field Analytics</h1>
+        <h1 className="text-base md:text-lg font-semibold text-foreground">
+          {urban ? "Urban Region Analytics" : "Region Analytics"}
+        </h1>
         {effectiveField && !isMobile && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: effectiveField.color }} />
             {effectiveField.name} - {effectiveField.crop} - {haToAcres(effectiveField.area)} acres
+            {urban && <span className="ml-1 px-1.5 py-0.5 rounded bg-destructive/20 text-destructive text-[10px] font-medium">Urban</span>}
           </div>
         )}
         <div className="flex-1" />
@@ -351,12 +416,12 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
         )}
       </div>
 
-      {/* Live Weather */}
+      {/* Live Weather + AQI */}
       {effectiveField &&
       <div className="px-4 md:px-6 py-2 md:py-3 border-b border-border">
-          {liveLoading ? <div className="text-xs md:text-sm text-muted-foreground animate-pulse">Loading live conditions…</div> :
+          {liveLoading ? <div className="text-xs md:text-sm text-muted-foreground animate-pulse">Loading live conditions...</div> :
         liveWeather ?
-        <div className="flex items-center gap-3 md:gap-6">
+        <div className="flex items-center gap-3 md:gap-6 flex-wrap">
                 <div className="flex items-center gap-2 md:gap-3">
                   <div className={`${isMobile ? 'text-xl' : 'text-3xl'} font-light text-foreground`}>{liveWeather.temperature}°C</div>
                   <div>
@@ -367,9 +432,14 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
                 <div className="flex gap-3 md:gap-5 text-[10px] md:text-xs text-muted-foreground">
                   <span className="flex items-center gap-1"><Droplets className="w-3 h-3" />{liveWeather.humidity}%</span>
                   <span className="flex items-center gap-1"><Wind className="w-3 h-3" />{liveWeather.windSpeed} km/h</span>
+                  {aqiData && (
+                    <span className="flex items-center gap-1" style={{ color: getAqiLabel(aqiData.european_aqi).color }}>
+                      <Factory className="w-3 h-3" />AQI {aqiData.european_aqi} ({getAqiLabel(aqiData.european_aqi).label})
+                    </span>
+                  )}
                 </div>
                 <div className="flex-1" />
-                {/* Compare button — desktop only */}
+                {/* Compare button - desktop only */}
                 {!isMobile && !compareField && (allFields || selectedFields).length > 1 && (
                   <div className="relative">
                     <button
@@ -379,8 +449,8 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
                       <GitCompareArrows className="w-3.5 h-3.5" /> Compare
                     </button>
                     {showCompareSelector && (
-                      <div className="absolute bottom-full right-0 mb-1 z-50 w-56 rounded-xl border border-border shadow-xl p-2 space-y-0.5" style={{ background: "hsl(150, 18%, 12%)" }}>
-                        <div className="text-[10px] text-muted-foreground px-2 py-1 uppercase tracking-wider">Select field to compare</div>
+                      <div className="absolute top-full right-0 mt-1 z-50 w-56 rounded-xl border border-border shadow-xl p-2 space-y-0.5" style={{ background: "hsl(150, 18%, 12%)" }}>
+                        <div className="text-[10px] text-muted-foreground px-2 py-1 uppercase tracking-wider">Select region to compare</div>
                         {(allFields || selectedFields).filter(f => f.id !== effectiveField!.id).map(f => (
                           <button
                             key={f.id}
@@ -406,7 +476,7 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
                     <X className="w-3 h-3 ml-1 text-muted-foreground" />
                   </button>
                 )}
-                {!isMobile && <span className="text-xs italic" style={{ color: "#C6B77E" }}>⚠ Data may not always be accurate</span>}
+                {!isMobile && <span className="text-xs italic" style={{ color: "#C6B77E" }}>Data may not always be accurate</span>}
               </div> :
         <div className="text-sm text-muted-foreground">Weather unavailable</div>
         }
@@ -418,7 +488,7 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
         {!effectiveField ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <Sprout className="w-10 h-10 text-muted-foreground mb-3" />
-            <p className="text-sm text-muted-foreground">Select a field to view analytics</p>
+            <p className="text-sm text-muted-foreground">Select a region to view analytics</p>
           </div>
         ) : compareField ? (
           /* ===== COMPARISON MODE ===== */
@@ -433,10 +503,50 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
         ) : (
 
         <div key={effectiveField.id} className={`animate-fade-in ${isMobile ? 'space-y-6' : 'space-y-8'}`}>
+
+            {/* AQI + Water Section */}
+            {(aqiData || geeData?.suitability) && (
+              <div className="animate-fade-in" style={{ animationDelay: "50ms" }}>
+                <h3 className="text-sm font-medium text-foreground mb-4">
+                  {urban ? "Urban Environment Quality" : "Air & Water Quality"}
+                </h3>
+                <div className={`grid ${isMobile ? 'grid-cols-2 gap-2' : 'grid-cols-4 gap-3'}`}>
+                  {aqiData && (
+                    <>
+                      <div className="p-3 rounded-xl border border-border bg-accent/15 space-y-1">
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><Factory className="w-3.5 h-3.5" />EU AQI</div>
+                        <div className="text-lg font-semibold" style={{ color: getAqiLabel(aqiData.european_aqi).color }}>{aqiData.european_aqi}</div>
+                        <div className="text-[10px]" style={{ color: getAqiLabel(aqiData.european_aqi).color }}>{getAqiLabel(aqiData.european_aqi).label}</div>
+                      </div>
+                      <div className="p-3 rounded-xl border border-border bg-accent/15 space-y-1">
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><Factory className="w-3.5 h-3.5" />PM2.5</div>
+                        <div className="text-lg font-semibold text-foreground">{aqiData.pm2_5?.toFixed(1)}</div>
+                        <div className="text-[10px] text-muted-foreground">ug/m3</div>
+                      </div>
+                    </>
+                  )}
+                  {geeData?.suitability?.raw?.annual_rainfall_mm != null && (
+                    <div className="p-3 rounded-xl border border-border bg-accent/15 space-y-1">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><CloudRain className="w-3.5 h-3.5" />Annual Rain</div>
+                      <div className="text-lg font-semibold text-foreground">{geeData.suitability.raw.annual_rainfall_mm}</div>
+                      <div className="text-[10px] text-muted-foreground">mm/year</div>
+                    </div>
+                  )}
+                  {geeData?.suitability?.water_access != null && (
+                    <div className="p-3 rounded-xl border border-border bg-accent/15 space-y-1">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><Droplets className="w-3.5 h-3.5" />Water Access</div>
+                      <div className="text-lg font-semibold" style={{ color: geeData.suitability.water_access > 60 ? CHART_BLUE : CHART_GOLD }}>{geeData.suitability.water_access}/100</div>
+                      <div className="text-[10px] text-muted-foreground">Suitability score</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Key Metrics Cards */}
             <div className={`grid ${isMobile ? 'grid-cols-4 gap-1.5' : 'grid-cols-4 gap-3'}`}>
               {[
-            { label: "Avg NDVI", value: ndviTimeSeries?.mean_ndvi != null ? ndviTimeSeries.mean_ndvi.toFixed(3) : (vegetation?.mean_ndvi != null ? vegetation.mean_ndvi.toFixed(3) : "N/A"), icon: Leaf, color: CHART_GREEN },
+            { label: urban ? "Green Cover" : "Avg NDVI", value: ndviTimeSeries?.mean_ndvi != null ? ndviTimeSeries.mean_ndvi.toFixed(3) : (vegetation?.mean_ndvi != null ? vegetation.mean_ndvi.toFixed(3) : "N/A"), icon: Leaf, color: CHART_GREEN },
             { label: "Moisture", value: soilMoistureData.length > 0 ? `${(soilMoistureData.reduce((s: number, d: any) => s + d.shallow, 0) / soilMoistureData.length).toFixed(1)}%` : "N/A", icon: Droplets, color: CHART_BLUE },
             { label: "Temp", value: monthlyData.length > 0 ? `${Math.min(...monthlyData.map((d) => d.tempMin))}-${Math.max(...monthlyData.map((d) => d.tempMax))}°C` : "N/A", icon: Thermometer, color: CHART_GOLD },
             { label: "Rain", value: monthlyData.length > 0 ? `${monthlyData[monthlyData.length - 1]?.accumulated || 0}mm` : "N/A", icon: TrendingUp, color: CHART_CREAM }].
@@ -448,6 +558,27 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
             )}
             </div>
 
+            {/* Urban: Home Gardening Suggestions */}
+            {urban && (
+              <div className="animate-fade-in" style={{ animationDelay: "100ms" }}>
+                <h3 className="text-sm font-medium text-foreground mb-4 flex items-center gap-2">
+                  <Building2 className="w-4 h-4" /> What You Can Grow at Home
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {URBAN_GARDENING_TIPS.map((tip, i) => (
+                    <div key={i} className="p-3 rounded-xl border border-border bg-accent/15 space-y-1.5">
+                      <div className="text-sm font-semibold text-foreground">{tip.crop}</div>
+                      <div className="flex flex-wrap gap-1.5">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/15 text-primary">{tip.difficulty}</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent/30 text-muted-foreground">{tip.space}</span>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">{tip.season}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Land Use / Suitability side by side */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in" style={{ animationDelay: "100ms" }}>
               {/* Land Use Donut */}
@@ -456,7 +587,7 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
                 <div className="rounded-2xl border border-border/40 p-4 w-full h-[290px] flex flex-col items-center justify-center" style={{ background: "hsla(150, 18%, 14%, 0.6)" }}>
                   {geeLoading ? (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Loader2 className="w-4 h-4 animate-spin" /> Fetching ESA WorldCover…
+                      <Loader2 className="w-4 h-4 animate-spin" /> Fetching ESA WorldCover...
                     </div>
                   ) : landUseData && landUseData.length > 0 ? (
                     <div className="flex flex-col items-center w-full h-full justify-center">
@@ -483,7 +614,7 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
                   ) : (
                     <div className="text-center text-sm text-muted-foreground">
                       <Leaf className="w-6 h-6 mx-auto mb-2 opacity-40" />
-                      No satellite data available for this field.
+                      No satellite data available for this region.
                     </div>
                   )}
                 </div>
@@ -491,11 +622,13 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
 
               {/* Suitability Radar */}
               <div className="flex flex-col">
-                <h3 className="text-sm font-medium text-foreground mb-4">Land Suitability Score</h3>
+                <h3 className="text-sm font-medium text-foreground mb-4">
+                  {urban ? "Environment Score" : "Land Suitability Score"}
+                </h3>
                 <div className="rounded-2xl border border-border/40 p-4 w-full h-[290px] flex items-center justify-center" style={{ background: "hsla(150, 18%, 14%, 0.6)" }}>
                   {geeLoading ? (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Loader2 className="w-4 h-4 animate-spin" /> Fetching suitability data…
+                      <Loader2 className="w-4 h-4 animate-spin" /> Fetching suitability data...
                     </div>
                   ) : suitabilityData && suitabilityData.length > 0 ? (
                     <div className="w-full">
@@ -511,7 +644,7 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
                       {geeData?.suitability?.raw && (
                         <div className="flex gap-3 justify-center text-[10px] text-muted-foreground mt-1">
                           {geeData.suitability.raw.elevation_m != null && <span>Elev: {geeData.suitability.raw.elevation_m}m</span>}
-                          {geeData.suitability.raw.slope_deg != null && <span>Slope: {geeData.suitability.raw.slope_deg}°</span>}
+                          {geeData.suitability.raw.slope_deg != null && <span>Slope: {geeData.suitability.raw.slope_deg}deg</span>}
                           {geeData.suitability.raw.annual_rainfall_mm != null && <span>Rain: {geeData.suitability.raw.annual_rainfall_mm}mm/yr</span>}
                         </div>
                       )}
@@ -519,7 +652,7 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
                   ) : (
                     <div className="text-center text-sm text-muted-foreground">
                       <Leaf className="w-6 h-6 mx-auto mb-2 opacity-40" />
-                      No satellite data available for this field.
+                      No satellite data available for this region.
                     </div>
                   )}
                 </div>
@@ -610,14 +743,16 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
             {/* NDVI Vegetation Trend */}
             <div className="animate-fade-in" style={{ animationDelay: "350ms" }}>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-medium text-foreground">NDVI Vegetation Trend (90 days)</h3>
+                <h3 className="text-sm font-medium text-foreground">
+                  {urban ? "Green Cover Trend (90 days)" : "NDVI Vegetation Trend (90 days)"}
+                </h3>
                 {ndviTimeSeries?.growth_stage && (
                   <span className="text-xs px-2 py-0.5 rounded-full bg-accent/30 text-foreground">{ndviTimeSeries.growth_stage}</span>
                 )}
               </div>
               {ndviTsLoading ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground p-3">
-                  <Loader2 className="w-4 h-4 animate-spin" /> Loading NDVI time-series…
+                  <Loader2 className="w-4 h-4 animate-spin" /> Loading NDVI time-series...
                 </div>
               ) : ndviChartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={200}>
@@ -637,17 +772,18 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
                 </ResponsiveContainer>
               ) : (
                 <div className="p-4 rounded-xl border border-border bg-accent/10 text-sm text-muted-foreground">
-                  No satellite data available for this field.
+                  No satellite data available for this region.
                 </div>
               )}
             </div>
 
-            {/* Crop Growth Indicators */}
+            {/* Crop Growth Indicators - only for non-urban */}
+            {!urban && (
             <div className="animate-fade-in" style={{ animationDelay: "400ms" }}>
               <h3 className="text-sm font-medium text-foreground mb-4">Crop Growth Indicators</h3>
               {(geeLoading || ndviTsLoading) ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground p-3">
-                  <Loader2 className="w-4 h-4 animate-spin" /> Loading satellite indices…
+                  <Loader2 className="w-4 h-4 animate-spin" /> Loading satellite indices...
                 </div>
               ) : (
                 <div className="grid grid-cols-3 gap-3">
@@ -667,7 +803,7 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
                     {
                       label: "Biomass Est.",
                       value: ndviTimeSeries?.biomass_estimate != null ? ndviTimeSeries.biomass_estimate.toFixed(2) : (vegetation?.biomass_estimate_kg_ha != null ? `${vegetation.biomass_estimate_kg_ha} kg/ha` : "N/A"),
-                      detail: ndviTimeSeries?.biomass_estimate != null ? "mean NDVI × 8" : "No satellite data",
+                      detail: ndviTimeSeries?.biomass_estimate != null ? "mean NDVI x 8" : "No satellite data",
                       color: (ndviTimeSeries?.biomass_estimate ?? vegetation?.biomass_estimate_kg_ha) != null ? CHART_GOLD : "hsl(150, 10%, 55%)",
                     },
                   ].map((item, i) => (
@@ -680,6 +816,21 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
                 </div>
               )}
             </div>
+            )}
+
+            {/* Urban: Additional tips */}
+            {urban && (
+              <div className="animate-fade-in p-4 rounded-xl border border-border bg-accent/15" style={{ animationDelay: "400ms" }}>
+                <h3 className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
+                  <Building2 className="w-4 h-4" /> Urban Region Insights
+                </h3>
+                <div className="text-xs text-muted-foreground space-y-2 leading-relaxed">
+                  <p>This region has significant built-up area ({geeData?.land_use?.["Built-up"] || 0}%). The analytics are tailored for urban environments.</p>
+                  <p>Green cover and air quality are key indicators for urban livability. Consider rooftop gardens, balcony planters, or community garden spaces for growing food at home.</p>
+                  <p>The temperature and precipitation data can help you plan seasonal container gardening and indoor growing cycles.</p>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

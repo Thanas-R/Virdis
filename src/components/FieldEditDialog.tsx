@@ -39,7 +39,6 @@ const FieldEditDialog = ({ field, onSave, onDelete, onClose }: FieldEditDialogPr
   }, {} as Record<string, typeof CROP_OPTIONS>);
 
   const handleSave = () => {
-    // Convert acres back to hectares for storage
     const areaAcres = parseFloat(area) || haToAcres(field.area);
     const areaHa = Math.round((areaAcres / 2.47105) * 10) / 10;
     onSave({ ...field, name, crop, cropEmoji: "", area: areaHa, location, color, group: group || undefined });
@@ -49,19 +48,18 @@ const FieldEditDialog = ({ field, onSave, onDelete, onClose }: FieldEditDialogPr
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm pb-[env(safe-area-inset-bottom)]">
       <div className="bg-card rounded-xl border border-border p-5 w-80 space-y-4 shadow-2xl animate-fade-in mx-[5px] max-h-[85vh] overflow-y-auto mb-16 sm:mb-0">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-foreground">Edit Field</h3>
+          <h3 className="text-sm font-semibold text-foreground">Edit Region</h3>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors"><X className="w-4 h-4" /></button>
         </div>
 
         <div>
-          <label className="text-xs text-muted-foreground block mb-1">Field Name</label>
+          <label className="text-xs text-muted-foreground block mb-1">Region Name</label>
           <input type="text" value={name} onChange={(e) => setName(e.target.value)}
             className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
         </div>
 
-        {/* Crop with search dropdown */}
         <div className="relative">
-          <label className="text-xs text-muted-foreground block mb-1">Crop</label>
+          <label className="text-xs text-muted-foreground block mb-1">Crop / Land Use</label>
           <button type="button" onClick={() => setShowCropDropdown(!showCropDropdown)}
             className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground text-left focus:outline-none focus:ring-1 focus:ring-ring flex items-center justify-between">
             <span>{crop}</span><span className="text-muted-foreground text-xs">▼</span>
@@ -105,7 +103,7 @@ const FieldEditDialog = ({ field, onSave, onDelete, onClose }: FieldEditDialogPr
 
         <div>
           <label className="text-xs text-muted-foreground block mb-1">Location</label>
-          <LocationAutocomplete value={location} onChange={setLocation} placeholder="Search location…" />
+          <LocationAutocomplete value={location} onChange={setLocation} placeholder="Search location..." />
         </div>
 
         <div>
@@ -119,7 +117,7 @@ const FieldEditDialog = ({ field, onSave, onDelete, onClose }: FieldEditDialogPr
         </div>
 
         <div className="flex gap-3 pt-1">
-          <button onClick={() => onDelete(field.id)} className="p-2.5 rounded-lg border border-destructive/30 text-destructive hover:bg-destructive/10 transition-colors" title="Delete field">
+          <button onClick={() => onDelete(field.id)} className="p-2.5 rounded-lg border border-destructive/30 text-destructive hover:bg-destructive/10 transition-colors" title="Delete region">
             <Trash2 className="w-4 h-4" />
           </button>
           <button onClick={onClose} className="flex-1 py-2.5 rounded-lg border border-border text-sm text-foreground hover:bg-accent transition-colors">Cancel</button>

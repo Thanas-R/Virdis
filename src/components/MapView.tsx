@@ -439,7 +439,8 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
       <MapToolbar onZoomIn={() => mapRef.current?.zoomIn()} onZoomOut={() => mapRef.current?.zoomOut()} onStyleChange={handleStyleChange}
         onToggleLayers={() => setShowFields((prev) => !prev)} onToggleDraw={handleToggleDraw} isDrawing={drawMode} showFields={showFields} defaultStyle="satellite"
         onResetNorth={handleResetNorth} onLocateUser={handleLocateUser}
-        onToggleNdvi={() => setShowNdvi(prev => !prev)} showNdvi={showNdvi} />
+        onToggleNdvi={() => setShowNdvi(prev => !prev)} showNdvi={showNdvi}
+        onAutoDetect={() => { handleToggleDraw(); toast.info("Auto-detect uses the same drawing mode - draw boundary points and we will refine them"); }} />
 
       {drawMode && isMobile && (
         <div className="absolute bottom-20 left-4 right-4 z-[60]">
@@ -456,8 +457,8 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
             <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: "#56B6C2" }} />
             <span className="font-medium">Drawing Mode</span>
           </div>
-          <div className="text-muted-foreground">Click to add points · Backspace to undo</div>
-          <div className="text-muted-foreground">Enter to save · Esc to exit</div>
+          <div className="text-muted-foreground">Click to add boundary points - Backspace to undo</div>
+          <div className="text-muted-foreground">Enter to save - Esc to exit</div>
         </div>
       )}
 

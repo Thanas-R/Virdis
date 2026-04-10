@@ -7,7 +7,7 @@ interface MobileBottomNavProps {
 
 const tabs = [
   { id: "map" as const, icon: Map, label: "Map" },
-  { id: "fields" as const, icon: Layers, label: "Fields" },
+  { id: "fields" as const, icon: Layers, label: "Regions" },
   { id: "analytics" as const, icon: BarChart3, label: "Analytics" },
 ];
 
