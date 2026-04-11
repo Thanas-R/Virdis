@@ -327,13 +327,52 @@ serve(async (req) => {
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // ── Mode 2: AI-powered agronomic analysis (existing) ─────────
-    const { fieldName, crop, area, location, temperature, humidity, windSpeed, soilMoisture, ndviEstimate } = body;
+    // ── Mode 2: AI-powered analysis (rural or urban) ─────────
+    const { fieldName, crop, area, location, temperature, humidity, windSpeed, soilMoisture, ndviEstimate, isUrban } = body;
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    const prompt = `You are a concise agricultural analyst. Give a SHORT, pin-point analysis for this field. Use simple language.
+    const prompt = isUrban
+      ? `You are a concise urban sustainability analyst. Give a SHORT, data-driven analysis for this urban region. Focus on sustainability, environmental quality, and livability.
+
+**Region:** ${fieldName} | **Land Use:** ${crop} | **Area:** ${area} acres | **Location:** ${location}
+**Weather:** ${temperature}°C, ${humidity}% humidity, ${windSpeed} km/h wind
+**NDVI (Green Cover):** ${ndviEstimate || "0.30"}
+
+Respond in this EXACT format (keep each section to 1-2 sentences max):
+
+## Green Infrastructure Assessment
+[Assess green cover NDVI ${ndviEstimate || "0.30"} for an urban ${crop} area. Is it adequate?]
+
+## Heat Island Risk
+[Low/Medium/High risk based on green cover and temperature. One sentence recommendation.]
+
+## Air Quality & Health
+[Assessment based on temperature, humidity, and urban density]
+
+## Sustainability Score
+**Score: X/10** — [One line justification based on green cover, density, and environmental factors]
+
+## Improvement Recommendations
+- [Recommendation 1 — specific to this land use type]
+- [Recommendation 2 — actionable sustainability improvement]
+- [Recommendation 3 — community/infrastructure suggestion]
+
+## Stormwater & Drainage
+[Assessment of impervious surface risk and green infrastructure for water management]
+
+## Key Environmental Risks
+- [Risk 1]
+- [Risk 2]
+
+## Summary Table
+| Metric | Value | Status |
+|--------|-------|--------|
+| Green Cover | ${ndviEstimate || "0.30"} | [Good/Fair/Poor] |
+| Heat Island Risk | [Low/Med/High] | [emoji] |
+| Sustainability | [score] | [status] |`
+      : `You are a concise agricultural analyst. Give a SHORT, pin-point analysis for this field. Use simple language.
 
 **Field:** ${fieldName} | **Crop:** ${crop} | **Area:** ${area} acres | **Location:** ${location}
 **Weather:** ${temperature}°C, ${humidity}% humidity, ${windSpeed} km/h wind
@@ -378,7 +417,7 @@ Respond in this EXACT format (keep each section to 1-2 sentences max):
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: "You are a precision agriculture expert. Provide data-driven, actionable insights. Use markdown formatting. Be specific with numbers and recommendations." },
+          { role: "system", content: isUrban ? "You are an urban sustainability and environmental expert. Provide data-driven, actionable insights for improving urban environments. Use markdown formatting. Focus on sustainability, green infrastructure, and livability." : "You are a precision agriculture expert. Provide data-driven, actionable insights. Use markdown formatting. Be specific with numbers and recommendations." },
           { role: "user", content: prompt },
         ],
       }),
