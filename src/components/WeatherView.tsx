@@ -132,15 +132,6 @@ function setGeeCache(fieldId: string, data: any) {
   localStorage.setItem(GEE_ANALYTICS_CACHE_KEY, JSON.stringify(cache));
 }
 
-// Urban gardening suggestions
-const URBAN_GARDENING_TIPS = [
-  { crop: "Tomatoes", difficulty: "Easy", space: "Container/Balcony", season: "Spring-Summer" },
-  { crop: "Herbs (Basil, Mint)", difficulty: "Easy", space: "Windowsill", season: "Year-round" },
-  { crop: "Lettuce & Greens", difficulty: "Easy", space: "Container", season: "Spring-Fall" },
-  { crop: "Peppers", difficulty: "Medium", space: "Container/Balcony", season: "Summer" },
-  { crop: "Microgreens", difficulty: "Easy", space: "Indoor tray", season: "Year-round" },
-  { crop: "Strawberries", difficulty: "Medium", space: "Hanging basket", season: "Spring-Summer" },
-];
 
 const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProps) => {
   const isMobile = useIsMobile();
