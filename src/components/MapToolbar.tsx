@@ -1,4 +1,4 @@
-import { Layers, Plus, Minus, Map, PenTool, Compass, LocateFixed, Satellite, Crosshair } from "lucide-react";
+import { Layers, Plus, Minus, Map, PenTool, Compass, LocateFixed, Satellite } from "lucide-react";
 import { useState } from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -13,7 +13,7 @@ interface MapToolbarProps {
   onResetNorth?: () => void;
   onLocateUser?: () => void;
   onToggleNdvi?: () => void;
-  onAutoDetect?: () => void;
+  
   isDrawing?: boolean;
   showFields?: boolean;
   showNdvi?: boolean;
