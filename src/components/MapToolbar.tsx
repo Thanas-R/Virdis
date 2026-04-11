@@ -29,7 +29,7 @@ const MapToolbar = ({
   onResetNorth,
   onLocateUser,
   onToggleNdvi,
-  onAutoDetect,
+  
   isDrawing,
   showFields = true,
   showNdvi = false,
