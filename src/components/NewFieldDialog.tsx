@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Search } from "lucide-react";
+import { X, Search, Building2, Trees } from "lucide-react";
 import LocationAutocomplete from "./LocationAutocomplete";
 import { supabase } from "@/integrations/supabase/client";
 import { CROP_OPTIONS, CROP_CATEGORIES } from "@/data/crops";
@@ -8,6 +8,11 @@ const PRESET_COLORS = [
   "#D4A853", "#C75B7A", "#5BB8C7", "#8B9A5B", "#7BC75B",
   "#EAB947", "#E06C75", "#61AFEF", "#C678DD", "#98C379",
   "#D19A66", "#56B6C2", "#BE5046", "#E5C07B", "#FF6B6B",
+];
+
+const URBAN_LAND_USES = [
+  "Residential", "Commercial", "Park / Garden", "Industrial",
+  "Mixed Use", "Rooftop / Terrace", "Community Garden",
 ];
 
 function calculateAreaAcres(coords: [number, number][]): number {
@@ -41,7 +46,9 @@ interface NewFieldDialogProps {
 
 const NewFieldDialog = ({ coordinates, mapToken, onSave, onCancel }: NewFieldDialogProps) => {
   const [name, setName] = useState("");
+  const [regionType, setRegionType] = useState<"rural" | "urban">("rural");
   const [crop, setCrop] = useState("Wheat");
+  const [urbanLandUse, setUrbanLandUse] = useState("Residential");
   const [color, setColor] = useState("#EAB947");
   const [group, setGroup] = useState("");
   const [location, setLocation] = useState("");
@@ -86,7 +93,7 @@ const NewFieldDialog = ({ coordinates, mapToken, onSave, onCancel }: NewFieldDia
     const closed = [...coordinates, coordinates[0]] as [number, number][];
     onSave({
       name: name.trim(),
-      crop,
+      crop: regionType === "urban" ? urbanLandUse : crop,
       cropEmoji: "",
       area: estimatedHa,
       color,
@@ -112,39 +119,96 @@ const NewFieldDialog = ({ coordinates, mapToken, onSave, onCancel }: NewFieldDia
             className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" autoFocus />
         </div>
 
-        <div className="relative">
-          <label className="text-xs text-muted-foreground block mb-1">Crop / Land Use</label>
-          <button
-            type="button"
-            onClick={() => setShowCropDropdown(!showCropDropdown)}
-            className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground text-left focus:outline-none focus:ring-1 focus:ring-ring flex items-center justify-between"
-          >
-            <span>{crop}</span>
-            <span className="text-muted-foreground text-xs">▼</span>
-          </button>
-          {showCropDropdown && (
-            <div className="absolute top-full mt-1 left-0 right-0 bg-card border border-border rounded-lg shadow-xl z-30 max-h-56 overflow-y-auto">
-              <div className="sticky top-0 bg-card p-2 border-b border-border">
-                <div className="relative">
-                  <input type="text" value={cropSearch} onChange={e => setCropSearch(e.target.value)} placeholder="Search crops..."
-                    className="w-full bg-secondary/50 border border-border rounded-md px-3 py-1.5 pr-8 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" autoFocus />
-                  <Search className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                </div>
+        {/* Region Type Selector */}
+        <div>
+          <label className="text-xs text-muted-foreground block mb-1.5">Region Type</label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => setRegionType("rural")}
+              className={`flex items-center gap-2 p-2.5 rounded-lg border text-xs font-medium transition-all ${
+                regionType === "rural"
+                  ? "border-primary bg-primary/15 text-primary"
+                  : "border-border text-muted-foreground hover:bg-accent/20"
+              }`}
+            >
+              <Trees className="w-4 h-4" />
+              <div className="text-left">
+                <div>Rural / Land</div>
+                <div className="text-[10px] font-normal opacity-70">Farm, forest, field</div>
               </div>
-              {Object.entries(groupedCrops).map(([category, crops]) => (
-                <div key={category}>
-                  <div className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider bg-accent/20">{category}</div>
-                  {crops.map(c => (
-                    <button key={c.name} onClick={() => { setCrop(c.name); setShowCropDropdown(false); setCropSearch(""); }}
-                      className={`w-full text-left px-3 py-1.5 text-xs hover:bg-accent transition-colors ${crop === c.name ? "text-primary bg-primary/10" : "text-foreground"}`}>
-                      {c.name}
-                    </button>
-                  ))}
+            </button>
+            <button
+              onClick={() => setRegionType("urban")}
+              className={`flex items-center gap-2 p-2.5 rounded-lg border text-xs font-medium transition-all ${
+                regionType === "urban"
+                  ? "border-primary bg-primary/15 text-primary"
+                  : "border-border text-muted-foreground hover:bg-accent/20"
+              }`}
+            >
+              <Building2 className="w-4 h-4" />
+              <div className="text-left">
+                <div>Urban / City</div>
+                <div className="text-[10px] font-normal opacity-70">City, town, suburb</div>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        {/* Crop / Land Use - different options per type */}
+        {regionType === "rural" ? (
+          <div className="relative">
+            <label className="text-xs text-muted-foreground block mb-1">Crop / Land Use</label>
+            <button
+              type="button"
+              onClick={() => setShowCropDropdown(!showCropDropdown)}
+              className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground text-left focus:outline-none focus:ring-1 focus:ring-ring flex items-center justify-between"
+            >
+              <span>{crop}</span>
+              <span className="text-muted-foreground text-xs">▼</span>
+            </button>
+            {showCropDropdown && (
+              <div className="absolute top-full mt-1 left-0 right-0 bg-card border border-border rounded-lg shadow-xl z-30 max-h-56 overflow-y-auto">
+                <div className="sticky top-0 bg-card p-2 border-b border-border">
+                  <div className="relative">
+                    <input type="text" value={cropSearch} onChange={e => setCropSearch(e.target.value)} placeholder="Search crops..."
+                      className="w-full bg-secondary/50 border border-border rounded-md px-3 py-1.5 pr-8 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" autoFocus />
+                    <Search className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                  </div>
                 </div>
+                {Object.entries(groupedCrops).map(([category, crops]) => (
+                  <div key={category}>
+                    <div className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider bg-accent/20">{category}</div>
+                    {crops.map(c => (
+                      <button key={c.name} onClick={() => { setCrop(c.name); setShowCropDropdown(false); setCropSearch(""); }}
+                        className={`w-full text-left px-3 py-1.5 text-xs hover:bg-accent transition-colors ${crop === c.name ? "text-primary bg-primary/10" : "text-foreground"}`}>
+                        {c.name}
+                      </button>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div>
+            <label className="text-xs text-muted-foreground block mb-1">Urban Land Use</label>
+            <div className="grid grid-cols-2 gap-1.5">
+              {URBAN_LAND_USES.map(use => (
+                <button
+                  key={use}
+                  onClick={() => setUrbanLandUse(use)}
+                  className={`px-2.5 py-1.5 rounded-lg border text-xs transition-all ${
+                    urbanLandUse === use
+                      ? "border-primary bg-primary/15 text-primary font-medium"
+                      : "border-border text-muted-foreground hover:bg-accent/20"
+                  }`}
+                >
+                  {use}
+                </button>
               ))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-3">
           <div>
