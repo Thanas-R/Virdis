@@ -132,15 +132,6 @@ function setGeeCache(fieldId: string, data: any) {
   localStorage.setItem(GEE_ANALYTICS_CACHE_KEY, JSON.stringify(cache));
 }
 
-// Urban gardening suggestions
-const URBAN_GARDENING_TIPS = [
-  { crop: "Tomatoes", difficulty: "Easy", space: "Container/Balcony", season: "Spring-Summer" },
-  { crop: "Herbs (Basil, Mint)", difficulty: "Easy", space: "Windowsill", season: "Year-round" },
-  { crop: "Lettuce & Greens", difficulty: "Easy", space: "Container", season: "Spring-Fall" },
-  { crop: "Peppers", difficulty: "Medium", space: "Container/Balcony", season: "Summer" },
-  { crop: "Microgreens", difficulty: "Easy", space: "Indoor tray", season: "Year-round" },
-  { crop: "Strawberries", difficulty: "Medium", space: "Hanging basket", season: "Spring-Summer" },
-];
 
 const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProps) => {
   const isMobile = useIsMobile();
@@ -476,7 +467,12 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
                     <X className="w-3 h-3 ml-1 text-muted-foreground" />
                   </button>
                 )}
-                {!isMobile && <span className="text-xs italic" style={{ color: "#C6B77E" }}>Data may not always be accurate</span>}
+                {!isMobile && (
+                  <span className="flex items-center gap-1 text-xs italic" style={{ color: "#C6B77E" }}>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                    Data may not always be accurate
+                  </span>
+                )}
               </div> :
         <div className="text-sm text-muted-foreground">Weather unavailable</div>
         }
@@ -558,21 +554,25 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
             )}
             </div>
 
-            {/* Urban: Home Gardening Suggestions */}
+            {/* Urban: Sustainability Focus */}
             {urban && (
               <div className="animate-fade-in" style={{ animationDelay: "100ms" }}>
                 <h3 className="text-sm font-medium text-foreground mb-4 flex items-center gap-2">
-                  <Building2 className="w-4 h-4" /> What You Can Grow at Home
+                  <Building2 className="w-4 h-4" /> Urban Sustainability Overview
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {URBAN_GARDENING_TIPS.map((tip, i) => (
-                    <div key={i} className="p-3 rounded-xl border border-border bg-accent/15 space-y-1.5">
-                      <div className="text-sm font-semibold text-foreground">{tip.crop}</div>
-                      <div className="flex flex-wrap gap-1.5">
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/15 text-primary">{tip.difficulty}</span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent/30 text-muted-foreground">{tip.space}</span>
-                      </div>
-                      <div className="text-[10px] text-muted-foreground">{tip.season}</div>
+                  {[
+                    { label: "Green Space", value: geeData?.land_use ? `${100 - (geeData.land_use["Built-up"] || 0)}%` : "N/A", desc: "Non built-up area" },
+                    { label: "Tree Cover", value: geeData?.land_use?.["Tree cover"] ? `${geeData.land_use["Tree cover"]}%` : "N/A", desc: "Urban canopy" },
+                    { label: "Air Quality", value: aqiData ? getAqiLabel(aqiData.european_aqi).label : "N/A", desc: aqiData ? `AQI ${aqiData.european_aqi}` : "" },
+                    { label: "Heat Index", value: liveWeather ? `${liveWeather.feelsLike}°C` : "N/A", desc: "Feels like temp" },
+                    { label: "Humidity", value: liveWeather ? `${liveWeather.humidity}%` : "N/A", desc: "Relative humidity" },
+                    { label: "Water Score", value: geeData?.suitability?.water_access != null ? `${geeData.suitability.water_access}/100` : "N/A", desc: "Water accessibility" },
+                  ].map((item, i) => (
+                    <div key={i} className="p-3 rounded-xl border border-border bg-accent/15 space-y-0.5">
+                      <div className="text-[10px] text-muted-foreground">{item.label}</div>
+                      <div className="text-sm font-semibold text-foreground">{item.value}</div>
+                      <div className="text-[10px] text-muted-foreground">{item.desc}</div>
                     </div>
                   ))}
                 </div>
@@ -818,16 +818,16 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
             </div>
             )}
 
-            {/* Urban: Additional tips */}
+            {/* Urban: Sustainability Insights */}
             {urban && (
               <div className="animate-fade-in p-4 rounded-xl border border-border bg-accent/15" style={{ animationDelay: "400ms" }}>
                 <h3 className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
-                  <Building2 className="w-4 h-4" /> Urban Region Insights
+                  <Building2 className="w-4 h-4" /> Sustainability Insights
                 </h3>
                 <div className="text-xs text-muted-foreground space-y-2 leading-relaxed">
-                  <p>This region has significant built-up area ({geeData?.land_use?.["Built-up"] || 0}%). The analytics are tailored for urban environments.</p>
-                  <p>Green cover and air quality are key indicators for urban livability. Consider rooftop gardens, balcony planters, or community garden spaces for growing food at home.</p>
-                  <p>The temperature and precipitation data can help you plan seasonal container gardening and indoor growing cycles.</p>
+                  <p>This urban region has {geeData?.land_use?.["Built-up"] || 0}% built-up area. Green cover and air quality are critical sustainability indicators.</p>
+                  <p>Focus areas: urban heat island mitigation, stormwater management, biodiversity corridors, and improving walkability & green infrastructure.</p>
+                  <p>Precipitation and soil data can inform urban drainage planning and green roof feasibility assessments.</p>
                 </div>
               </div>
             )}

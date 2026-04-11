@@ -440,7 +440,7 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
         onToggleLayers={() => setShowFields((prev) => !prev)} onToggleDraw={handleToggleDraw} isDrawing={drawMode} showFields={showFields} defaultStyle="satellite"
         onResetNorth={handleResetNorth} onLocateUser={handleLocateUser}
         onToggleNdvi={() => setShowNdvi(prev => !prev)} showNdvi={showNdvi}
-        onAutoDetect={() => { handleToggleDraw(); toast.info("Auto-detect uses the same drawing mode - draw boundary points and we will refine them"); }} />
+        />
 
       {drawMode && isMobile && (
         <div className="absolute bottom-20 left-4 right-4 z-[60]">
