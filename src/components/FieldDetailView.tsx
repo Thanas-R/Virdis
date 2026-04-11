@@ -1,11 +1,17 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   ArrowLeft, Droplets, Wind, Sprout, MapPin,
-  Leaf, Move, Brain, Loader2, Satellite,
+  Leaf, Move, Brain, Loader2, Satellite, Building2, AlertTriangle, Factory,
 } from "lucide-react";
 import { Field, haToAcres } from "@/data/fields";
 import { supabase } from "@/integrations/supabase/client";
 import ReactMarkdown from "react-markdown";
+
+const URBAN_CROPS = ["Residential", "Commercial", "Park / Garden", "Industrial", "Mixed Use", "Rooftop / Terrace", "Community Garden"];
+
+function isUrbanField(field: Field): boolean {
+  return URBAN_CROPS.includes(field.crop);
+}
 
 interface FieldDetailViewProps {
   field: Field;
@@ -191,6 +197,7 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
   const [showAnalysis, setShowAnalysis] = useState(false);
 
   const areaAcres = haToAcres(field.area);
+  const urban = isUrbanField(field);
 
   // Fetch weather
   useEffect(() => {
@@ -263,6 +270,7 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
           fieldName: field.name, crop: field.crop, area: areaAcres, location: field.location,
           temperature: weather?.temperature_2m ?? 25, humidity: weather?.relative_humidity_2m ?? 60,
           windSpeed: weather?.wind_speed_10m ?? 10, soilMoisture: 45, ndviEstimate,
+          isUrban: urban,
         },
       });
       if (error) throw error;
@@ -284,26 +292,32 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
         </button>
         <div className="flex items-center gap-3 flex-1">
           <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: field.color + "20" }}>
-            <div className="w-5 h-5 rounded" style={{ backgroundColor: field.color + "66", border: `2px solid ${field.color}` }} />
+            {urban ? <Building2 className="w-5 h-5" style={{ color: field.color }} /> :
+              <div className="w-5 h-5 rounded" style={{ backgroundColor: field.color + "66", border: `2px solid ${field.color}` }} />}
           </div>
           <div>
             <h2 className="text-sm font-semibold text-foreground">{field.name}</h2>
-            <p className="text-xs text-muted-foreground">{field.crop} · {areaAcres} acres</p>
+            <p className="text-xs text-muted-foreground">
+              {field.crop} · {areaAcres} acres
+              {urban && <span className="ml-1.5 px-1.5 py-0.5 rounded bg-destructive/20 text-destructive text-[10px] font-medium">Urban</span>}
+            </p>
           </div>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-5">
-        {/* Field Info */}
+        {/* Region Info */}
         <div className="p-4 rounded-xl border border-border bg-accent/15">
-          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Region Info</h3>
+          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+            {urban ? "Urban Region Info" : "Region Info"}
+          </h3>
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <span className="text-xs text-muted-foreground">Area</span>
               <div className="text-foreground font-medium">{areaAcres} acres</div>
             </div>
             <div>
-              <span className="text-xs text-muted-foreground">Crop</span>
+              <span className="text-xs text-muted-foreground">{urban ? "Land Use" : "Crop"}</span>
               <div className="text-foreground font-medium">{field.crop}</div>
             </div>
             <div className="col-span-2">
@@ -329,11 +343,11 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
           )}
         </div>
 
-        {/* NDVI Satellite Analysis */}
+        {/* Satellite Analysis - label changes for urban */}
         <div>
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-              <Satellite className="w-3.5 h-3.5" /> Satellite NDVI Analysis
+              <Satellite className="w-3.5 h-3.5" /> {urban ? "Green Cover Analysis" : "Satellite NDVI Analysis"}
             </h3>
             <button onClick={fetchNdviStats} disabled={ndviLoading}
               className="text-xs px-3 py-1 rounded-md border border-border text-foreground hover:bg-accent transition-colors disabled:opacity-50">
@@ -346,19 +360,17 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
             </div>
           ) : ndviStats ? (
             <div className="p-4 rounded-xl border border-border bg-accent/15 space-y-3">
-              {/* Health score bar */}
               <div className="flex items-center justify-between">
                 <span className="text-2xl font-light text-foreground">{ndviStats.vegetation_health_score}<span className="text-sm text-muted-foreground">/100</span></span>
                 <span className="text-xs px-2 py-0.5 rounded-full font-medium"
                   style={{ backgroundColor: ndviColor(ndviStats.mean_ndvi) + "30", color: ndviColor(ndviStats.mean_ndvi) }}>
-                  {ndviLabel(ndviStats.mean_ndvi)}
+                  {urban ? (ndviStats.mean_ndvi > 0.4 ? "Good Green Cover" : "Low Green Cover") : ndviLabel(ndviStats.mean_ndvi)}
                 </span>
               </div>
               <div className="w-full h-2 rounded-full bg-muted/30 overflow-hidden">
                 <div className="h-full rounded-full transition-all duration-500"
                   style={{ width: `${ndviStats.vegetation_health_score}%`, background: `linear-gradient(90deg, #d73027, #fee08b, #66bd63, #006837)` }} />
               </div>
-              {/* NDVI metrics */}
               <div className="grid grid-cols-3 gap-3 text-center">
                 <div className="p-2 rounded-lg bg-muted/20">
                   <div className="text-[10px] text-muted-foreground uppercase">Mean</div>
@@ -373,9 +385,12 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
                   <div className="text-sm font-semibold text-foreground">{ndviStats.max_ndvi.toFixed(3)}</div>
                 </div>
               </div>
-              <div className="text-[10px] text-muted-foreground flex justify-between">
+              <div className="text-[10px] text-muted-foreground flex items-center justify-between">
                 <span>Sentinel-2 · {ndviStats.pixel_count} pixels</span>
-                <span>{ndviStats.acquisition_date}</span>
+                <span className="flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3" style={{ color: "#C6B77E" }} />
+                  <span style={{ color: "#C6B77E" }}>May not be fully accurate</span>
+                </span>
               </div>
             </div>
           ) : (
@@ -408,14 +423,46 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
           )}
         </div>
 
-        {/* Growth Stage */}
-        <GrowthStageSection polygon={field.coordinates[0]} fieldId={field.id} />
+        {/* Growth Stage - only for rural */}
+        {!urban && <GrowthStageSection polygon={field.coordinates[0]} fieldId={field.id} />}
+
+        {/* Urban-specific section */}
+        {urban && (
+          <div>
+            <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <Building2 className="w-3.5 h-3.5" /> Urban Sustainability
+            </h3>
+            <div className="p-4 rounded-xl border border-border bg-accent/15 space-y-3">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <span className="text-xs text-muted-foreground">Green Cover Score</span>
+                  <div className="text-foreground font-medium">{ndviStats ? `${ndviStats.vegetation_health_score}/100` : "N/A"}</div>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground">Land Use Type</span>
+                  <div className="text-foreground font-medium">{field.crop}</div>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground">Temperature</span>
+                  <div className="text-foreground font-medium">{weather ? `${Math.round(weather.temperature_2m)}°C` : "N/A"}</div>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground">Humidity</span>
+                  <div className="text-foreground font-medium">{weather ? `${weather.relative_humidity_2m}%` : "N/A"}</div>
+                </div>
+              </div>
+              <div className="text-[10px] text-muted-foreground leading-relaxed">
+                Urban regions are analyzed for sustainability metrics including green infrastructure coverage, heat island effect, air quality, and environmental resilience.
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* AI Analysis */}
         <div>
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-              <Brain className="w-3.5 h-3.5" /> AI Region Analysis
+              <Brain className="w-3.5 h-3.5" /> {urban ? "AI Sustainability Analysis" : "AI Region Analysis"}
             </h3>
             <button onClick={fetchAiAnalysis} disabled={aiLoading}
               className="text-xs px-3 py-1 rounded-md border border-border text-foreground hover:bg-accent transition-colors disabled:opacity-50">
@@ -426,7 +473,7 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
             <div className="p-4 rounded-xl border border-border bg-accent/15">
               {aiLoading ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="w-4 h-4 animate-spin" /> Generating region analysis...
+                  <Loader2 className="w-4 h-4 animate-spin" /> Generating {urban ? "sustainability" : "region"} analysis...
                 </div>
               ) : (
                 <div className="prose prose-sm prose-invert max-w-none text-foreground
@@ -469,6 +516,10 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
                   })}
                 </div>
               )}
+              <div className="mt-3 flex items-center gap-1 text-[10px]" style={{ color: "#C6B77E" }}>
+                <AlertTriangle className="w-3 h-3" />
+                AI-generated analysis may not always be accurate
+              </div>
             </div>
           )}
         </div>
