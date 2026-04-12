@@ -6,11 +6,14 @@ import mapboxgl from "mapbox-gl";
 import {
   Loader2, Sprout, TreePine, Droplets, TrendingUp, RotateCw,
   Lightbulb, Layers, ArrowRight, Zap, CalendarDays, ChevronDown,
+  Download,
 } from "lucide-react";
 import {
   Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell,
 } from "recharts";
+import { Tooltip as UITooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import jsPDF from "jspdf";
 import { Tooltip as UITooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface CropZone {
