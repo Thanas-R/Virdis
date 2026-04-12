@@ -826,7 +826,17 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
             </div>
             )}
 
-            {/* Urban: Sustainability Insights */}
+            {/* AI Crop Planning */}
+            {!urban && effectiveField && mapToken && (
+              <CropPlanningSection
+                field={effectiveField}
+                ndviData={ndviTimeSeries ? { mean_ndvi: ndviTimeSeries.mean_ndvi, min_ndvi: ndviTimeSeries.min_ndvi, max_ndvi: ndviTimeSeries.max_ndvi, vegetation_health_score: ndviTimeSeries.vegetation_health_score } : undefined}
+                soilData={soilData || undefined}
+                weatherData={liveWeather ? { temperature: liveWeather.temperature, humidity: liveWeather.humidity, windSpeed: liveWeather.windSpeed } : undefined}
+                suitabilityData={geeData?.suitability || undefined}
+                mapToken={mapToken}
+              />
+            )}
             {urban && (
               <div className="animate-fade-in p-4 rounded-xl border border-border bg-accent/15" style={{ animationDelay: "400ms" }}>
                 <h3 className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
