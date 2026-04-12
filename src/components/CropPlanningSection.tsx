@@ -401,7 +401,119 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
     }));
   }, [plan]);
 
-  // Always show map section — generate button overlaid if no plan
+  const exportPDF = useCallback(() => {
+    if (!plan) return;
+    const doc = new jsPDF();
+    const w = doc.internal.pageSize.getWidth();
+    let y = 20;
+
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Crop Plan: ${field.name}`, 14, y);
+    y += 8;
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Location: ${field.location} | Area: ${haToAcres(field.area).toFixed(1)} acres | Crop: ${field.crop}`, 14, y);
+    y += 6;
+    doc.text(`Score: ${plan.overall_score}/10 | Water Saved: ${plan.water_saving_pct}% | Revenue Boost: +${plan.expected_revenue_increase_pct}%`, 14, y);
+    y += 10;
+
+    doc.setDrawColor(200);
+    doc.line(14, y, w - 14, y);
+    y += 8;
+
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text("Summary", 14, y);
+    y += 6;
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    const summaryLines = doc.splitTextToSize(plan.summary, w - 28);
+    doc.text(summaryLines, 14, y);
+    y += summaryLines.length * 4.5 + 6;
+
+    // Zones
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text("Crop Zones", 14, y);
+    y += 6;
+    plan.zones.forEach((z) => {
+      if (y > 270) { doc.addPage(); y = 20; }
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text(`${z.name} — ${z.crop}`, 14, y);
+      y += 5;
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Area: ${z.area_pct}% | Spacing: ${z.spacing_m}m | Water: ${z.water_needs} | Season: ${z.season} | Yield: ${z.yield_estimate}`, 18, y);
+      y += 4;
+      const reasonLines = doc.splitTextToSize(z.reason, w - 32);
+      doc.text(reasonLines, 18, y);
+      y += reasonLines.length * 3.5 + 4;
+    });
+
+    // Intercropping
+    if (plan.intercropping.length > 0) {
+      if (y > 250) { doc.addPage(); y = 20; }
+      y += 4;
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text("Intercropping Suggestions", 14, y);
+      y += 6;
+      plan.intercropping.forEach((p) => {
+        if (y > 270) { doc.addPage(); y = 20; }
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "bold");
+        doc.text(`${p.primary} + ${p.secondary}`, 14, y);
+        y += 4;
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        const bLines = doc.splitTextToSize(p.benefit, w - 28);
+        doc.text(bLines, 18, y);
+        y += bLines.length * 3.5 + 2;
+        doc.text(`Spacing: ${p.spacing}`, 18, y);
+        y += 5;
+      });
+    }
+
+    // Rotation
+    if (plan.rotation_plan.length > 0) {
+      if (y > 250) { doc.addPage(); y = 20; }
+      y += 4;
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text("Crop Rotation Plan", 14, y);
+      y += 6;
+      plan.rotation_plan.forEach((s) => {
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "normal");
+        doc.text(`${s.season} (${s.months}): ${s.crops.join(", ")}`, 18, y);
+        y += 5;
+      });
+    }
+
+    // Tips
+    if (plan.tips.length > 0) {
+      if (y > 250) { doc.addPage(); y = 20; }
+      y += 6;
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text("Expert Tips", 14, y);
+      y += 6;
+      plan.tips.forEach((tip) => {
+        if (y > 275) { doc.addPage(); y = 20; }
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "normal");
+        const tLines = doc.splitTextToSize(`• ${tip}`, w - 28);
+        doc.text(tLines, 14, y);
+        y += tLines.length * 3.5 + 2;
+      });
+    }
+
+    doc.save(`crop-plan-${field.name.replace(/\s+/g, "-").toLowerCase()}.pdf`);
+  }, [plan, field]);
+
+
   return (
     <div className="animate-fade-in space-y-6" style={{ animationDelay: "450ms" }}>
       {/* Header */}
