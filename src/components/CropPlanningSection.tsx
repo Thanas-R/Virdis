@@ -227,16 +227,21 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
       style: "mapbox://styles/mapbox/satellite-streets-v12",
       center: [fieldCenter.lng, fieldCenter.lat],
       zoom: 15,
-      minZoom: 14,
+      minZoom: 15,
       maxZoom: 20,
       maxBounds,
       attributionControl: false,
       dragRotate: false,
       pitchWithRotate: false,
     });
-    // Allow zoom in but lock zoom out via minZoom
     map.scrollZoom.enable();
     map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "top-right");
+
+    // Lock zoom-out to fitted level after load
+    map.once("idle", () => {
+      const currentZoom = map.getZoom();
+      map.setMinZoom(currentZoom);
+    });
 
     mapRef.current = map;
 
