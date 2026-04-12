@@ -1215,9 +1215,6 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
         <div className="flex items-center gap-2">
           {plan && (
             <>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-primary/20 text-primary font-medium">
-                Score: {plan.overall_score}/10
-              </span>
               <button
                 onClick={exportPDF}
                 className="p-1.5 rounded-lg hover:bg-accent/30 transition-colors text-muted-foreground hover:text-foreground"
@@ -1271,20 +1268,33 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
         )}
 
         {plan && (
-          <div className="grid gap-3 mt-3 md:grid-cols-[minmax(0,1fr)_auto]">
+          <div className="grid gap-3 mt-3">
             <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setFilterZoneId(null)}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] border transition-all ${
+                  !filterZoneId
+                    ? "border-primary bg-primary/20 text-foreground font-medium"
+                    : "border-border bg-accent/10 text-muted-foreground hover:bg-accent/20"
+                }`}
+              >
+                All Crops
+              </button>
               {plan.zones.map((zone) => (
                 <UITooltip key={zone.id}>
                   <TooltipTrigger asChild>
                     <button
-                      onClick={() => setSelectedZone(zone)}
-                      className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] border transition-all ${
-                        selectedZone?.id === zone.id
-                          ? "border-primary bg-primary/20 text-foreground"
+                      onClick={() => {
+                        setFilterZoneId(filterZoneId === zone.id ? null : zone.id);
+                        setSelectedZone(zone);
+                      }}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] border transition-all ${
+                        filterZoneId === zone.id
+                          ? "border-primary bg-primary/20 text-foreground font-medium"
                           : "border-border bg-accent/10 text-muted-foreground hover:bg-accent/20"
                       }`}
                     >
-                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: zone.color }} />
+                      <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: zone.color }} />
                       {zone.crop}
                     </button>
                   </TooltipTrigger>
@@ -1300,7 +1310,7 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
 
             <div className="flex items-center gap-2 rounded-xl border border-border bg-accent/15 px-3 py-2 text-[10px] text-muted-foreground">
               <MapPinned className="w-3.5 h-3.5 text-primary" />
-              Zoom in for detail — zoom out is locked to the selected field boundary.
+              Click a crop to filter · Zoom in for detail
             </div>
           </div>
         )}
