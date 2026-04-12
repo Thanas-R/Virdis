@@ -14,3 +14,12 @@ verify_jwt = false
 
 [functions.crop-planning]
 verify_jwt = false
+
+[functions.get-mapbox-token]
+verify_jwt = false
+
+[functions.soil-data]
+verify_jwt = false
+
+[functions.analyze-field]
+verify_jwt = false
