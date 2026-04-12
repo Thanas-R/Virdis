@@ -827,7 +827,7 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
             )}
 
             {/* AI Crop Planning */}
-            {!urban && effectiveField && mapToken && (
+            {!urban && effectiveField && (
               <CropPlanningSection
                 field={effectiveField}
                 ndviData={ndviTimeSeries ? { mean_ndvi: ndviTimeSeries.mean_ndvi, min_ndvi: ndviTimeSeries.min_ndvi, max_ndvi: ndviTimeSeries.max_ndvi, vegetation_health_score: ndviTimeSeries.vegetation_health_score } : undefined}

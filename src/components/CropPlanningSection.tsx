@@ -809,10 +809,17 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
   const fetchPlan = useCallback(async () => {
     setLoading(true);
     setError(null);
-    setPlannerNotice(null);
+
+    const fallbackPlan = buildFallbackPlan();
+    setPlan(fallbackPlan);
+    setPlanCache(field.id, fallbackPlan);
+    setSelectedZone(fallbackPlan.zones[0] || null);
+    setPlannerNotice("Regional crop layout generated from NDVI, soil, rainfall, and water signals while live AI refinement runs in the background.");
+
+    let timeoutId: number | undefined;
 
     try {
-      const { data, error: fnError } = await supabase.functions.invoke("crop-planning", {
+      const invocation = supabase.functions.invoke("crop-planning", {
         body: {
           fieldName: field.name,
           crop: field.crop,
@@ -826,6 +833,12 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
         },
       });
 
+      const timeout = new Promise<never>((_, reject) => {
+        timeoutId = window.setTimeout(() => reject(new Error("Crop planning request timed out")), 12000);
+      });
+
+      const { data, error: fnError } = await Promise.race([invocation, timeout]);
+
       if (fnError) throw fnError;
       if (data?.error) throw new Error(data.error);
       if (!isValidPlan(data)) throw new Error("Planner returned an invalid plan");
@@ -838,15 +851,13 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
       setPlan(edgePlan);
       setPlanCache(field.id, edgePlan);
       setSelectedZone(edgePlan.zones[0] || null);
+      setPlannerNotice("Live AI analysis completed and updated this crop plan.");
     } catch (invokeError) {
-      console.error("Crop planning invoke failed, using local model:", invokeError);
-      const fallbackPlan = buildFallbackPlan();
-      setPlan(fallbackPlan);
-      setPlanCache(field.id, fallbackPlan);
-      setSelectedZone(fallbackPlan.zones[0] || null);
+      console.error("Crop planning invoke failed, keeping regional model:", invokeError);
       setPlannerNotice("Live planner is unavailable right now, so this view is using the regional agronomy model with NDVI, soil, rainfall, and water signals.");
       setError(null);
     } finally {
+      if (timeoutId) window.clearTimeout(timeoutId);
       setLoading(false);
     }
   }, [buildFallbackPlan, field, ndviData, soilData, suitabilityData, weatherData]);
