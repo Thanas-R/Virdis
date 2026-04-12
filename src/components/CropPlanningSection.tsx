@@ -14,7 +14,6 @@ import {
 } from "recharts";
 import { Tooltip as UITooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import jsPDF from "jspdf";
-import { Tooltip as UITooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface CropZone {
   id: string;
