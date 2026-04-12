@@ -528,6 +528,13 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
                 Score: {plan.overall_score}/10
               </span>
               <button
+                onClick={exportPDF}
+                className="p-1.5 rounded-lg hover:bg-accent/30 transition-colors text-muted-foreground hover:text-foreground"
+                title="Export as PDF"
+              >
+                <Download className="w-3.5 h-3.5" />
+              </button>
+              <button
                 onClick={fetchPlan}
                 disabled={loading}
                 className="p-1.5 rounded-lg hover:bg-accent/30 transition-colors text-muted-foreground hover:text-foreground"
