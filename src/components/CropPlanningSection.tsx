@@ -124,7 +124,7 @@ interface ZonePlacementMetrics {
 }
 
 const CROP_PLAN_CACHE_KEY = "crop-plan-cache";
-const MAX_GRID_MARKERS_PER_ZONE = 180;
+const MAX_GRID_MARKERS_TOTAL = 600;
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 const CROP_PROFILES: CropProfile[] = [
@@ -668,7 +668,9 @@ function getZonePlacementMetrics(field: Field, zone: CropZone): ZonePlacementMet
   const zoneAreaSqM = Math.max(field.area * 10000 * (zone.area_pct / 100), 90);
   const exactSpacing = Math.max(zone.spacing_m, 0.2);
   const exactPlantCount = Math.max(1, Math.round(zoneAreaSqM / (exactSpacing * exactSpacing)));
-  const visualSpacing = exactPlantCount > MAX_GRID_MARKERS_PER_ZONE ? Math.sqrt(zoneAreaSqM / MAX_GRID_MARKERS_PER_ZONE) : exactSpacing;
+  const totalFieldArea = field.area * 10000;
+  const maxForZone = Math.round(MAX_GRID_MARKERS_TOTAL * (zone.area_pct / 100));
+  const visualSpacing = exactPlantCount > maxForZone ? Math.sqrt(zoneAreaSqM / maxForZone) : exactSpacing;
   const visualPlantCount = Math.max(1, Math.round(zoneAreaSqM / (visualSpacing * visualSpacing)));
 
   return {
@@ -681,39 +683,54 @@ function getZonePlacementMetrics(field: Field, zone: CropZone): ZonePlacementMet
   };
 }
 
-function generateGridPoints(field: Field, fieldBounds: { minLng: number; maxLng: number; minLat: number; maxLat: number }, zone: CropZone) {
-  const metrics = getZonePlacementMetrics(field, zone);
-  const lng = fieldBounds.minLng + zone.position.x * (fieldBounds.maxLng - fieldBounds.minLng);
-  const lat = fieldBounds.minLat + zone.position.y * (fieldBounds.maxLat - fieldBounds.minLat);
-  const metersPerLng = Math.max(getMetersPerLng(lat), 1);
-  const metersPerLat = 111320;
+function generateFullFieldGrid(
+  field: Field,
+  fieldBounds: { minLng: number; maxLng: number; minLat: number; maxLat: number },
+  zones: CropZone[],
+): Array<{ lng: number; lat: number; zoneIndex: number }> {
   const polygon = field.coordinates[0] as [number, number][];
+  const centerLat = (fieldBounds.minLat + fieldBounds.maxLat) / 2;
+  const metersPerLng = Math.max(getMetersPerLng(centerLat), 1);
+  const metersPerLat = 111320;
+  const fieldAreaSqM = field.area * 10000;
 
-  const radiusX = Math.max(metrics.visualSpacing * 2.2, Math.sqrt(metrics.zoneAreaSqM) * 0.48);
-  const radiusY = Math.max(metrics.visualSpacing * 2, Math.sqrt(metrics.zoneAreaSqM) * 0.34);
-  const points: Array<{ lng: number; lat: number; index: number }> = [];
+  // Calculate spacing to fit MAX_GRID_MARKERS_TOTAL points in the field
+  const baseSpacing = Math.sqrt(fieldAreaSqM / MAX_GRID_MARKERS_TOTAL);
+  const spacingLng = baseSpacing / metersPerLng;
+  const spacingLat = baseSpacing / metersPerLat;
 
-  let index = 0;
-  for (let y = -radiusY; y <= radiusY; y += metrics.visualSpacing) {
-    const rowOffset = Math.abs(Math.round(y / metrics.visualSpacing)) % 2 === 0 ? 0 : metrics.visualSpacing / 2;
-    for (let x = -radiusX; x <= radiusX; x += metrics.visualSpacing) {
-      const shiftedX = x + rowOffset;
-      const ellipse = (shiftedX * shiftedX) / (radiusX * radiusX) + (y * y) / (radiusY * radiusY);
-      if (ellipse > 1) continue;
+  // Generate grid covering the bounding box
+  const allPoints: Array<{ lng: number; lat: number; zoneIndex: number }> = [];
+  const pad = 0.0001;
 
-      const pointLng = lng + shiftedX / metersPerLng;
-      const pointLat = lat + y / metersPerLat;
-      if (!pointInPolygon([pointLng, pointLat], polygon)) continue;
-
-      index += 1;
-      points.push({ lng: pointLng, lat: pointLat, index });
-      if (points.length >= MAX_GRID_MARKERS_PER_ZONE) {
-        return { points, center: { lng, lat }, metrics };
-      }
-    }
+  // Build cumulative area thresholds for zone assignment
+  const cumPct: number[] = [];
+  let running = 0;
+  for (const z of zones) {
+    running += z.area_pct;
+    cumPct.push(running);
   }
 
-  return { points, center: { lng, lat }, metrics };
+  let idx = 0;
+  for (let lat = fieldBounds.minLat - pad; lat <= fieldBounds.maxLat + pad; lat += spacingLat) {
+    const rowNum = Math.round((lat - fieldBounds.minLat) / spacingLat);
+    const offset = rowNum % 2 === 0 ? 0 : spacingLng * 0.5;
+    for (let lng = fieldBounds.minLng - pad + offset; lng <= fieldBounds.maxLng + pad; lng += spacingLng) {
+      if (!pointInPolygon([lng, lat], polygon)) continue;
+
+      // Assign zone based on spatial hash to create organic-looking clusters
+      const hash = Math.abs(Math.sin(lng * 73856093 + lat * 19349663) * 100) % 100;
+      let zoneIndex = 0;
+      for (let z = 0; z < cumPct.length; z++) {
+        if (hash < cumPct[z]) { zoneIndex = z; break; }
+      }
+
+      allPoints.push({ lng, lat, zoneIndex });
+      idx++;
+      if (idx >= MAX_GRID_MARKERS_TOTAL) return allPoints;
+    }
+  }
+  return allPoints;
 }
 
 const formatter = new Intl.NumberFormat();
@@ -740,6 +757,7 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
   const [error, setError] = useState<string | null>(null);
   const [plannerNotice, setPlannerNotice] = useState<string | null>(null);
   const [selectedZone, setSelectedZone] = useState<CropZone | null>(null);
+  const [filterZoneId, setFilterZoneId] = useState<string | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
