@@ -428,18 +428,13 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
         </div>
 
         {/* Water Stress Index */}
-        <div>
-          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
-            <Droplets className="w-3.5 h-3.5" /> Water Stress Index
-          </h3>
-          <div className="p-4 rounded-xl border border-border bg-accent/15 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-lg font-semibold" style={{ color: waterStress.color }}>{waterStress.label}</span>
-              {soilMoisture != null && <span className="text-xs text-muted-foreground">VWC: {soilMoisture}%</span>}
-            </div>
-            <p className="text-xs text-muted-foreground">{waterStress.detail}</p>
-            {soilData?.water_retention && (
-              <div className="grid grid-cols-3 gap-2 mt-2">
+        {soilData?.water_retention && (soilData.water_retention.field_capacity_pct != null || soilData.water_retention.wilting_point_pct != null || soilData.water_retention.available_water_pct != null) && (
+          <div>
+            <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <Droplets className="w-3.5 h-3.5" /> Water Stress Index
+            </h3>
+            <div className="p-4 rounded-xl border border-border bg-accent/15">
+              <div className="grid grid-cols-3 gap-2">
                 {soilData.water_retention.field_capacity_pct != null && (
                   <div className="p-2 rounded-lg bg-muted/20 text-center">
                     <div className="text-[10px] text-muted-foreground">Field Capacity</div>
@@ -459,9 +454,9 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
                   </div>
                 )}
               </div>
-            )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Satellite Analysis */}
         <div>
@@ -597,8 +592,7 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
           )}
         </div>
 
-        {/* Growth Stage - only for rural */}
-        {!urban && <GrowthStageSection polygon={field.coordinates[0]} fieldId={field.id} />}
+        {/* Growth Stage removed */}
 
         {/* Carbon Footprint Estimation - rural only */}
         {!urban && soilData && (

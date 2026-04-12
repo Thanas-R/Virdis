@@ -15,10 +15,7 @@ import {
   ArrowRight,
   Zap,
   CalendarDays,
-  ChevronDown,
   Download,
-  MapPinned,
-  Ruler,
 } from "lucide-react";
 import {
   Tooltip,
@@ -97,6 +94,7 @@ interface CropProfile {
   baseYield: number;
   season: string;
   tags: string[];
+  dotSize: number; // px size for map dot
 }
 
 interface PlanningSignals {
@@ -124,13 +122,14 @@ interface ZonePlacementMetrics {
 }
 
 const CROP_PLAN_CACHE_KEY = "crop-plan-cache";
-const MAX_GRID_MARKERS_TOTAL = 600;
+const MAX_GRID_MARKERS_TOTAL = 500;
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
+// Vibrant, distinct colors for each crop
 const CROP_PROFILES: CropProfile[] = [
   {
     name: "Coconut",
-    color: "#3B8F6D",
+    color: "#16A34A",
     spacing_m: 8,
     waterNeeds: "medium",
     tempRange: [24, 33],
@@ -140,10 +139,11 @@ const CROP_PROFILES: CropProfile[] = [
     baseYield: 6.4,
     season: "Perennial (Year-round)",
     tags: ["tree", "tropical", "humid", "coastal"],
+    dotSize: 16,
   },
   {
     name: "Banana",
-    color: "#C7A332",
+    color: "#EAB308",
     spacing_m: 3,
     waterNeeds: "high",
     tempRange: [23, 34],
@@ -153,10 +153,11 @@ const CROP_PROFILES: CropProfile[] = [
     baseYield: 24,
     season: "Perennial (Year-round)",
     tags: ["fruit", "tropical", "humid"],
+    dotSize: 14,
   },
   {
     name: "Turmeric",
-    color: "#D28F1A",
+    color: "#F97316",
     spacing_m: 0.45,
     waterNeeds: "medium",
     tempRange: [20, 32],
@@ -166,10 +167,11 @@ const CROP_PROFILES: CropProfile[] = [
     baseYield: 8.5,
     season: "Kharif (Jun-Feb)",
     tags: ["spice", "shade-friendly", "tropical"],
+    dotSize: 8,
   },
   {
     name: "Ginger",
-    color: "#A96B3A",
+    color: "#D97706",
     spacing_m: 0.35,
     waterNeeds: "medium",
     tempRange: [20, 30],
@@ -179,10 +181,11 @@ const CROP_PROFILES: CropProfile[] = [
     baseYield: 7.2,
     season: "Kharif (May-Jan)",
     tags: ["spice", "shade-friendly", "humid"],
+    dotSize: 8,
   },
   {
     name: "Black Pepper",
-    color: "#2E2A27",
+    color: "#7C3AED",
     spacing_m: 2,
     waterNeeds: "medium",
     tempRange: [21, 31],
@@ -192,10 +195,11 @@ const CROP_PROFILES: CropProfile[] = [
     baseYield: 3.2,
     season: "Perennial (Year-round)",
     tags: ["spice", "vine", "humid", "intercrop"],
+    dotSize: 12,
   },
   {
     name: "Rice",
-    color: "#5BAE4B",
+    color: "#22C55E",
     spacing_m: 0.2,
     waterNeeds: "high",
     tempRange: [21, 34],
@@ -205,10 +209,11 @@ const CROP_PROFILES: CropProfile[] = [
     baseYield: 4.8,
     season: "Kharif (Jun-Nov)",
     tags: ["grain", "high-water", "monsoon"],
+    dotSize: 7,
   },
   {
     name: "Sugarcane",
-    color: "#6B8E23",
+    color: "#84CC16",
     spacing_m: 1.4,
     waterNeeds: "high",
     tempRange: [21, 35],
@@ -218,10 +223,11 @@ const CROP_PROFILES: CropProfile[] = [
     baseYield: 78,
     season: "Annual (Feb-Mar planting)",
     tags: ["industrial", "high-water", "warm"],
+    dotSize: 12,
   },
   {
     name: "Maize",
-    color: "#E0B44F",
+    color: "#FACC15",
     spacing_m: 0.3,
     waterNeeds: "medium",
     tempRange: [18, 32],
@@ -231,10 +237,11 @@ const CROP_PROFILES: CropProfile[] = [
     baseYield: 5.6,
     season: "Kharif (Jun-Oct)",
     tags: ["grain", "moderate-water", "warm"],
+    dotSize: 9,
   },
   {
     name: "Millet",
-    color: "#B68642",
+    color: "#A3A3A3",
     spacing_m: 0.25,
     waterNeeds: "low",
     tempRange: [20, 34],
@@ -244,10 +251,11 @@ const CROP_PROFILES: CropProfile[] = [
     baseYield: 2.1,
     season: "Kharif (Jun-Sep)",
     tags: ["grain", "drought-tolerant", "dry"],
+    dotSize: 7,
   },
   {
     name: "Groundnut",
-    color: "#B35C38",
+    color: "#DC2626",
     spacing_m: 0.25,
     waterNeeds: "low",
     tempRange: [22, 31],
@@ -257,10 +265,11 @@ const CROP_PROFILES: CropProfile[] = [
     baseYield: 2.6,
     season: "Kharif (Jun-Oct)",
     tags: ["legume", "dry", "intercrop"],
+    dotSize: 8,
   },
   {
     name: "Chickpea",
-    color: "#8E6E53",
+    color: "#EC4899",
     spacing_m: 0.3,
     waterNeeds: "low",
     tempRange: [15, 28],
@@ -270,10 +279,11 @@ const CROP_PROFILES: CropProfile[] = [
     baseYield: 1.8,
     season: "Rabi (Oct-Mar)",
     tags: ["pulse", "low-water", "rotation"],
+    dotSize: 8,
   },
   {
     name: "Mung Bean",
-    color: "#4E9B5B",
+    color: "#14B8A6",
     spacing_m: 0.22,
     waterNeeds: "low",
     tempRange: [22, 34],
@@ -283,10 +293,11 @@ const CROP_PROFILES: CropProfile[] = [
     baseYield: 1.5,
     season: "Zaid (Mar-Jun)",
     tags: ["pulse", "soil-builder", "rotation"],
+    dotSize: 7,
   },
   {
     name: "Mustard",
-    color: "#D1A319",
+    color: "#FDE047",
     spacing_m: 0.3,
     waterNeeds: "low",
     tempRange: [12, 26],
@@ -296,10 +307,11 @@ const CROP_PROFILES: CropProfile[] = [
     baseYield: 1.4,
     season: "Rabi (Oct-Feb)",
     tags: ["oilseed", "cool", "rotation"],
+    dotSize: 8,
   },
   {
     name: "Tomato",
-    color: "#C94A3A",
+    color: "#EF4444",
     spacing_m: 0.6,
     waterNeeds: "medium",
     tempRange: [18, 30],
@@ -309,10 +321,11 @@ const CROP_PROFILES: CropProfile[] = [
     baseYield: 18,
     season: "Zaid (Jan-May)",
     tags: ["vegetable", "market", "moderate-water"],
+    dotSize: 9,
   },
   {
     name: "Wheat",
-    color: "#C8A55A",
+    color: "#F59E0B",
     spacing_m: 0.22,
     waterNeeds: "medium",
     tempRange: [12, 25],
@@ -322,6 +335,7 @@ const CROP_PROFILES: CropProfile[] = [
     baseYield: 3.4,
     season: "Rabi (Nov-Apr)",
     tags: ["grain", "cool", "rotation"],
+    dotSize: 7,
   },
 ];
 
@@ -336,21 +350,6 @@ const ZONE_POSITION_PRESETS: Record<number, { x: number; y: number }[]> = {
     { x: 0.72, y: 0.32 },
     { x: 0.32, y: 0.72 },
     { x: 0.72, y: 0.68 },
-  ],
-  5: [
-    { x: 0.24, y: 0.28 },
-    { x: 0.5, y: 0.22 },
-    { x: 0.76, y: 0.32 },
-    { x: 0.34, y: 0.74 },
-    { x: 0.72, y: 0.7 },
-  ],
-  6: [
-    { x: 0.2, y: 0.28 },
-    { x: 0.5, y: 0.2 },
-    { x: 0.8, y: 0.3 },
-    { x: 0.24, y: 0.7 },
-    { x: 0.56, y: 0.78 },
-    { x: 0.82, y: 0.64 },
   ],
 };
 
@@ -396,10 +395,10 @@ function parseMonthRange(monthsStr: string): number[] {
 }
 
 const SEASON_COLORS: Record<string, string> = {
-  Kharif: "#4CAF50",
-  Rabi: "#FF9800",
-  Zaid: "#2196F3",
-  Perennial: "#3B8F6D",
+  Kharif: "#22C55E",
+  Rabi: "#F97316",
+  Zaid: "#3B82F6",
+  Perennial: "#16A34A",
 };
 
 function getSeasonColor(season: string): string {
@@ -514,15 +513,23 @@ function getZoneReason(profile: CropProfile, signals: PlanningSignals, index: nu
 function chooseRotationPlan(chosenProfiles: CropProfile[], signals: PlanningSignals): RotationStep[] {
   const names = new Set(chosenProfiles.map((profile) => profile.name));
 
+  // Determine current season based on month
+  const currentMonth = new Date().getMonth(); // 0-11
+  const isKharif = currentMonth >= 5 && currentMonth <= 9;
+  const isRabi = currentMonth >= 10 || currentMonth <= 2;
+
   const kharif = signals.annualRainfall > 1400 ? (names.has("Rice") ? "Rice" : names.has("Turmeric") ? "Turmeric" : "Maize") : names.has("Millet") ? "Millet" : "Groundnut";
   const rabi = signals.temperature < 22 ? (names.has("Wheat") ? "Wheat" : "Chickpea") : names.has("Chickpea") ? "Chickpea" : "Mustard";
   const zaid = names.has("Mung Bean") ? "Mung Bean" : names.has("Tomato") ? "Tomato" : "Groundnut";
 
-  return [
-    { season: "Kharif", months: "Jun-Oct", crops: [kharif, names.has("Black Pepper") ? "Black Pepper" : "Soil cover crop"] },
-    { season: "Rabi", months: "Nov-Mar", crops: [rabi, names.has("Mustard") ? "Mustard" : "Mulch recovery"] },
-    { season: "Zaid", months: "Mar-Jun", crops: [zaid, "Mung Bean"] },
+  // Order rotation starting from current season
+  const seasons: RotationStep[] = [
+    { season: `Kharif${isKharif ? " (Current)" : ""}`, months: "Jun-Oct", crops: [kharif, names.has("Black Pepper") ? "Black Pepper" : "Cover crop"] },
+    { season: `Rabi${isRabi ? " (Current)" : ""}`, months: "Nov-Mar", crops: [rabi, names.has("Mustard") ? "Mustard" : "Mulch recovery"] },
+    { season: `Zaid${!isKharif && !isRabi ? " (Current)" : ""}`, months: "Mar-Jun", crops: [zaid, "Mung Bean"] },
   ];
+
+  return seasons;
 }
 
 function chooseIntercropping(chosenProfiles: CropProfile[], signals: PlanningSignals): IntercroppingPair[] {
@@ -596,10 +603,32 @@ function buildLocalCropPlan({ field, ndviData, soilData, weatherData, suitabilit
     score: scoreCropProfile(profile, signals, field.crop),
   })).sort((left, right) => right.score - left.score);
 
-  const zoneCount = clamp(field.area > 8 ? 5 : field.area > 2 ? 4 : 3, 3, 5);
-  const chosen = scoredProfiles.slice(0, zoneCount);
+  // Max 3-4 crops, ensure current crop is included, and ensure at least one tree if reasonable
+  const zoneCount = clamp(field.area > 5 ? 4 : 3, 3, 4);
+  let chosen = scoredProfiles.slice(0, zoneCount);
+
+  // Ensure current crop is in the plan
+  const currentCropInPlan = chosen.some(c => c.profile.name.toLowerCase() === field.crop.toLowerCase());
+  if (!currentCropInPlan) {
+    const currentProfile = scoredProfiles.find(c => c.profile.name.toLowerCase() === field.crop.toLowerCase());
+    if (currentProfile) {
+      chosen[chosen.length - 1] = currentProfile;
+    }
+  }
+
+  // Ensure at least one tree-type crop (1 in ~80 dots minimum)
+  const hasTree = chosen.some(c => c.profile.tags.includes("tree"));
+  if (!hasTree) {
+    const bestTree = scoredProfiles.find(c => c.profile.tags.includes("tree"));
+    if (bestTree) {
+      // Replace lowest-scored non-current crop
+      const replaceIdx = chosen.length - 1;
+      chosen[replaceIdx] = bestTree;
+    }
+  }
+
   const weights = normalizeAreaPercents(chosen.map((item) => item.score));
-  const positions = ZONE_POSITION_PRESETS[chosen.length] || ZONE_POSITION_PRESETS[4];
+  const positions = ZONE_POSITION_PRESETS[chosen.length] || ZONE_POSITION_PRESETS[4] || ZONE_POSITION_PRESETS[3];
 
   const zones: CropZone[] = chosen.map(({ profile, score }, index) => ({
     id: `zone-${index + 1}`,
@@ -612,7 +641,7 @@ function buildLocalCropPlan({ field, ndviData, soilData, weatherData, suitabilit
     water_needs: profile.waterNeeds,
     season: profile.season,
     yield_estimate: formatYield(profile, clamp(score, 0.45, 1.25), signals.healthScore),
-    position: positions[index],
+    position: positions[index] || { x: 0.5, y: 0.5 },
   }));
 
   const chosenProfiles = chosen.map((item) => item.profile);
@@ -668,7 +697,6 @@ function getZonePlacementMetrics(field: Field, zone: CropZone): ZonePlacementMet
   const zoneAreaSqM = Math.max(field.area * 10000 * (zone.area_pct / 100), 90);
   const exactSpacing = Math.max(zone.spacing_m, 0.2);
   const exactPlantCount = Math.max(1, Math.round(zoneAreaSqM / (exactSpacing * exactSpacing)));
-  const totalFieldArea = field.area * 10000;
   const maxForZone = Math.round(MAX_GRID_MARKERS_TOTAL * (zone.area_pct / 100));
   const visualSpacing = exactPlantCount > maxForZone ? Math.sqrt(zoneAreaSqM / maxForZone) : exactSpacing;
   const visualPlantCount = Math.max(1, Math.round(zoneAreaSqM / (visualSpacing * visualSpacing)));
@@ -683,6 +711,7 @@ function getZonePlacementMetrics(field: Field, zone: CropZone): ZonePlacementMet
   };
 }
 
+// Generate grid with spatial clustering so zones are somewhat localized but with mixing
 function generateFullFieldGrid(
   field: Field,
   fieldBounds: { minLng: number; maxLng: number; minLat: number; maxLat: number },
@@ -694,12 +723,10 @@ function generateFullFieldGrid(
   const metersPerLat = 111320;
   const fieldAreaSqM = field.area * 10000;
 
-  // Calculate spacing to fit MAX_GRID_MARKERS_TOTAL points in the field
   const baseSpacing = Math.sqrt(fieldAreaSqM / MAX_GRID_MARKERS_TOTAL);
   const spacingLng = baseSpacing / metersPerLng;
   const spacingLat = baseSpacing / metersPerLat;
 
-  // Generate grid covering the bounding box
   const allPoints: Array<{ lng: number; lat: number; zoneIndex: number }> = [];
   const pad = 0.0001;
 
@@ -711,6 +738,21 @@ function generateFullFieldGrid(
     cumPct.push(running);
   }
 
+  // Create zone centers for spatial clustering
+  const fieldCenterLng = (fieldBounds.minLng + fieldBounds.maxLng) / 2;
+  const fieldCenterLat = (fieldBounds.minLat + fieldBounds.maxLat) / 2;
+  const fieldWidth = fieldBounds.maxLng - fieldBounds.minLng;
+  const fieldHeight = fieldBounds.maxLat - fieldBounds.minLat;
+
+  // Assign zone centers at different positions in the field
+  const zoneCenters = zones.map((_, i) => {
+    const angle = (i / zones.length) * Math.PI * 2 + Math.PI / 4;
+    return {
+      lng: fieldCenterLng + Math.cos(angle) * fieldWidth * 0.25,
+      lat: fieldCenterLat + Math.sin(angle) * fieldHeight * 0.25,
+    };
+  });
+
   let idx = 0;
   for (let lat = fieldBounds.minLat - pad; lat <= fieldBounds.maxLat + pad; lat += spacingLat) {
     const rowNum = Math.round((lat - fieldBounds.minLat) / spacingLat);
@@ -718,14 +760,32 @@ function generateFullFieldGrid(
     for (let lng = fieldBounds.minLng - pad + offset; lng <= fieldBounds.maxLng + pad; lng += spacingLng) {
       if (!pointInPolygon([lng, lat], polygon)) continue;
 
-      // Assign zone based on spatial hash to create organic-looking clusters
-      const hash = Math.abs(Math.sin(lng * 73856093 + lat * 19349663) * 100) % 100;
-      let zoneIndex = 0;
-      for (let z = 0; z < cumPct.length; z++) {
-        if (hash < cumPct[z]) { zoneIndex = z; break; }
+      // Assign zone based on distance to zone centers (with some randomness for mixing)
+      const hash = Math.abs(Math.sin(lng * 73856093 + lat * 19349663) * 100);
+      const mixFactor = 0.3; // 30% random mixing
+
+      if (hash % 100 < mixFactor * 100) {
+        // Random assignment for mixing
+        const randomHash = hash % 100;
+        let zoneIndex = 0;
+        for (let z = 0; z < cumPct.length; z++) {
+          if (randomHash < cumPct[z]) { zoneIndex = z; break; }
+        }
+        allPoints.push({ lng, lat, zoneIndex });
+      } else {
+        // Distance-based assignment for clustering
+        let minDist = Infinity;
+        let zoneIndex = 0;
+        zoneCenters.forEach((center, z) => {
+          const dLng = (lng - center.lng) * metersPerLng;
+          const dLat = (lat - center.lat) * metersPerLat;
+          // Weight by area percentage (larger zones pull more)
+          const dist = Math.sqrt(dLng * dLng + dLat * dLat) / Math.sqrt(zones[z].area_pct / 100 + 0.1);
+          if (dist < minDist) { minDist = dist; zoneIndex = z; }
+        });
+        allPoints.push({ lng, lat, zoneIndex });
       }
 
-      allPoints.push({ lng, lat, zoneIndex });
       idx++;
       if (idx >= MAX_GRID_MARKERS_TOTAL) return allPoints;
     }
@@ -745,10 +805,15 @@ const CustomTooltipContent = ({ active, payload }: any) => {
       <div className="text-sm font-bold" style={{ color: data.color }}>
         {data.value || data.area_pct}%
       </div>
-      {data.reason && <div className="text-[10px] text-muted-foreground mt-1 max-w-[200px]">{data.reason}</div>}
     </div>
   );
 };
+
+// Get dot size from profile by crop name
+function getDotSize(cropName: string): number {
+  const profile = CROP_PROFILES.find(p => p.name.toLowerCase() === cropName.toLowerCase());
+  return profile?.dotSize || 10;
+}
 
 const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabilityData, mapToken }: CropPlanningSectionProps) => {
   const isMobile = useIsMobile();
@@ -757,13 +822,10 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
   const [error, setError] = useState<string | null>(null);
   const [plannerNotice, setPlannerNotice] = useState<string | null>(null);
   const [selectedZone, setSelectedZone] = useState<CropZone | null>(null);
-  const [filterZoneId, setFilterZoneId] = useState<string | null>(null);
-  const [showCalendar, setShowCalendar] = useState(false);
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
   const popupsRef = useRef<mapboxgl.Popup[]>([]);
-  const activeGridPopupRef = useRef<mapboxgl.Popup | null>(null);
 
   const fieldCenter = useMemo(() => {
     const coords = field.coordinates[0];
@@ -807,7 +869,6 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
         name: zone.crop,
         value: zone.area_pct,
         color: zone.color,
-        reason: zone.reason,
       })) || [],
     [plan],
   );
@@ -852,7 +913,7 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
       });
 
       const timeout = new Promise<never>((_, reject) => {
-        timeoutId = window.setTimeout(() => reject(new Error("Crop planning request timed out")), 12000);
+        timeoutId = window.setTimeout(() => reject(new Error("Crop planning request timed out")), 15000);
       });
 
       const { data, error: fnError } = await Promise.race([invocation, timeout]);
@@ -861,8 +922,11 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
       if (data?.error) throw new Error(data.error);
       if (!isValidPlan(data)) throw new Error("Planner returned an invalid plan");
 
+      // Limit to 3-4 zones max
+      const limitedZones = data.zones.slice(0, 4);
       const edgePlan: CropPlan = {
         ...data,
+        zones: limitedZones,
         planner_source: data.planner_source || "AI planner",
         generated_from: "edge",
       };
@@ -904,8 +968,6 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
       markersRef.current = [];
       popupsRef.current.forEach((popup) => popup.remove());
       popupsRef.current = [];
-      activeGridPopupRef.current?.remove();
-      activeGridPopupRef.current = null;
 
       const allPoints = generateFullFieldGrid(field, fieldBounds, cropPlan.zones);
 
@@ -913,44 +975,18 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
         const zone = cropPlan.zones[point.zoneIndex];
         if (!zone) return;
 
-        // If filtering, skip non-matching zones
-        if (filterZoneId && zone.id !== filterZoneId) return;
-
+        const dotSize = getDotSize(zone.crop);
         const dot = document.createElement("div");
         dot.style.cssText = `
-          width: 12px;
-          height: 12px;
+          width: ${dotSize}px;
+          height: ${dotSize}px;
           border-radius: 9999px;
           background: ${zone.color};
-          border: 1.5px solid rgba(255,255,255,0.8);
+          border: 1.5px solid rgba(255,255,255,0.7);
           opacity: 0.9;
-          box-shadow: 0 1px 6px rgba(0,0,0,0.35);
-          cursor: pointer;
-          transition: transform 0.15s ease;
+          box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+          pointer-events: none;
         `;
-        dot.title = `${zone.crop} · ${zone.spacing_m}m spacing`;
-
-        dot.addEventListener("mouseenter", () => { dot.style.transform = "scale(1.5)"; });
-        dot.addEventListener("mouseleave", () => { dot.style.transform = "scale(1)"; });
-        dot.addEventListener("click", () => {
-          activeGridPopupRef.current?.remove();
-          const metrics = placementMetrics[zone.id];
-          activeGridPopupRef.current = new mapboxgl.Popup({ offset: 10, closeButton: false, maxWidth: "220px" })
-            .setLngLat([point.lng, point.lat])
-            .setHTML(`
-              <div style="padding:4px 0;max-width:200px;">
-                <div style="font-weight:700;font-size:12px;margin-bottom:4px;">${zone.crop}</div>
-                <div style="font-size:11px;line-height:1.5;">
-                  Spacing: ${metrics?.exactSpacing || zone.spacing_m}m<br/>
-                  Plants: ~${formatter.format(metrics?.exactPlantCount || 0)}<br/>
-                  Water: ${zone.water_needs}<br/>
-                  Yield: ${zone.yield_estimate}
-                </div>
-              </div>
-            `)
-            .addTo(map);
-          setSelectedZone(zone);
-        });
 
         const gridMarker = new mapboxgl.Marker({ element: dot, anchor: "center" })
           .setLngLat([point.lng, point.lat])
@@ -958,7 +994,7 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
         markersRef.current.push(gridMarker);
       });
     },
-    [field, fieldBounds, placementMetrics, filterZoneId],
+    [field, fieldBounds],
   );
 
   useEffect(() => {
@@ -973,38 +1009,23 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
     markersRef.current = [];
     popupsRef.current.forEach((popup) => popup.remove());
     popupsRef.current = [];
-    activeGridPopupRef.current?.remove();
-    activeGridPopupRef.current = null;
 
     mapboxgl.accessToken = mapToken;
 
     const bounds = new mapboxgl.LngLatBounds();
     field.coordinates[0].forEach((coord) => bounds.extend(coord as [number, number]));
 
-    const padLng = (fieldBounds.maxLng - fieldBounds.minLng) * 0.15;
-    const padLat = (fieldBounds.maxLat - fieldBounds.minLat) * 0.15;
-    const maxBounds: [number, number, number, number] = [
-      fieldBounds.minLng - padLng,
-      fieldBounds.minLat - padLat,
-      fieldBounds.maxLng + padLng,
-      fieldBounds.maxLat + padLat,
-    ];
-
     const map = new mapboxgl.Map({
       container: mapContainer.current,
       style: "mapbox://styles/mapbox/satellite-streets-v12",
       center: [fieldCenter.lng, fieldCenter.lat],
       zoom: 16,
-      minZoom: 16,
-      maxZoom: 20,
-      maxBounds,
       attributionControl: false,
       dragRotate: false,
       pitchWithRotate: false,
     });
 
     map.scrollZoom.enable();
-    map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "top-right");
     mapRef.current = map;
 
     map.on("load", () => {
@@ -1031,10 +1052,8 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
         paint: { "line-color": "#ffffff", "line-width": 2.25, "line-dasharray": [3, 2] },
       });
 
-      map.fitBounds(bounds, { padding: 50, duration: 0 });
-      map.once("moveend", () => {
-        map.setMinZoom(map.getZoom());
-      });
+      // Fit to field bounds and show entire field
+      map.fitBounds(bounds, { padding: 40, duration: 0 });
 
       if (plan) addZoneMarkers(map, plan);
     });
@@ -1044,8 +1063,6 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
       markersRef.current = [];
       popupsRef.current.forEach((popup) => popup.remove());
       popupsRef.current = [];
-      activeGridPopupRef.current?.remove();
-      activeGridPopupRef.current = null;
       map.remove();
       mapRef.current = null;
     };
@@ -1079,7 +1096,7 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
     y += 5;
     doc.text(`Planner: ${plan.planner_source || "AI planner"}`, 14, y);
     y += 5;
-    doc.text(`Score: ${plan.overall_score}/10 | Water Saved: ${plan.water_saving_pct}% | Revenue Boost: +${plan.expected_revenue_increase_pct}%`, 14, y);
+    doc.text(`Water Saved: ${plan.water_saving_pct}% | Revenue Boost: +${plan.expected_revenue_increase_pct}%`, 14, y);
     y += 10;
 
     doc.setDrawColor(200);
@@ -1099,49 +1116,33 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
 
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
-    doc.text("Crop Zones & Spacing", 14, y);
+    doc.text("Crop Zones", 14, y);
     y += 6;
 
     plan.zones.forEach((zone) => {
-      const metrics = placementMetrics[zone.id] || getZonePlacementMetrics(field, zone);
-      if (y > 270) {
-        doc.addPage();
-        y = 20;
-      }
-
+      if (y > 270) { doc.addPage(); y = 20; }
       doc.setFontSize(10);
       doc.setFont("helvetica", "bold");
       doc.text(`${zone.name} — ${zone.crop}`, 14, y);
       y += 5;
-
       doc.setFontSize(8);
       doc.setFont("helvetica", "normal");
-      doc.text(`Area: ${zone.area_pct}% | Exact spacing: ${metrics.exactSpacing}m | Plants: ~${formatter.format(metrics.exactPlantCount)} | Water: ${zone.water_needs}`, 18, y);
+      doc.text(`Area: ${zone.area_pct}% | Spacing: ${zone.spacing_m}m | Water: ${zone.water_needs} | Yield: ${zone.yield_estimate}`, 18, y);
       y += 4;
-      doc.text(`Season: ${zone.season} | Yield: ${zone.yield_estimate}${metrics.sampled ? ` | Map sampled at ${metrics.visualSpacing}m` : ""}`, 18, y);
-      y += 4;
-
       const reasonLines = doc.splitTextToSize(zone.reason, width - 32);
       doc.text(reasonLines, 18, y);
       y += reasonLines.length * 3.5 + 4;
     });
 
     if (plan.intercropping.length > 0) {
-      if (y > 250) {
-        doc.addPage();
-        y = 20;
-      }
+      if (y > 250) { doc.addPage(); y = 20; }
       y += 4;
       doc.setFontSize(12);
       doc.setFont("helvetica", "bold");
       doc.text("Intercropping Suggestions", 14, y);
       y += 6;
-
       plan.intercropping.forEach((pair) => {
-        if (y > 270) {
-          doc.addPage();
-          y = 20;
-        }
+        if (y > 270) { doc.addPage(); y = 20; }
         doc.setFontSize(9);
         doc.setFont("helvetica", "bold");
         doc.text(`${pair.primary} + ${pair.secondary}`, 14, y);
@@ -1150,23 +1151,17 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
         doc.setFontSize(8);
         const lines = doc.splitTextToSize(pair.benefit, width - 28);
         doc.text(lines, 18, y);
-        y += lines.length * 3.5 + 2;
-        doc.text(`Spacing: ${pair.spacing}`, 18, y);
-        y += 5;
+        y += lines.length * 3.5 + 5;
       });
     }
 
     if (plan.rotation_plan.length > 0) {
-      if (y > 250) {
-        doc.addPage();
-        y = 20;
-      }
+      if (y > 250) { doc.addPage(); y = 20; }
       y += 4;
       doc.setFontSize(12);
       doc.setFont("helvetica", "bold");
       doc.text("Crop Rotation Plan", 14, y);
       y += 6;
-
       plan.rotation_plan.forEach((step) => {
         doc.setFontSize(9);
         doc.setFont("helvetica", "normal");
@@ -1175,35 +1170,11 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
       });
     }
 
-    if (plan.tips.length > 0) {
-      if (y > 250) {
-        doc.addPage();
-        y = 20;
-      }
-      y += 6;
-      doc.setFontSize(12);
-      doc.setFont("helvetica", "bold");
-      doc.text("Expert Tips", 14, y);
-      y += 6;
-
-      plan.tips.forEach((tip) => {
-        if (y > 275) {
-          doc.addPage();
-          y = 20;
-        }
-        doc.setFontSize(8);
-        doc.setFont("helvetica", "normal");
-        const lines = doc.splitTextToSize(`• ${tip}`, width - 28);
-        doc.text(lines, 14, y);
-        y += lines.length * 3.5 + 2;
-      });
-    }
-
     doc.save(`crop-plan-${field.name.replace(/\s+/g, "-").toLowerCase()}.pdf`);
-  }, [field, placementMetrics, plan]);
+  }, [field, plan]);
 
   return (
-    <div className="animate-fade-in space-y-6" style={{ animationDelay: "450ms" }}>
+    <div className="animate-fade-in space-y-5" style={{ animationDelay: "450ms" }}>
       <div className="flex items-center justify-between gap-3">
         <div className="space-y-1">
           <h3 className="text-sm font-medium text-foreground flex items-center gap-2">
@@ -1235,19 +1206,19 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
         </div>
       </div>
 
+      {/* Map */}
       <div className="relative">
-        <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Fixed Field Region Map</h4>
         <div
           ref={mapContainer}
           className="rounded-2xl border border-border overflow-hidden"
-          style={{ height: isMobile ? 280 : 360, background: "hsl(150, 18%, 12%)" }}
+          style={{ height: isMobile ? 300 : 420, background: "hsl(150, 18%, 12%)" }}
         />
 
         {!plan && !loading && (
-          <div className="absolute inset-0 mt-6 rounded-2xl flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="absolute inset-0 rounded-2xl flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm">
             <Sprout className="w-8 h-8 text-primary mb-3" />
             <p className="text-sm text-foreground/80 mb-3 text-center px-4">
-              Analyze field data to generate crop placement recommendations and spacing guides.
+              Analyze field data to generate crop placement recommendations.
             </p>
             <button
               onClick={fetchPlan}
@@ -1260,58 +1231,23 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
         )}
 
         {loading && (
-          <div className="absolute inset-0 mt-6 rounded-2xl flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="absolute inset-0 rounded-2xl flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm">
             <Loader2 className="w-6 h-6 animate-spin text-primary mb-2" />
             <p className="text-sm text-foreground/80">Analyzing field data...</p>
             <p className="text-[10px] text-muted-foreground mt-1">Using NDVI, soil, weather, water access, and terrain signals</p>
           </div>
         )}
 
+        {/* Legend overlay */}
         {plan && (
-          <div className="grid gap-3 mt-3">
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => setFilterZoneId(null)}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] border transition-all ${
-                  !filterZoneId
-                    ? "border-primary bg-primary/20 text-foreground font-medium"
-                    : "border-border bg-accent/10 text-muted-foreground hover:bg-accent/20"
-                }`}
-              >
-                All Crops
-              </button>
-              {plan.zones.map((zone) => (
-                <UITooltip key={zone.id}>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => {
-                        setFilterZoneId(filterZoneId === zone.id ? null : zone.id);
-                        setSelectedZone(zone);
-                      }}
-                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] border transition-all ${
-                        filterZoneId === zone.id
-                          ? "border-primary bg-primary/20 text-foreground font-medium"
-                          : "border-border bg-accent/10 text-muted-foreground hover:bg-accent/20"
-                      }`}
-                    >
-                      <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: zone.color }} />
-                      {zone.crop}
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="max-w-[220px]">
-                    <p className="text-xs font-semibold">{zone.name}</p>
-                    <p className="text-[10px] text-muted-foreground">{zone.reason}</p>
-                    <p className="text-[10px] mt-1">Spacing: {placementMetrics[zone.id]?.exactSpacing || zone.spacing_m}m · Water: {zone.water_needs}</p>
-                    <p className="text-[10px] mt-0.5">Plants: ~{formatter.format(placementMetrics[zone.id]?.exactPlantCount || 0)}</p>
-                  </TooltipContent>
-                </UITooltip>
-              ))}
-            </div>
-
-            <div className="flex items-center gap-2 rounded-xl border border-border bg-accent/15 px-3 py-2 text-[10px] text-muted-foreground">
-              <MapPinned className="w-3.5 h-3.5 text-primary" />
-              Click a crop to filter · Zoom in for detail
-            </div>
+          <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-sm rounded-lg px-3 py-2 flex flex-wrap gap-x-3 gap-y-1">
+            {plan.zones.map((zone) => (
+              <div key={zone.id} className="flex items-center gap-1.5 text-[10px]">
+                <span className="rounded-full flex-shrink-0" style={{ backgroundColor: zone.color, width: getDotSize(zone.crop), height: getDotSize(zone.crop) }} />
+                <span className="text-white/80">{zone.crop}</span>
+                <span className="text-white/50">{zone.area_pct}%</span>
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -1322,7 +1258,7 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
             {plan.summary}
           </div>
 
-          <div className={`grid ${isMobile ? "grid-cols-3 gap-2" : "grid-cols-3 gap-3"}`}>
+          <div className={`grid ${isMobile ? "grid-cols-2 gap-2" : "grid-cols-2 gap-3"}`}>
             <div className="p-3 rounded-xl border border-border bg-accent/15 text-center">
               <Droplets className="w-4 h-4 mx-auto mb-1 text-primary" />
               <div className="text-lg font-semibold text-foreground">{plan.water_saving_pct}%</div>
@@ -1333,17 +1269,13 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
               <div className="text-lg font-semibold text-foreground">+{plan.expected_revenue_increase_pct}%</div>
               <div className="text-[10px] text-muted-foreground">Revenue Boost</div>
             </div>
-            <div className="p-3 rounded-xl border border-border bg-accent/15 text-center">
-              <Layers className="w-4 h-4 mx-auto mb-1 text-primary" />
-              <div className="text-lg font-semibold text-foreground">{plan.zones.length}</div>
-              <div className="text-[10px] text-muted-foreground">Crop Zones</div>
-            </div>
           </div>
 
+          {/* Zone Allocation Pie */}
           <div>
             <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Zone Allocation</h4>
-            <div className="rounded-2xl border border-border/40 p-4 flex flex-col items-center justify-center" style={{ height: isMobile ? 220 : 260, background: "hsla(150, 18%, 14%, 0.6)" }}>
-              <ResponsiveContainer width="100%" height={isMobile ? 140 : 170}>
+            <div className="rounded-2xl border border-border/40 p-4 flex flex-col items-center justify-center" style={{ height: isMobile ? 200 : 240, background: "hsla(150, 18%, 14%, 0.6)" }}>
+              <ResponsiveContainer width="100%" height={isMobile ? 130 : 160}>
                 <PieChart>
                   <Pie
                     data={zoneChartData}
@@ -1375,167 +1307,134 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
             </div>
           </div>
 
-          <div>
-            <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
-              <Ruler className="w-3.5 h-3.5" /> Placement Grid & Spacing
-            </h4>
-            <div className={`grid ${isMobile ? "grid-cols-1" : "grid-cols-2"} gap-3`}>
-              {plan.zones.map((zone) => {
-                const metrics = placementMetrics[zone.id];
-                return (
-                  <div key={zone.id} className="rounded-xl border border-border bg-accent/15 p-3 space-y-2">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: zone.color }} />
-                        <div>
-                          <div className="text-sm font-medium text-foreground">{zone.crop}</div>
-                          <div className="text-[10px] text-muted-foreground">{zone.name} · {zone.area_pct}% of field</div>
-                        </div>
-                      </div>
-                      <span className="text-[10px] px-2 py-1 rounded-full bg-primary/15 text-primary">
-                        {metrics?.exactSpacing || zone.spacing_m}m spacing
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2 text-[10px]">
-                      <div className="rounded-lg bg-accent/20 p-2">
-                        <div className="text-muted-foreground">Exact layout</div>
-                        <div className="text-foreground font-semibold">{metrics?.exactSpacing || zone.spacing_m}m</div>
-                      </div>
-                      <div className="rounded-lg bg-accent/20 p-2">
-                        <div className="text-muted-foreground">Plant count</div>
-                        <div className="text-foreground font-semibold">~{formatter.format(metrics?.exactPlantCount || 0)}</div>
-                      </div>
-                      <div className="rounded-lg bg-accent/20 p-2">
-                        <div className="text-muted-foreground">Map points</div>
-                        <div className="text-foreground font-semibold">{formatter.format(metrics?.visualPlantCount || 0)}</div>
-                      </div>
-                    </div>
-                    <p className="text-[10px] text-muted-foreground leading-relaxed">
-                      {metrics?.sampled
-                        ? `The map shows a sampled staggered grid at ~${metrics.visualSpacing}m for readability, while the recommended planting distance remains ${metrics.exactSpacing}m.`
-                        : `The map shows the full staggered grid at the exact ${metrics?.exactSpacing || zone.spacing_m}m spacing.`}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
+          {/* Zone details */}
           {selectedZone && (
             <div className="p-4 rounded-xl border border-primary/30 bg-primary/5 animate-fade-in space-y-2">
               <div className="flex items-center justify-between">
-                <h4 className="text-sm font-semibold text-foreground">{selectedZone.name}</h4>
+                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full" style={{ backgroundColor: selectedZone.color }} />
+                  {selectedZone.crop} — {selectedZone.name}
+                </h4>
                 <button onClick={() => setSelectedZone(null)} className="text-xs text-muted-foreground hover:text-foreground">
                   Close
                 </button>
               </div>
               <p className="text-xs text-muted-foreground">{selectedZone.reason}</p>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-[10px]">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px]">
                 <div className="p-2 rounded-lg bg-accent/20"><span className="text-muted-foreground">Area:</span> <span className="text-foreground font-medium">{selectedZone.area_pct}%</span></div>
-                <div className="p-2 rounded-lg bg-accent/20"><span className="text-muted-foreground">Spacing:</span> <span className="text-foreground font-medium">{placementMetrics[selectedZone.id]?.exactSpacing || selectedZone.spacing_m}m</span></div>
-                <div className="p-2 rounded-lg bg-accent/20"><span className="text-muted-foreground">Plants:</span> <span className="text-foreground font-medium">~{formatter.format(placementMetrics[selectedZone.id]?.exactPlantCount || 0)}</span></div>
+                <div className="p-2 rounded-lg bg-accent/20"><span className="text-muted-foreground">Spacing:</span> <span className="text-foreground font-medium">{selectedZone.spacing_m}m</span></div>
                 <div className="p-2 rounded-lg bg-accent/20"><span className="text-muted-foreground">Water:</span> <span className="text-foreground font-medium capitalize">{selectedZone.water_needs}</span></div>
                 <div className="p-2 rounded-lg bg-accent/20"><span className="text-muted-foreground">Yield:</span> <span className="text-foreground font-medium">{selectedZone.yield_estimate}</span></div>
               </div>
-              <div className="text-[10px] text-muted-foreground">
-                Season: {selectedZone.season}
-                {placementMetrics[selectedZone.id]?.sampled
-                  ? ` · Map sampled at ~${placementMetrics[selectedZone.id]?.visualSpacing}m while keeping exact spacing guidance at ${placementMetrics[selectedZone.id]?.exactSpacing}m.`
-                  : " · Map is showing the exact spacing pattern."}
-              </div>
+              <div className="text-[10px] text-muted-foreground">Season: {selectedZone.season}</div>
             </div>
           )}
 
-          {plan.intercropping.length > 0 && (
-            <div>
-              <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                <TreePine className="w-3.5 h-3.5" /> Intercropping Pairs
-              </h4>
-              <div className={`grid ${isMobile ? "grid-cols-1" : "grid-cols-2"} gap-3`}>
-                {plan.intercropping.map((pair, index) => (
-                  <div key={index} className="p-3 rounded-xl border border-border bg-accent/15 space-y-1.5">
-                    <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                      <span>{pair.primary}</span>
-                      <ArrowRight className="w-3 h-3 text-muted-foreground" />
-                      <span>{pair.secondary}</span>
+          {/* Intercropping + Rotation in same row */}
+          <div className={`grid ${isMobile ? "grid-cols-1" : "grid-cols-2"} gap-4`}>
+            {/* Intercropping Pairs */}
+            {plan.intercropping.length > 0 && (
+              <div>
+                <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                  <TreePine className="w-3.5 h-3.5" /> Intercropping Pairs
+                </h4>
+                <div className="space-y-3">
+                  {plan.intercropping.map((pair, index) => (
+                    <div key={index} className="p-3 rounded-xl border border-border bg-accent/15 space-y-1.5">
+                      <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                        <span>{pair.primary}</span>
+                        <ArrowRight className="w-3 h-3 text-muted-foreground" />
+                        <span>{pair.secondary}</span>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">{pair.benefit}</p>
+                      <p className="text-[10px] text-primary/80 italic">{pair.spacing}</p>
                     </div>
-                    <p className="text-[10px] text-muted-foreground">{pair.benefit}</p>
-                    <p className="text-[10px] text-primary/80 italic">{pair.spacing}</p>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {plan.rotation_plan.length > 0 && (
-            <div>
-              <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                <RotateCw className="w-3.5 h-3.5" /> Crop Rotation Plan
-              </h4>
-              <div className="flex gap-2 overflow-x-auto pb-2">
-                {plan.rotation_plan.map((step, index) => (
-                  <div key={index} className="flex-shrink-0 p-3 rounded-xl border border-border bg-accent/15 min-w-[140px] space-y-1">
-                    <div className="text-xs font-semibold text-foreground">{step.season}</div>
-                    <div className="text-[10px] text-muted-foreground">{step.months}</div>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {step.crops.map((crop, cropIndex) => (
-                        <span key={cropIndex} className="px-1.5 py-0.5 rounded bg-primary/15 text-[10px] text-foreground">
-                          {crop}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ))}
+            {/* Crop Rotation Plan */}
+            {plan.rotation_plan.length > 0 && (
+              <div>
+                <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                  <RotateCw className="w-3.5 h-3.5" /> Crop Rotation Plan
+                </h4>
+                <div className="space-y-2">
+                  {plan.rotation_plan.map((step, index) => {
+                    const isCurrent = step.season.includes("(Current)");
+                    return (
+                      <div key={index} className={`p-3 rounded-xl border bg-accent/15 space-y-1 ${isCurrent ? "border-primary/50 bg-primary/5" : "border-border"}`}>
+                        <div className="flex items-center justify-between">
+                          <div className="text-xs font-semibold text-foreground">{step.season}</div>
+                          <div className="text-[10px] text-muted-foreground">{step.months}</div>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 mt-1">
+                          {step.crops.map((crop, cropIndex) => (
+                            <span key={cropIndex} className={`px-2 py-0.5 rounded-md text-[10px] font-medium ${
+                              cropIndex === 0
+                                ? "bg-primary/20 text-primary"
+                                : "bg-accent/30 text-foreground"
+                            }`}>
+                              {crop}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
+          {/* Crop Calendar - always expanded */}
           <div>
-            <button
-              onClick={() => setShowCalendar(!showCalendar)}
-              className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 hover:text-foreground transition-colors w-full"
-            >
+            <h4 className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
               <CalendarDays className="w-3.5 h-3.5" />
               Crop Calendar
-              <ChevronDown className={`w-3.5 h-3.5 ml-auto transition-transform ${showCalendar ? "rotate-180" : ""}`} />
-            </button>
-            {showCalendar && calendarRows.length > 0 && (
+            </h4>
+            {calendarRows.length > 0 && (
               <div className="rounded-2xl border border-border overflow-hidden" style={{ background: "hsla(150, 18%, 14%, 0.6)" }}>
-                <div className="grid grid-cols-[100px_repeat(12,1fr)] text-[10px] border-b border-border/50">
+                <div className="grid grid-cols-[90px_repeat(12,1fr)] text-[10px] border-b border-border/50">
                   <div className="p-2 text-muted-foreground font-medium">Season</div>
                   {MONTHS.map((month) => (
-                    <div key={month} className="p-2 text-center text-muted-foreground">
+                    <div key={month} className="p-1.5 text-center text-muted-foreground">
                       {month}
                     </div>
                   ))}
                 </div>
 
                 {calendarRows.map((row, index) => (
-                  <div key={index} className="grid grid-cols-[100px_repeat(12,1fr)] text-[10px] border-b border-border/30 last:border-b-0">
+                  <div key={index} className="grid grid-cols-[90px_repeat(12,1fr)] text-[10px] border-b border-border/30 last:border-b-0">
                     <div className="p-2 flex flex-col justify-center">
-                      <span className="font-semibold text-foreground">{row.season}</span>
-                      <span className="text-muted-foreground">{row.crops.join(", ")}</span>
+                      <span className="font-semibold text-foreground text-[11px]">{row.season.replace(" (Current)", "")}</span>
+                      <span className="text-muted-foreground text-[9px] leading-tight">{row.crops[0]}</span>
+                      {row.crops[1] && <span className="text-muted-foreground/60 text-[9px] leading-tight">{row.crops[1]}</span>}
                     </div>
                     {MONTHS.map((_, monthIndex) => {
                       const active = row.activeMonths.includes(monthIndex);
+                      const currentMonthIdx = new Date().getMonth();
+                      const isCurrentMonth = monthIndex === currentMonthIdx && active;
                       return (
                         <UITooltip key={monthIndex}>
                           <TooltipTrigger asChild>
-                            <div className="p-1 flex items-center justify-center">
+                            <div className="p-0.5 flex items-center justify-center">
                               <div
-                                className="w-full h-6 rounded-sm transition-all"
+                                className="w-full h-7 rounded-sm transition-all relative"
                                 style={{
                                   backgroundColor: active ? row.color : "transparent",
-                                  opacity: active ? 0.75 : 0.1,
-                                  border: active ? "none" : "1px solid rgba(255,255,255,0.05)",
+                                  opacity: active ? 0.75 : 0.08,
+                                  border: isCurrentMonth ? "2px solid white" : active ? "none" : "1px solid rgba(255,255,255,0.05)",
                                 }}
                               />
                             </div>
                           </TooltipTrigger>
                           {active && (
                             <TooltipContent side="top">
-                              <p className="text-xs font-semibold">{row.season}: {MONTHS[monthIndex]}</p>
+                              <p className="text-xs font-semibold">{row.season.replace(" (Current)", "")}: {MONTHS[monthIndex]}</p>
                               <p className="text-[10px] text-muted-foreground">{row.crops.join(", ")}</p>
+                              {isCurrentMonth && <p className="text-[10px] text-primary font-medium">← Current month</p>}
                             </TooltipContent>
                           )}
                         </UITooltip>
