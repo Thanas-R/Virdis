@@ -8,13 +8,10 @@ import {
   Lightbulb, Layers, ArrowRight, Zap,
 } from "lucide-react";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell,
 } from "recharts";
 import { Tooltip as UITooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-
-const CHART_GOLD = "#C6B77E";
-const CHART_GREEN = "#7BC75B";
 
 interface CropZone {
   id: string;
