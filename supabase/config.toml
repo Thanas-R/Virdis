@@ -1,8 +1,5 @@
 project_id = "ldqvretuwballytbywfc"
 
-[functions.gee-detect-field]
-verify_jwt = false
-
 [functions.gee-ndvi-tiles]
 verify_jwt = false
 
