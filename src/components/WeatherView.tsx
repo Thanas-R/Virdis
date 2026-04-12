@@ -162,6 +162,10 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
   // NDVI time-series state
   const [ndviTimeSeries, setNdviTimeSeries] = useState<any>(null);
   const [ndviTsLoading, setNdviTsLoading] = useState(false);
+  // Map token for crop planning
+  const [mapToken, setMapToken] = useState("");
+  // Soil data for crop planning
+  const [soilData, setSoilData] = useState<any>(null);
 
   const effectiveField = activeField || selectedFields[0];
 
