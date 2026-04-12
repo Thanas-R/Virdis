@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Search, Building2, Trees } from "lucide-react";
+import { X, Search, Building2, Trees, Loader2 } from "lucide-react";
 import LocationAutocomplete from "./LocationAutocomplete";
 import { supabase } from "@/integrations/supabase/client";
 import { CROP_OPTIONS, CROP_CATEGORIES } from "@/data/crops";
@@ -47,6 +47,7 @@ interface NewFieldDialogProps {
 const NewFieldDialog = ({ coordinates, mapToken, onSave, onCancel }: NewFieldDialogProps) => {
   const [name, setName] = useState("");
   const [regionType, setRegionType] = useState<"rural" | "urban">("rural");
+  const [detecting, setDetecting] = useState(true);
   const [crop, setCrop] = useState("Wheat");
   const [urbanLandUse, setUrbanLandUse] = useState("Residential");
   const [color, setColor] = useState("#EAB947");
@@ -58,24 +59,54 @@ const NewFieldDialog = ({ coordinates, mapToken, onSave, onCancel }: NewFieldDia
   const estimatedAcres = calculateAreaAcres(coordinates);
   const estimatedHa = Math.round((estimatedAcres / 2.47105) * 10) / 10;
 
+  // Auto-detect region type using GEE land use + reverse geocode
   useEffect(() => {
-    const reverseGeocode = async () => {
+    const detect = async () => {
+      setDetecting(true);
       let token = mapToken;
       if (!token) {
         const { data } = await supabase.functions.invoke("get-mapbox-token");
         token = data?.token;
       }
-      if (!token || !coordinates.length) return;
+
       const center = coordinates.reduce(
         (acc, c) => [acc[0] + c[0] / coordinates.length, acc[1] + c[1] / coordinates.length], [0, 0]
       );
-      try {
-        const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${center[0]},${center[1]}.json?access_token=${token}&limit=1`);
-        const geoData = await res.json();
-        if (geoData.features?.[0]) setLocation(geoData.features[0].place_name);
-      } catch {}
+
+      // Parallel: reverse geocode + GEE land use
+      const geocodePromise = token
+        ? fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${center[0]},${center[1]}.json?access_token=${token}&limit=1`)
+            .then(r => r.json()).catch(() => null)
+        : Promise.resolve(null);
+
+      const geePromise = supabase.functions.invoke("gee-analytics", {
+        body: { polygon: coordinates, analyses: ["land_use"] },
+      }).then(r => r.data).catch(() => null);
+
+      const [geoData, geeData] = await Promise.all([geocodePromise, geePromise]);
+
+      // Set location from geocode
+      if (geoData?.features?.[0]) {
+        setLocation(geoData.features[0].place_name);
+      }
+
+      // Determine region type from GEE land use data
+      let isUrban = false;
+      if (geeData?.land_use) {
+        const builtUp = geeData.land_use["Built-up"] || 0;
+        isUrban = builtUp >= 30;
+      } else if (geoData?.features?.[0]) {
+        // Fallback: check Mapbox place type
+        const placeType = geoData.features[0].place_type?.[0] || "";
+        const placeName = (geoData.features[0].place_name || "").toLowerCase();
+        isUrban = ["place", "locality", "neighborhood", "address"].includes(placeType) ||
+          ["city", "town", "metro", "urban", "suburb", "downtown"].some(k => placeName.includes(k));
+      }
+
+      setRegionType(isUrban ? "urban" : "rural");
+      setDetecting(false);
     };
-    reverseGeocode();
+    detect();
   }, [coordinates, mapToken]);
 
   const filteredCrops = cropSearch
@@ -119,9 +150,13 @@ const NewFieldDialog = ({ coordinates, mapToken, onSave, onCancel }: NewFieldDia
             className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" autoFocus />
         </div>
 
-        {/* Region Type Selector */}
+        {/* Region Type - auto-detected with manual override */}
         <div>
-          <label className="text-xs text-muted-foreground block mb-1.5">Region Type</label>
+          <label className="text-xs text-muted-foreground block mb-1.5 flex items-center gap-1.5">
+            Region Type
+            {detecting && <Loader2 className="w-3 h-3 animate-spin text-primary" />}
+            {!detecting && <span className="text-[10px] text-primary font-medium">(auto-detected)</span>}
+          </label>
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => setRegionType("rural")}

@@ -554,30 +554,7 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
             )}
             </div>
 
-            {/* Urban: Sustainability Focus */}
-            {urban && (
-              <div className="animate-fade-in" style={{ animationDelay: "100ms" }}>
-                <h3 className="text-sm font-medium text-foreground mb-4 flex items-center gap-2">
-                  <Building2 className="w-4 h-4" /> Urban Sustainability Overview
-                </h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {[
-                    { label: "Green Space", value: geeData?.land_use ? `${100 - (geeData.land_use["Built-up"] || 0)}%` : "N/A", desc: "Non built-up area" },
-                    { label: "Tree Cover", value: geeData?.land_use?.["Tree cover"] ? `${geeData.land_use["Tree cover"]}%` : "N/A", desc: "Urban canopy" },
-                    { label: "Air Quality", value: aqiData ? getAqiLabel(aqiData.european_aqi).label : "N/A", desc: aqiData ? `AQI ${aqiData.european_aqi}` : "" },
-                    { label: "Heat Index", value: liveWeather ? `${liveWeather.feelsLike}°C` : "N/A", desc: "Feels like temp" },
-                    { label: "Humidity", value: liveWeather ? `${liveWeather.humidity}%` : "N/A", desc: "Relative humidity" },
-                    { label: "Water Score", value: geeData?.suitability?.water_access != null ? `${geeData.suitability.water_access}/100` : "N/A", desc: "Water accessibility" },
-                  ].map((item, i) => (
-                    <div key={i} className="p-3 rounded-xl border border-border bg-accent/15 space-y-0.5">
-                      <div className="text-[10px] text-muted-foreground">{item.label}</div>
-                      <div className="text-sm font-semibold text-foreground">{item.value}</div>
-                      <div className="text-[10px] text-muted-foreground">{item.desc}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* Urban: removed Urban Sustainability Overview per user request */}
 
             {/* Land Use / Suitability side by side */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in" style={{ animationDelay: "100ms" }}>

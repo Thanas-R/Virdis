@@ -74,149 +74,20 @@ function flattenExpression(nested: any): { values: Record<string, any>; result: 
 // ── GEE NDVI image builder ───────────────────────────────────────
 
 function buildNdviImage(coords: [number, number][], startDate: string, endDate: string) {
-  // Construct a proper GEE Geometry using GeometryConstructors.Polygon
-  const geometry = {
-    functionInvocationValue: {
-      functionName: "GeometryConstructors.Polygon",
-      arguments: {
-        coordinates: { constantValue: [coords] },
-        geodesic: { constantValue: false },
-        evenOdd: { constantValue: true },
-      },
-    },
-  };
-
-  const collection = {
-    functionInvocationValue: {
-      functionName: "ImageCollection.load",
-      arguments: { id: { constantValue: "COPERNICUS/S2_SR" } },
-    },
-  };
-
-  // Filter by date
-  const dateFiltered = {
-    functionInvocationValue: {
-      functionName: "Collection.filter",
-      arguments: {
-        collection,
-        filter: {
-          functionInvocationValue: {
-            functionName: "Filter.dateRangeContains",
-            arguments: {
-              leftValue: {
-                functionInvocationValue: {
-                  functionName: "DateRange",
-                  arguments: {
-                    start: { constantValue: startDate },
-                    end: { constantValue: endDate },
-                  },
-                },
-              },
-              rightField: { constantValue: "system:time_start" },
-            },
-          },
-        },
-      },
-    },
-  };
-
-  // Filter by bounds using the polygon geometry
-  const boundsFiltered = {
-    functionInvocationValue: {
-      functionName: "Collection.filter",
-      arguments: {
-        collection: dateFiltered,
-        filter: {
-          functionInvocationValue: {
-            functionName: "Filter.intersects",
-            arguments: {
-              leftField: { constantValue: ".geo" },
-              rightValue: geometry,
-            },
-          },
-        },
-      },
-    },
-  };
-
-  // Filter by cloud cover < 20%
-  const cloudFiltered = {
-    functionInvocationValue: {
-      functionName: "Collection.filter",
-      arguments: {
-        collection: boundsFiltered,
-        filter: {
-          functionInvocationValue: {
-            functionName: "Filter.lessThan",
-            arguments: {
-              leftField: { constantValue: "CLOUDY_PIXEL_PERCENTAGE" },
-              rightValue: { constantValue: 20 },
-            },
-          },
-        },
-      },
-    },
-  };
-
-  // Sort by cloud cover ascending, take 1 (least cloudy)
-  const limited = {
-    functionInvocationValue: {
-      functionName: "Collection.limit",
-      arguments: {
-        collection: cloudFiltered,
-        limit: { constantValue: 1 },
-        key: { constantValue: "CLOUDY_PIXEL_PERCENTAGE" },
-        ascending: { constantValue: true },
-      },
-    },
-  };
-
-  // Mosaic the single-image collection to get an Image
-  const image = {
-    functionInvocationValue: {
-      functionName: "ImageCollection.mosaic",
-      arguments: { collection: limited },
-    },
-  };
-
-  // NDVI = normalizedDifference(['B8', 'B4'])
-  const ndvi = {
-    functionInvocationValue: {
-      functionName: "Image.normalizedDifference",
-      arguments: {
-        input: image,
-        bandNames: { constantValue: ["B8", "B4"] },
-      },
-    },
-  };
-
-  // Clip to polygon
-  const clipped = {
-    functionInvocationValue: {
-      functionName: "Image.clip",
-      arguments: { input: ndvi, geometry },
-    },
-  };
-
+  const geometry = { functionInvocationValue: { functionName: "GeometryConstructors.Polygon", arguments: { coordinates: { constantValue: [coords] }, geodesic: { constantValue: false }, evenOdd: { constantValue: true } } } };
+  const collection = { functionInvocationValue: { functionName: "ImageCollection.load", arguments: { id: { constantValue: "COPERNICUS/S2_SR" } } } };
+  const dateFiltered = { functionInvocationValue: { functionName: "Collection.filter", arguments: { collection, filter: { functionInvocationValue: { functionName: "Filter.dateRangeContains", arguments: { leftValue: { functionInvocationValue: { functionName: "DateRange", arguments: { start: { constantValue: startDate }, end: { constantValue: endDate } } } }, rightField: { constantValue: "system:time_start" } } } } } } };
+  const boundsFiltered = { functionInvocationValue: { functionName: "Collection.filter", arguments: { collection: dateFiltered, filter: { functionInvocationValue: { functionName: "Filter.intersects", arguments: { leftField: { constantValue: ".geo" }, rightValue: geometry } } } } } };
+  const cloudFiltered = { functionInvocationValue: { functionName: "Collection.filter", arguments: { collection: boundsFiltered, filter: { functionInvocationValue: { functionName: "Filter.lessThan", arguments: { leftField: { constantValue: "CLOUDY_PIXEL_PERCENTAGE" }, rightValue: { constantValue: 20 } } } } } } };
+  const limited = { functionInvocationValue: { functionName: "Collection.limit", arguments: { collection: cloudFiltered, limit: { constantValue: 1 }, key: { constantValue: "CLOUDY_PIXEL_PERCENTAGE" }, ascending: { constantValue: true } } } };
+  const image = { functionInvocationValue: { functionName: "ImageCollection.mosaic", arguments: { collection: limited } } };
+  const ndvi = { functionInvocationValue: { functionName: "Image.normalizedDifference", arguments: { input: image, bandNames: { constantValue: ["B8", "B4"] } } } };
+  const clipped = { functionInvocationValue: { functionName: "Image.clip", arguments: { input: ndvi, geometry } } };
   return { clipped, geometry };
 }
 
-// Build reduceRegion expression
 function buildReduceRegion(image: any, geometry: any, reducerName: string) {
-  return {
-    functionInvocationValue: {
-      functionName: "Image.reduceRegion",
-      arguments: {
-        image,
-        reducer: {
-          functionInvocationValue: { functionName: reducerName, arguments: {} },
-        },
-        geometry,
-        scale: { constantValue: 10 },
-        maxPixels: { constantValue: 1000000000 },
-      },
-    },
-  };
+  return { functionInvocationValue: { functionName: "Image.reduceRegion", arguments: { image, reducer: { functionInvocationValue: { functionName: reducerName, arguments: {} } }, geometry, scale: { constantValue: 10 }, maxPixels: { constantValue: 1000000000 } } } };
 }
 
 // ── Main handler ──────────────────────────────────────────────────
@@ -236,78 +107,53 @@ serve(async (req) => {
       } else if (Array.isArray(polygon) && polygon.length >= 3) {
         coords = polygon;
       } else {
-        throw new Error("Invalid polygon: provide GeoJSON Polygon or array of [lng,lat] with >= 3 points");
+        throw new Error("Invalid polygon");
       }
 
       const token = await getGeeAccessToken();
       const projectId = Deno.env.get("GEE_PROJECT_ID") || "earthengine-legacy";
 
-      // Date range: last 30 days
       const now = new Date();
       const endDate = now.toISOString().split("T")[0];
       const startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
-      console.log(`Analyzing field: ${coords.length} vertices, date range: ${startDate} to ${endDate}`);
-
-      // Helper to call GEE value:compute
       async function computeValue(expr: any): Promise<any> {
         const flat = flattenExpression(expr);
-        const resp = await fetch(
-          `https://earthengine.googleapis.com/v1/projects/${projectId}/value:compute`,
-          {
-            method: "POST",
-            headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ expression: flat }),
-          }
-        );
-        if (!resp.ok) {
-          const t = await resp.text();
-          console.error("GEE value:compute error:", resp.status, t);
-          throw new Error(`GEE value:compute failed (${resp.status}): ${t}`);
-        }
+        const resp = await fetch(`https://earthengine.googleapis.com/v1/projects/${projectId}/value:compute`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ expression: flat }),
+        });
+        if (!resp.ok) { const t = await resp.text(); throw new Error(`GEE compute failed (${resp.status}): ${t}`); }
         return resp.json();
       }
 
-      // Try with primary date range, fallback to 90 days if no data
       async function tryComputeNdvi(start: string, end: string) {
         const { clipped, geometry } = buildNdviImage(coords, start, end);
-
-        // 3 parallel reduceRegion calls: mean, min, max
         const [meanResult, minResult, maxResult] = await Promise.all([
           computeValue(buildReduceRegion(clipped, geometry, "Reducer.mean")),
           computeValue(buildReduceRegion(clipped, geometry, "Reducer.min")),
           computeValue(buildReduceRegion(clipped, geometry, "Reducer.max")),
         ]);
-
-        console.log("GEE mean result:", JSON.stringify(meanResult));
-        console.log("GEE min result:", JSON.stringify(minResult));
-        console.log("GEE max result:", JSON.stringify(maxResult));
-
-        // normalizedDifference produces band named 'nd'
-        const meanNdvi = meanResult?.result?.nd ?? null;
-        const minNdvi = minResult?.result?.nd ?? null;
-        const maxNdvi = maxResult?.result?.nd ?? null;
-
-        return { meanNdvi, minNdvi, maxNdvi, start, end };
+        return {
+          meanNdvi: meanResult?.result?.nd ?? null,
+          minNdvi: minResult?.result?.nd ?? null,
+          maxNdvi: maxResult?.result?.nd ?? null,
+          start, end,
+        };
       }
 
       let result = await tryComputeNdvi(startDate, endDate);
-
-      // Fallback: if all null, try 90-day window
       if (result.meanNdvi === null && result.minNdvi === null && result.maxNdvi === null) {
-        console.log("No data in 30-day window, trying 90-day fallback...");
         const fallbackStart = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
         result = await tryComputeNdvi(fallbackStart, endDate);
       }
 
-      // If still null, return zeros
       if (result.meanNdvi === null && result.minNdvi === null && result.maxNdvi === null) {
-        console.error("NDVI reduceRegion returned null for both 30-day and 90-day windows");
         return new Response(JSON.stringify({
-          mean_ndvi: 0, min_ndvi: 0, max_ndvi: 0,
-          vegetation_health_score: 0,
+          mean_ndvi: 0, min_ndvi: 0, max_ndvi: 0, vegetation_health_score: 0,
           acquisition_date: `${startDate} to ${endDate}`,
-          error: "No valid Sentinel-2 imagery found for this area",
+          error: "No valid Sentinel-2 imagery found",
         }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
@@ -315,8 +161,6 @@ serve(async (req) => {
       const min = result.minNdvi ?? 0;
       const max = result.maxNdvi ?? 0;
       const healthScore = Math.min(100, Math.max(0, Math.round((mean / 0.8) * 100)));
-
-      console.log(`NDVI analysis complete: mean=${mean.toFixed(3)}, min=${min.toFixed(3)}, max=${max.toFixed(3)}, health=${healthScore}`);
 
       return new Response(JSON.stringify({
         mean_ndvi: Math.round(mean * 1000) / 1000,
@@ -327,11 +171,28 @@ serve(async (req) => {
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // ── Mode 2: AI-powered analysis (rural or urban) ─────────
-    const { fieldName, crop, area, location, temperature, humidity, windSpeed, soilMoisture, ndviEstimate, isUrban } = body;
+    // ── Mode 2: AI-powered analysis ─────────────────────────────
+    const { fieldName, crop, area, location, temperature, humidity, windSpeed, soilMoisture, ndviEstimate, isUrban, soilData, aqiData } = body;
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+
+    // Build soil context string
+    let soilContext = "";
+    if (soilData) {
+      soilContext = `\n**Soil Data (ISRIC SoilGrids):**
+- Type: ${soilData.type || "Unknown"} | Texture: ${soilData.texture || "Unknown"}
+- pH: ${soilData.ph ?? "N/A"} | Organic Carbon: ${soilData.soc ?? "N/A"} g/kg | Nitrogen: ${soilData.nitrogen ?? "N/A"} g/kg
+- CEC: ${soilData.cec ?? "N/A"} mmol/kg`;
+      if (soilData.waterRetention) {
+        soilContext += `\n- Field Capacity: ${soilData.waterRetention.field_capacity_pct ?? "N/A"}% | Wilting Point: ${soilData.waterRetention.wilting_point_pct ?? "N/A"}% | Available Water: ${soilData.waterRetention.available_water_pct ?? "N/A"}%`;
+      }
+    }
+
+    let aqiContext = "";
+    if (aqiData) {
+      aqiContext = `\n**Air Quality:** PM2.5: ${aqiData.pm2_5} µg/m³ | PM10: ${aqiData.pm10} µg/m³ | AQI: ${aqiData.aqi}`;
+    }
 
     const prompt = isUrban
       ? `You are a concise urban sustainability analyst. Give a SHORT, data-driven analysis for this urban region. Focus on sustainability, environmental quality, and livability.
@@ -339,6 +200,7 @@ serve(async (req) => {
 **Region:** ${fieldName} | **Land Use:** ${crop} | **Area:** ${area} acres | **Location:** ${location}
 **Weather:** ${temperature}°C, ${humidity}% humidity, ${windSpeed} km/h wind
 **NDVI (Green Cover):** ${ndviEstimate || "0.30"}
+**Soil Moisture:** ${soilMoisture || "N/A"}%${soilContext}${aqiContext}
 
 Respond in this EXACT format (keep each section to 1-2 sentences max):
 
@@ -346,69 +208,83 @@ Respond in this EXACT format (keep each section to 1-2 sentences max):
 [Assess green cover NDVI ${ndviEstimate || "0.30"} for an urban ${crop} area. Is it adequate?]
 
 ## Heat Island Risk
-[Low/Medium/High risk based on green cover and temperature. One sentence recommendation.]
+[Low/Medium/High risk based on green cover, temperature, and built-up density. One sentence recommendation.]
 
 ## Air Quality & Health
-[Assessment based on temperature, humidity, and urban density]
+[Assessment based on AQI data, PM2.5/PM10 levels, and urban density. Health implications.]
+
+## Water & Drainage
+[Stormwater risk assessment based on soil type, impervious surface estimate, and moisture data. Recommendations for green infrastructure.]
 
 ## Sustainability Score
-**Score: X/10** — [One line justification based on green cover, density, and environmental factors]
+**Score: X/10** — [One line justification based on green cover, AQI, soil health, and environmental factors]
 
-## Improvement Recommendations
-- [Recommendation 1 — specific to this land use type]
-- [Recommendation 2 — actionable sustainability improvement]
-- [Recommendation 3 — community/infrastructure suggestion]
-
-## Stormwater & Drainage
-[Assessment of impervious surface risk and green infrastructure for water management]
+## Actionable Recommendations
+- [Recommendation 1 — specific to this land use type and soil conditions]
+- [Recommendation 2 — water management or green infrastructure improvement]
+- [Recommendation 3 — air quality or heat mitigation strategy]
+- [Recommendation 4 — carbon sequestration opportunity]
 
 ## Key Environmental Risks
-- [Risk 1]
-- [Risk 2]
+- [Risk 1 with severity]
+- [Risk 2 with severity]
 
 ## Summary Table
 | Metric | Value | Status |
 |--------|-------|--------|
 | Green Cover | ${ndviEstimate || "0.30"} | [Good/Fair/Poor] |
-| Heat Island Risk | [Low/Med/High] | [emoji] |
+| Air Quality | AQI ${aqiData?.aqi || "N/A"} | [status] |
+| Heat Risk | [Low/Med/High] | [emoji] |
+| Soil Health | [based on data] | [status] |
+| Water Stress | [based on moisture] | [status] |
 | Sustainability | [score] | [status] |`
-      : `You are a concise agricultural analyst. Give a SHORT, pin-point analysis for this field. Use simple language.
+      : `You are a concise precision agriculture expert. Give a SHORT, data-driven analysis for this field. Use simple language a farmer can understand.
 
 **Field:** ${fieldName} | **Crop:** ${crop} | **Area:** ${area} acres | **Location:** ${location}
 **Weather:** ${temperature}°C, ${humidity}% humidity, ${windSpeed} km/h wind
-**Soil Moisture:** ${soilMoisture || "N/A"}% | **NDVI Estimate:** ${ndviEstimate || "0.55"}
+**Soil Moisture:** ${soilMoisture || "N/A"}% | **NDVI Estimate:** ${ndviEstimate || "0.55"}${soilContext}${aqiContext}
 
 Respond in this EXACT format (keep each section to 1-2 sentences max):
 
 ## Vegetation Health
 [Quick assessment of NDVI ${ndviEstimate || "0.55"} for ${crop}. Is it healthy or concerning?]
 
-## Water Stress
-[Low/Medium/High risk? One sentence why.]
+## Water Stress Assessment
+[Analyze soil moisture ${soilMoisture || "N/A"}% against field capacity ${soilData?.waterRetention?.field_capacity_pct ?? "N/A"}% and wilting point ${soilData?.waterRetention?.wilting_point_pct ?? "N/A"}%. Is the field over/under-irrigated?]
+
+## Soil Health Analysis
+[Assess soil pH ${soilData?.ph ?? "N/A"}, organic carbon ${soilData?.soc ?? "N/A"} g/kg, nitrogen ${soilData?.nitrogen ?? "N/A"} g/kg. What amendments are needed? Is the soil suitable for ${crop}?]
 
 ## Growth Stage
 [Estimated current stage for ${crop} this time of year]
 
 ## Land Suitability
-**Score: X/10** — [One line justification]
+**Score: X/10** — [Justification based on soil type, pH, nutrients, water retention]
 
-## Alternative Crops
-- [Crop 1] — [why]
+## Crop Recommendations
+Based on the soil data (${soilData?.texture || "unknown"} texture, pH ${soilData?.ph ?? "N/A"}) and climate:
+- [Crop 1] — [why it suits this soil and climate]
 - [Crop 2] — [why]
 - [Crop 3] — [why]
 
+## Carbon & Sustainability
+[Soil carbon stock assessment. Erosion risk. Recommendations for sustainable farming: cover crops, reduced tillage, drip irrigation, etc. Include specific water/carbon savings estimates.]
+
 ## Rainfall Forecast Risk
-[Which days this week have highest rain probability? Any extreme weather alerts? Tips for farmers to prevent crop loss.]
+[Weather-based risk assessment. Tips for farmers to prevent crop loss.]
 
 ## Key Risks
-- [Risk 1]
-- [Risk 2]
+- [Risk 1 with severity and action]
+- [Risk 2 with severity and action]
 
 ## Summary Table
 | Metric | Value | Status |
 |--------|-------|--------|
 | NDVI | ${ndviEstimate || "0.55"} | [Good/Fair/Poor] |
-| Water Stress | [Low/Med/High] | [emoji] |
+| Soil pH | ${soilData?.ph ?? "N/A"} | [Optimal/Needs amendment] |
+| Organic Carbon | ${soilData?.soc ?? "N/A"} g/kg | [High/Medium/Low] |
+| Water Stress | [assessment] | [status] |
+| Nitrogen | ${soilData?.nitrogen ?? "N/A"} g/kg | [status] |
 | Yield Potential | [estimate] | [status] |`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -417,7 +293,10 @@ Respond in this EXACT format (keep each section to 1-2 sentences max):
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: isUrban ? "You are an urban sustainability and environmental expert. Provide data-driven, actionable insights for improving urban environments. Use markdown formatting. Focus on sustainability, green infrastructure, and livability." : "You are a precision agriculture expert. Provide data-driven, actionable insights. Use markdown formatting. Be specific with numbers and recommendations." },
+          { role: "system", content: isUrban
+            ? "You are an urban sustainability and environmental expert. Provide data-driven, actionable insights. Use markdown formatting. Focus on sustainability, green infrastructure, air quality, and livability. Present data clearly for non-technical stakeholders."
+            : "You are a precision agriculture expert who communicates clearly with farmers. Provide data-driven, actionable insights. Use markdown formatting. Be specific with numbers. Include soil health and water management recommendations based on the soil data provided. Make recommendations a farmer can act on today."
+          },
           { role: "user", content: prompt },
         ],
       }),
