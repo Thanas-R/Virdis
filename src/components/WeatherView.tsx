@@ -225,7 +225,33 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
     fetchTs();
   }, [effectiveField?.id]);
 
-  // Fetch live weather
+  // Fetch mapbox token for crop planning map
+  useEffect(() => {
+    const fetchToken = async () => {
+      try {
+        const { data } = await supabase.functions.invoke("get-mapbox-token");
+        if (data?.token) setMapToken(data.token);
+      } catch (e) { console.error("Failed to fetch mapbox token for crop planning", e); }
+    };
+    fetchToken();
+  }, []);
+
+  // Fetch soil data for crop planning
+  useEffect(() => {
+    if (!effectiveField) { setSoilData(null); return; }
+    const fetchSoil = async () => {
+      try {
+        const { lat, lng } = getFieldCenter(effectiveField);
+        const { data, error } = await supabase.functions.invoke("soil-data", {
+          body: { lat, lon: lng },
+        });
+        if (error) throw error;
+        setSoilData(data);
+      } catch (e) { console.error("Soil data for planning error:", e); setSoilData(null); }
+    };
+    fetchSoil();
+  }, [effectiveField?.id]);
+
   useEffect(() => {
     if (!effectiveField) return;
     const fetchLive = async () => {
