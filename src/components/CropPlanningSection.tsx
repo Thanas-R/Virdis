@@ -907,114 +907,58 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
       activeGridPopupRef.current?.remove();
       activeGridPopupRef.current = null;
 
-      cropPlan.zones.forEach((zone) => {
-        const grid = generateGridPoints(field, fieldBounds, zone);
-        const metrics = placementMetrics[zone.id] || grid.metrics;
+      const allPoints = generateFullFieldGrid(field, fieldBounds, cropPlan.zones);
 
-        const markerElement = document.createElement("button");
-        markerElement.type = "button";
-        markerElement.style.cssText = `
-          width: 34px;
-          height: 34px;
+      allPoints.forEach((point) => {
+        const zone = cropPlan.zones[point.zoneIndex];
+        if (!zone) return;
+
+        // If filtering, skip non-matching zones
+        if (filterZoneId && zone.id !== filterZoneId) return;
+
+        const dot = document.createElement("div");
+        dot.style.cssText = `
+          width: 12px;
+          height: 12px;
           border-radius: 9999px;
           background: ${zone.color};
-          border: 2.5px solid rgba(255,255,255,0.95);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 11px;
-          font-weight: 800;
-          color: white;
+          border: 1.5px solid rgba(255,255,255,0.8);
+          opacity: 0.9;
+          box-shadow: 0 1px 6px rgba(0,0,0,0.35);
           cursor: pointer;
-          box-shadow: 0 4px 16px rgba(0,0,0,0.4);
-          transition: transform 0.2s ease;
+          transition: transform 0.15s ease;
         `;
-        markerElement.textContent = zone.crop.slice(0, 2).toUpperCase();
-        markerElement.title = `${zone.crop} · ${zone.spacing_m}m spacing`;
+        dot.title = `${zone.crop} · ${zone.spacing_m}m spacing`;
 
-        const zonePopupHtml = `
-          <div style="padding:4px 0;max-width:220px;">
-            <div style="font-weight:700;font-size:13px;margin-bottom:4px;">${zone.crop}</div>
-            <div style="font-size:11px;color:#aaa;margin-bottom:6px;">${zone.name}</div>
-            <div style="font-size:11px;line-height:1.55;">
-              <span style="color:#888;">Area:</span> ${zone.area_pct}%<br/>
-              <span style="color:#888;">Exact spacing:</span> ${metrics.exactSpacing}m<br/>
-              <span style="color:#888;">Plants:</span> ~${formatter.format(metrics.exactPlantCount)}<br/>
-              <span style="color:#888;">Water:</span> ${zone.water_needs}<br/>
-              <span style="color:#888;">Yield:</span> ${zone.yield_estimate}
-            </div>
-            <div style="font-size:10px;color:#999;margin-top:6px;border-top:1px solid #333;padding-top:5px;">
-              ${zone.reason}
-            </div>
-          </div>
-        `;
-
-        const zonePopup = new mapboxgl.Popup({
-          offset: 18,
-          closeButton: true,
-          className: "crop-zone-popup",
-          maxWidth: "240px",
-        }).setHTML(zonePopupHtml);
-
-        markerElement.addEventListener("mouseenter", () => {
-          markerElement.style.transform = "scale(1.18)";
-        });
-        markerElement.addEventListener("mouseleave", () => {
-          markerElement.style.transform = "scale(1)";
-        });
-        markerElement.addEventListener("click", () => {
+        dot.addEventListener("mouseenter", () => { dot.style.transform = "scale(1.5)"; });
+        dot.addEventListener("mouseleave", () => { dot.style.transform = "scale(1)"; });
+        dot.addEventListener("click", () => {
+          activeGridPopupRef.current?.remove();
+          const metrics = placementMetrics[zone.id];
+          activeGridPopupRef.current = new mapboxgl.Popup({ offset: 10, closeButton: false, maxWidth: "220px" })
+            .setLngLat([point.lng, point.lat])
+            .setHTML(`
+              <div style="padding:4px 0;max-width:200px;">
+                <div style="font-weight:700;font-size:12px;margin-bottom:4px;">${zone.crop}</div>
+                <div style="font-size:11px;line-height:1.5;">
+                  Spacing: ${metrics?.exactSpacing || zone.spacing_m}m<br/>
+                  Plants: ~${formatter.format(metrics?.exactPlantCount || 0)}<br/>
+                  Water: ${zone.water_needs}<br/>
+                  Yield: ${zone.yield_estimate}
+                </div>
+              </div>
+            `)
+            .addTo(map);
           setSelectedZone(zone);
         });
 
-        const centerMarker = new mapboxgl.Marker({ element: markerElement })
-          .setLngLat([grid.center.lng, grid.center.lat])
-          .setPopup(zonePopup)
+        const gridMarker = new mapboxgl.Marker({ element: dot, anchor: "center" })
+          .setLngLat([point.lng, point.lat])
           .addTo(map);
-        markersRef.current.push(centerMarker);
-        popupsRef.current.push(zonePopup);
-
-        grid.points.forEach((point, pointIndex) => {
-          const pointButton = document.createElement("button");
-          pointButton.type = "button";
-          pointButton.style.cssText = `
-            width: ${metrics.sampled ? 7 : 8}px;
-            height: ${metrics.sampled ? 7 : 8}px;
-            border-radius: 9999px;
-            background: ${zone.color};
-            border: 1.5px solid rgba(255,255,255,0.85);
-            opacity: ${metrics.sampled ? 0.72 : 0.88};
-            box-shadow: 0 1px 4px rgba(0,0,0,0.28);
-            cursor: pointer;
-            padding: 0;
-          `;
-          pointButton.title = `${zone.crop} placement point ${pointIndex + 1} · exact spacing ${metrics.exactSpacing}m${metrics.sampled ? ` · visualized every ${metrics.visualSpacing}m` : ""}`;
-
-          pointButton.addEventListener("click", () => {
-            activeGridPopupRef.current?.remove();
-            activeGridPopupRef.current = new mapboxgl.Popup({ offset: 10, closeButton: false, maxWidth: "220px" })
-              .setLngLat([point.lng, point.lat])
-              .setHTML(`
-                <div style="padding:4px 0;max-width:200px;">
-                  <div style="font-weight:700;font-size:12px;margin-bottom:4px;">${zone.crop} placement</div>
-                  <div style="font-size:11px;line-height:1.5;">
-                    Exact spacing: ${metrics.exactSpacing}m<br/>
-                    Zone pattern: staggered grid<br/>
-                    Plant set: ${formatter.format(metrics.exactPlantCount)} recommended points
-                    ${metrics.sampled ? `<br/>Map view sampled at ~${metrics.visualSpacing}m for readability` : ""}
-                  </div>
-                </div>
-              `)
-              .addTo(map);
-          });
-
-          const gridMarker = new mapboxgl.Marker({ element: pointButton, anchor: "center" })
-            .setLngLat([point.lng, point.lat])
-            .addTo(map);
-          markersRef.current.push(gridMarker);
-        });
+        markersRef.current.push(gridMarker);
       });
     },
-    [field, fieldBounds, placementMetrics],
+    [field, fieldBounds, placementMetrics, filterZoneId],
   );
 
   useEffect(() => {
