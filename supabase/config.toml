@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.keepalive]
 verify_jwt = false
+
+[functions.crop-planning]
+verify_jwt = false
