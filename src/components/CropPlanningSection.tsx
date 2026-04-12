@@ -126,7 +126,40 @@ const MAX_GRID_MARKERS_TOTAL = 500;
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 // Vibrant, distinct colors for each crop
+// Region detection helpers
+type RegionTag = "tropical" | "subtropical" | "mediterranean" | "temperate" | "continental" | "arid" | "humid" | "coastal" | "highland";
+
+interface RegionMatch {
+  region: RegionTag[];
+  keywords: string[];
+}
+
+const REGION_MATCHERS: RegionMatch[] = [
+  { region: ["mediterranean"], keywords: ["spain", "portugal", "italy", "greece", "turkey", "morocco", "tunisia", "algeria", "croatia", "cyprus", "malta", "provence", "sardinia", "sicily", "andalusia", "catalonia", "tarragona", "valencia", "murcia", "algarve", "puglia", "crete", "peloponnese", "aegean", "adriatic", "balearic", "corsica", "dalmatia", "languedoc", "california", "cape town", "chile central", "mediterranean"] },
+  { region: ["temperate"], keywords: ["france", "germany", "uk", "england", "scotland", "ireland", "netherlands", "belgium", "poland", "czech", "austria", "switzerland", "denmark", "sweden", "norway", "finland", "hungary", "romania", "ukraine", "russia", "canada", "oregon", "washington", "new york", "pennsylvania", "ohio", "michigan", "wisconsin", "minnesota", "iowa", "illinois", "indiana", "missouri", "virginia", "north carolina", "new zealand", "tasmania", "hokkaido", "northern china", "manchuria", "korea", "japan", "baltic", "bavaria", "brittany", "normandy", "yorkshire", "midwest"] },
+  { region: ["continental"], keywords: ["central europe", "siberia", "mongolia", "kazakhstan", "interior", "plains", "steppe", "prairie", "great plains", "dakota", "nebraska", "kansas", "montana", "wyoming", "colorado"] },
+  { region: ["subtropical"], keywords: ["florida", "louisiana", "texas", "georgia", "south carolina", "mississippi", "alabama", "southern china", "guangdong", "fujian", "yunnan", "sichuan", "vietnam", "thailand north", "myanmar", "nepal terai", "bangladesh", "taiwan", "okinawa", "kyushu", "new south wales", "queensland", "sao paulo", "parana", "rio grande", "argentina", "uruguay", "natal"] },
+  { region: ["tropical"], keywords: ["kerala", "tamil", "karnataka", "goa", "konkan", "andaman", "assam", "bengal", "odisha", "maharashtra coast", "indonesia", "malaysia", "philippines", "thailand", "cambodia", "laos", "sri lanka", "maldives", "hawaii", "caribbean", "cuba", "jamaica", "trinidad", "puerto rico", "dominican", "costa rica", "panama", "colombia", "ecuador", "peru amazon", "brazil amazon", "congo", "nigeria", "ghana", "cameroon", "ivory coast", "kenya coast", "tanzania", "mozambique", "madagascar", "fiji", "samoa", "borneo", "sumatra", "java", "bali"] },
+  { region: ["arid"], keywords: ["rajasthan", "sahara", "sahel", "saudi", "emirates", "oman", "yemen", "iran", "iraq", "jordan", "israel", "palestine", "egypt", "libya", "namibia", "botswana", "arizona", "nevada", "new mexico", "utah", "atacama", "gobi", "thar", "negev", "sinai", "outback", "balochistan", "sindh", "punjab pakistan", "drought", "dry", "arid", "desert", "semi-arid"] },
+  { region: ["highland"], keywords: ["himachal", "uttarakhand", "kashmir", "ladakh", "tibet", "nepal", "bhutan", "ethiopia", "kenya highlands", "rwanda", "burundi", "andes", "bogota", "quito", "cusco", "la paz", "hill", "mountain", "highland", "altitude", "alps", "pyrenees", "caucasus", "carpathian"] },
+  { region: ["coastal"], keywords: ["coast", "shore", "beach", "port", "harbour", "harbor", "island", "bay", "gulf", "sea", "ocean", "littoral", "maritime"] },
+  { region: ["humid"], keywords: ["monsoon", "rainforest", "humid", "wet", "rain"] },
+];
+
+function detectRegion(locationText: string): RegionTag[] {
+  const loc = locationText.toLowerCase();
+  const matched = new Set<RegionTag>();
+  for (const matcher of REGION_MATCHERS) {
+    if (matcher.keywords.some(kw => loc.includes(kw))) {
+      matcher.region.forEach(r => matched.add(r));
+    }
+  }
+  if (matched.size === 0) matched.add("temperate"); // safe default
+  return Array.from(matched);
+}
+
 const CROP_PROFILES: CropProfile[] = [
+  // === TROPICAL TREES ===
   {
     name: "Coconut",
     color: "#16A34A",
@@ -141,6 +174,163 @@ const CROP_PROFILES: CropProfile[] = [
     tags: ["tree", "tropical", "humid", "coastal"],
     dotSize: 16,
   },
+  {
+    name: "Mango",
+    color: "#F59E0B",
+    spacing_m: 10,
+    waterNeeds: "medium",
+    tempRange: [24, 37],
+    rainfallRange: [600, 2500],
+    phRange: [5.5, 7.5],
+    humidityMin: 50,
+    baseYield: 8,
+    season: "Perennial (Year-round)",
+    tags: ["tree", "tropical", "subtropical"],
+    dotSize: 16,
+  },
+  {
+    name: "Neem",
+    color: "#065F46",
+    spacing_m: 10,
+    waterNeeds: "low",
+    tempRange: [21, 38],
+    rainfallRange: [350, 1400],
+    phRange: [5.0, 8.5],
+    humidityMin: 30,
+    baseYield: 2,
+    season: "Perennial (Year-round)",
+    tags: ["tree", "tropical", "arid", "subtropical"],
+    dotSize: 16,
+  },
+  // === MEDITERRANEAN TREES ===
+  {
+    name: "Olive",
+    color: "#4D7C0F",
+    spacing_m: 7,
+    waterNeeds: "low",
+    tempRange: [10, 35],
+    rainfallRange: [300, 900],
+    phRange: [6.0, 8.5],
+    humidityMin: 30,
+    baseYield: 4.5,
+    season: "Perennial (Year-round)",
+    tags: ["tree", "mediterranean", "arid"],
+    dotSize: 16,
+  },
+  {
+    name: "Almond",
+    color: "#D4A574",
+    spacing_m: 6,
+    waterNeeds: "low",
+    tempRange: [8, 35],
+    rainfallRange: [300, 800],
+    phRange: [6.0, 8.0],
+    humidityMin: 25,
+    baseYield: 2.8,
+    season: "Perennial (Feb-Sep harvest)",
+    tags: ["tree", "mediterranean", "temperate"],
+    dotSize: 16,
+  },
+  {
+    name: "Carob",
+    color: "#78350F",
+    spacing_m: 8,
+    waterNeeds: "low",
+    tempRange: [10, 36],
+    rainfallRange: [250, 700],
+    phRange: [6.5, 8.5],
+    humidityMin: 25,
+    baseYield: 3,
+    season: "Perennial (Year-round)",
+    tags: ["tree", "mediterranean"],
+    dotSize: 16,
+  },
+  {
+    name: "Fig",
+    color: "#7E22CE",
+    spacing_m: 5,
+    waterNeeds: "low",
+    tempRange: [10, 38],
+    rainfallRange: [250, 900],
+    phRange: [6.0, 8.0],
+    humidityMin: 25,
+    baseYield: 5,
+    season: "Perennial (Jun-Oct)",
+    tags: ["tree", "mediterranean", "subtropical"],
+    dotSize: 14,
+  },
+  {
+    name: "Citrus",
+    color: "#FB923C",
+    spacing_m: 5,
+    waterNeeds: "medium",
+    tempRange: [13, 36],
+    rainfallRange: [500, 1500],
+    phRange: [5.5, 7.5],
+    humidityMin: 40,
+    baseYield: 20,
+    season: "Perennial (Nov-May harvest)",
+    tags: ["tree", "mediterranean", "subtropical"],
+    dotSize: 14,
+  },
+  // === TEMPERATE TREES ===
+  {
+    name: "Apple",
+    color: "#DC2626",
+    spacing_m: 4,
+    waterNeeds: "medium",
+    tempRange: [4, 24],
+    rainfallRange: [600, 1200],
+    phRange: [5.5, 7.0],
+    humidityMin: 45,
+    baseYield: 25,
+    season: "Perennial (Sep-Oct harvest)",
+    tags: ["tree", "temperate", "continental", "highland"],
+    dotSize: 14,
+  },
+  {
+    name: "Walnut",
+    color: "#92400E",
+    spacing_m: 10,
+    waterNeeds: "medium",
+    tempRange: [5, 28],
+    rainfallRange: [600, 1200],
+    phRange: [6.0, 7.5],
+    humidityMin: 40,
+    baseYield: 3,
+    season: "Perennial (Sep-Oct harvest)",
+    tags: ["tree", "temperate", "mediterranean", "continental"],
+    dotSize: 16,
+  },
+  {
+    name: "Cherry",
+    color: "#BE123C",
+    spacing_m: 5,
+    waterNeeds: "medium",
+    tempRange: [5, 26],
+    rainfallRange: [600, 1100],
+    phRange: [6.0, 7.5],
+    humidityMin: 45,
+    baseYield: 8,
+    season: "Perennial (Jun-Jul harvest)",
+    tags: ["tree", "temperate"],
+    dotSize: 14,
+  },
+  {
+    name: "Pear",
+    color: "#65A30D",
+    spacing_m: 4,
+    waterNeeds: "medium",
+    tempRange: [5, 26],
+    rainfallRange: [600, 1100],
+    phRange: [6.0, 7.5],
+    humidityMin: 45,
+    baseYield: 18,
+    season: "Perennial (Aug-Oct harvest)",
+    tags: ["tree", "temperate", "continental"],
+    dotSize: 14,
+  },
+  // === TROPICAL/SUBTROPICAL CROPS ===
   {
     name: "Banana",
     color: "#EAB308",
@@ -180,7 +370,7 @@ const CROP_PROFILES: CropProfile[] = [
     humidityMin: 55,
     baseYield: 7.2,
     season: "Kharif (May-Jan)",
-    tags: ["spice", "shade-friendly", "humid"],
+    tags: ["spice", "shade-friendly", "tropical", "humid"],
     dotSize: 8,
   },
   {
@@ -194,22 +384,8 @@ const CROP_PROFILES: CropProfile[] = [
     humidityMin: 65,
     baseYield: 3.2,
     season: "Perennial (Year-round)",
-    tags: ["spice", "vine", "humid", "intercrop"],
+    tags: ["spice", "vine", "tropical", "humid", "intercrop"],
     dotSize: 12,
-  },
-  {
-    name: "Rice",
-    color: "#22C55E",
-    spacing_m: 0.2,
-    waterNeeds: "high",
-    tempRange: [21, 34],
-    rainfallRange: [1100, 3000],
-    phRange: [5.0, 7.5],
-    humidityMin: 60,
-    baseYield: 4.8,
-    season: "Kharif (Jun-Nov)",
-    tags: ["grain", "high-water", "monsoon"],
-    dotSize: 7,
   },
   {
     name: "Sugarcane",
@@ -222,35 +398,149 @@ const CROP_PROFILES: CropProfile[] = [
     humidityMin: 55,
     baseYield: 78,
     season: "Annual (Feb-Mar planting)",
-    tags: ["industrial", "high-water", "warm"],
+    tags: ["industrial", "tropical", "subtropical"],
     dotSize: 12,
+  },
+  // === GRAINS (global) ===
+  {
+    name: "Rice",
+    color: "#22C55E",
+    spacing_m: 0.2,
+    waterNeeds: "high",
+    tempRange: [21, 34],
+    rainfallRange: [1100, 3000],
+    phRange: [5.0, 7.5],
+    humidityMin: 60,
+    baseYield: 4.8,
+    season: "Kharif (Jun-Nov)",
+    tags: ["grain", "tropical", "subtropical", "humid"],
+    dotSize: 7,
+  },
+  {
+    name: "Wheat",
+    color: "#F59E0B",
+    spacing_m: 0.22,
+    waterNeeds: "medium",
+    tempRange: [5, 25],
+    rainfallRange: [350, 1100],
+    phRange: [6.0, 7.8],
+    humidityMin: 30,
+    baseYield: 3.4,
+    season: "Winter (Oct-Jun)",
+    tags: ["grain", "temperate", "continental", "mediterranean", "arid"],
+    dotSize: 7,
+  },
+  {
+    name: "Barley",
+    color: "#CA8A04",
+    spacing_m: 0.2,
+    waterNeeds: "low",
+    tempRange: [4, 24],
+    rainfallRange: [250, 900],
+    phRange: [6.0, 8.5],
+    humidityMin: 25,
+    baseYield: 3.0,
+    season: "Winter (Oct-Jun)",
+    tags: ["grain", "temperate", "continental", "mediterranean", "arid", "highland"],
+    dotSize: 7,
+  },
+  {
+    name: "Oats",
+    color: "#A3A3A3",
+    spacing_m: 0.2,
+    waterNeeds: "medium",
+    tempRange: [3, 22],
+    rainfallRange: [450, 1100],
+    phRange: [5.5, 7.5],
+    humidityMin: 40,
+    baseYield: 2.8,
+    season: "Spring (Mar-Aug)",
+    tags: ["grain", "temperate", "continental"],
+    dotSize: 7,
+  },
+  {
+    name: "Rye",
+    color: "#78716C",
+    spacing_m: 0.2,
+    waterNeeds: "low",
+    tempRange: [1, 22],
+    rainfallRange: [350, 900],
+    phRange: [5.0, 7.5],
+    humidityMin: 30,
+    baseYield: 2.5,
+    season: "Winter (Sep-Jul)",
+    tags: ["grain", "temperate", "continental", "highland"],
+    dotSize: 7,
   },
   {
     name: "Maize",
     color: "#FACC15",
     spacing_m: 0.3,
     waterNeeds: "medium",
-    tempRange: [18, 32],
+    tempRange: [15, 32],
     rainfallRange: [500, 1200],
     phRange: [5.5, 7.8],
-    humidityMin: 45,
+    humidityMin: 40,
     baseYield: 5.6,
-    season: "Kharif (Jun-Oct)",
-    tags: ["grain", "moderate-water", "warm"],
+    season: "Summer (Apr-Oct)",
+    tags: ["grain", "temperate", "subtropical", "tropical", "continental", "mediterranean"],
     dotSize: 9,
   },
   {
+    name: "Sorghum",
+    color: "#B45309",
+    spacing_m: 0.25,
+    waterNeeds: "low",
+    tempRange: [20, 37],
+    rainfallRange: [350, 900],
+    phRange: [5.5, 8.5],
+    humidityMin: 30,
+    baseYield: 3.0,
+    season: "Summer (Jun-Oct)",
+    tags: ["grain", "arid", "tropical", "subtropical"],
+    dotSize: 7,
+  },
+  {
     name: "Millet",
-    color: "#A3A3A3",
+    color: "#D4D4D4",
     spacing_m: 0.25,
     waterNeeds: "low",
     tempRange: [20, 34],
     rainfallRange: [350, 850],
     phRange: [5.5, 8.0],
-    humidityMin: 35,
+    humidityMin: 30,
     baseYield: 2.1,
-    season: "Kharif (Jun-Sep)",
-    tags: ["grain", "drought-tolerant", "dry"],
+    season: "Summer (Jun-Sep)",
+    tags: ["grain", "arid", "tropical"],
+    dotSize: 7,
+  },
+  // === PULSES & LEGUMES ===
+  {
+    name: "Chickpea",
+    color: "#EC4899",
+    spacing_m: 0.3,
+    waterNeeds: "low",
+    tempRange: [10, 28],
+    rainfallRange: [300, 900],
+    phRange: [6.0, 8.5],
+    humidityMin: 30,
+    baseYield: 1.8,
+    season: "Winter (Oct-Mar)",
+    tags: ["pulse", "mediterranean", "arid", "subtropical", "temperate"],
+    dotSize: 8,
+  },
+  {
+    name: "Lentil",
+    color: "#A855F7",
+    spacing_m: 0.25,
+    waterNeeds: "low",
+    tempRange: [8, 25],
+    rainfallRange: [300, 800],
+    phRange: [6.0, 8.0],
+    humidityMin: 30,
+    baseYield: 1.4,
+    season: "Winter (Oct-Mar)",
+    tags: ["pulse", "mediterranean", "temperate", "arid"],
     dotSize: 7,
   },
   {
@@ -263,22 +553,8 @@ const CROP_PROFILES: CropProfile[] = [
     phRange: [5.8, 7.5],
     humidityMin: 40,
     baseYield: 2.6,
-    season: "Kharif (Jun-Oct)",
-    tags: ["legume", "dry", "intercrop"],
-    dotSize: 8,
-  },
-  {
-    name: "Chickpea",
-    color: "#EC4899",
-    spacing_m: 0.3,
-    waterNeeds: "low",
-    tempRange: [15, 28],
-    rainfallRange: [400, 900],
-    phRange: [6.0, 8.0],
-    humidityMin: 35,
-    baseYield: 1.8,
-    season: "Rabi (Oct-Mar)",
-    tags: ["pulse", "low-water", "rotation"],
+    season: "Summer (Jun-Oct)",
+    tags: ["legume", "tropical", "subtropical", "arid"],
     dotSize: 8,
   },
   {
@@ -291,8 +567,65 @@ const CROP_PROFILES: CropProfile[] = [
     phRange: [6.0, 7.5],
     humidityMin: 40,
     baseYield: 1.5,
-    season: "Zaid (Mar-Jun)",
-    tags: ["pulse", "soil-builder", "rotation"],
+    season: "Summer (Mar-Jun)",
+    tags: ["pulse", "tropical", "subtropical"],
+    dotSize: 7,
+  },
+  {
+    name: "Fava Bean",
+    color: "#15803D",
+    spacing_m: 0.3,
+    waterNeeds: "medium",
+    tempRange: [5, 22],
+    rainfallRange: [400, 1000],
+    phRange: [6.0, 8.0],
+    humidityMin: 40,
+    baseYield: 3.0,
+    season: "Winter (Oct-May)",
+    tags: ["pulse", "mediterranean", "temperate"],
+    dotSize: 8,
+  },
+  {
+    name: "Field Pea",
+    color: "#22D3EE",
+    spacing_m: 0.2,
+    waterNeeds: "medium",
+    tempRange: [5, 22],
+    rainfallRange: [400, 900],
+    phRange: [6.0, 7.5],
+    humidityMin: 40,
+    baseYield: 2.5,
+    season: "Spring (Feb-Jun)",
+    tags: ["pulse", "temperate", "continental"],
+    dotSize: 7,
+  },
+  // === OILSEEDS ===
+  {
+    name: "Sunflower",
+    color: "#FCD34D",
+    spacing_m: 0.6,
+    waterNeeds: "low",
+    tempRange: [14, 32],
+    rainfallRange: [400, 1000],
+    phRange: [6.0, 8.0],
+    humidityMin: 30,
+    baseYield: 2.5,
+    season: "Summer (Apr-Sep)",
+    tags: ["oilseed", "temperate", "continental", "mediterranean", "subtropical"],
+    dotSize: 10,
+  },
+  {
+    name: "Canola",
+    color: "#FDE047",
+    spacing_m: 0.25,
+    waterNeeds: "medium",
+    tempRange: [5, 24],
+    rainfallRange: [400, 900],
+    phRange: [5.5, 7.5],
+    humidityMin: 35,
+    baseYield: 2.0,
+    season: "Spring/Winter (Sep-Jun)",
+    tags: ["oilseed", "temperate", "continental"],
     dotSize: 7,
   },
   {
@@ -300,42 +633,377 @@ const CROP_PROFILES: CropProfile[] = [
     color: "#FDE047",
     spacing_m: 0.3,
     waterNeeds: "low",
-    tempRange: [12, 26],
+    tempRange: [8, 26],
     rainfallRange: [350, 800],
     phRange: [6.0, 7.8],
-    humidityMin: 35,
+    humidityMin: 30,
     baseYield: 1.4,
-    season: "Rabi (Oct-Feb)",
-    tags: ["oilseed", "cool", "rotation"],
+    season: "Winter (Oct-Feb)",
+    tags: ["oilseed", "temperate", "mediterranean", "subtropical", "arid"],
     dotSize: 8,
   },
+  {
+    name: "Sesame",
+    color: "#F5DEB3",
+    spacing_m: 0.3,
+    waterNeeds: "low",
+    tempRange: [22, 35],
+    rainfallRange: [300, 800],
+    phRange: [5.5, 8.0],
+    humidityMin: 30,
+    baseYield: 0.8,
+    season: "Summer (May-Oct)",
+    tags: ["oilseed", "tropical", "arid", "subtropical"],
+    dotSize: 7,
+  },
+  // === VEGETABLES ===
   {
     name: "Tomato",
     color: "#EF4444",
     spacing_m: 0.6,
     waterNeeds: "medium",
-    tempRange: [18, 30],
-    rainfallRange: [500, 1400],
+    tempRange: [15, 32],
+    rainfallRange: [400, 1400],
     phRange: [5.5, 7.5],
-    humidityMin: 45,
+    humidityMin: 40,
     baseYield: 18,
-    season: "Zaid (Jan-May)",
-    tags: ["vegetable", "market", "moderate-water"],
+    season: "Summer (Mar-Sep)",
+    tags: ["vegetable", "mediterranean", "subtropical", "temperate", "tropical"],
     dotSize: 9,
   },
   {
-    name: "Wheat",
-    color: "#F59E0B",
+    name: "Potato",
+    color: "#A16207",
+    spacing_m: 0.35,
+    waterNeeds: "medium",
+    tempRange: [8, 24],
+    rainfallRange: [450, 1100],
+    phRange: [5.0, 7.0],
+    humidityMin: 40,
+    baseYield: 22,
+    season: "Spring (Mar-Sep)",
+    tags: ["vegetable", "temperate", "continental", "highland", "subtropical"],
+    dotSize: 8,
+  },
+  {
+    name: "Onion",
+    color: "#C084FC",
+    spacing_m: 0.15,
+    waterNeeds: "low",
+    tempRange: [10, 30],
+    rainfallRange: [350, 900],
+    phRange: [6.0, 7.5],
+    humidityMin: 35,
+    baseYield: 20,
+    season: "Winter/Spring (Oct-May)",
+    tags: ["vegetable", "mediterranean", "temperate", "subtropical", "arid"],
+    dotSize: 7,
+  },
+  {
+    name: "Garlic",
+    color: "#E2E8F0",
+    spacing_m: 0.15,
+    waterNeeds: "low",
+    tempRange: [8, 28],
+    rainfallRange: [300, 800],
+    phRange: [6.0, 7.5],
+    humidityMin: 30,
+    baseYield: 8,
+    season: "Winter (Oct-Jun)",
+    tags: ["vegetable", "mediterranean", "temperate", "subtropical"],
+    dotSize: 7,
+  },
+  {
+    name: "Artichoke",
+    color: "#6366F1",
+    spacing_m: 1.0,
+    waterNeeds: "medium",
+    tempRange: [10, 28],
+    rainfallRange: [400, 900],
+    phRange: [6.5, 8.0],
+    humidityMin: 40,
+    baseYield: 10,
+    season: "Perennial (Oct-May harvest)",
+    tags: ["vegetable", "mediterranean"],
+    dotSize: 10,
+  },
+  {
+    name: "Asparagus",
+    color: "#059669",
+    spacing_m: 0.35,
+    waterNeeds: "medium",
+    tempRange: [10, 26],
+    rainfallRange: [400, 1000],
+    phRange: [6.0, 7.5],
+    humidityMin: 40,
+    baseYield: 5,
+    season: "Perennial (Apr-Jun harvest)",
+    tags: ["vegetable", "mediterranean", "temperate"],
+    dotSize: 8,
+  },
+  {
+    name: "Sugar Beet",
+    color: "#BE185D",
     spacing_m: 0.22,
     waterNeeds: "medium",
-    tempRange: [12, 25],
-    rainfallRange: [450, 1100],
-    phRange: [6.0, 7.8],
-    humidityMin: 35,
-    baseYield: 3.4,
-    season: "Rabi (Nov-Apr)",
-    tags: ["grain", "cool", "rotation"],
+    tempRange: [6, 24],
+    rainfallRange: [500, 1000],
+    phRange: [6.5, 8.0],
+    humidityMin: 40,
+    baseYield: 55,
+    season: "Spring (Mar-Oct)",
+    tags: ["industrial", "temperate", "continental"],
+    dotSize: 8,
+  },
+  // === FRUITS ===
+  {
+    name: "Grape",
+    color: "#7C3AED",
+    spacing_m: 2.5,
+    waterNeeds: "low",
+    tempRange: [10, 35],
+    rainfallRange: [350, 900],
+    phRange: [5.5, 8.0],
+    humidityMin: 30,
+    baseYield: 10,
+    season: "Perennial (Aug-Oct harvest)",
+    tags: ["fruit", "mediterranean", "temperate", "subtropical"],
+    dotSize: 12,
+  },
+  {
+    name: "Pomegranate",
+    color: "#E11D48",
+    spacing_m: 4,
+    waterNeeds: "low",
+    tempRange: [12, 38],
+    rainfallRange: [250, 800],
+    phRange: [5.5, 8.0],
+    humidityMin: 25,
+    baseYield: 12,
+    season: "Perennial (Sep-Nov harvest)",
+    tags: ["fruit", "mediterranean", "arid", "subtropical"],
+    dotSize: 13,
+  },
+  {
+    name: "Strawberry",
+    color: "#F43F5E",
+    spacing_m: 0.3,
+    waterNeeds: "medium",
+    tempRange: [10, 26],
+    rainfallRange: [500, 1100],
+    phRange: [5.5, 7.0],
+    humidityMin: 45,
+    baseYield: 15,
+    season: "Spring (Mar-Jun)",
+    tags: ["fruit", "temperate", "mediterranean", "subtropical"],
+    dotSize: 8,
+  },
+  // === FIBER ===
+  {
+    name: "Cotton",
+    color: "#F8FAFC",
+    spacing_m: 0.8,
+    waterNeeds: "medium",
+    tempRange: [20, 35],
+    rainfallRange: [500, 1200],
+    phRange: [5.5, 8.0],
+    humidityMin: 40,
+    baseYield: 2.5,
+    season: "Summer (Apr-Nov)",
+    tags: ["fiber", "subtropical", "tropical", "arid", "mediterranean"],
+    dotSize: 10,
+  },
+  // === COVER/FORAGE ===
+  {
+    name: "Alfalfa",
+    color: "#4ADE80",
+    spacing_m: 0.15,
+    waterNeeds: "medium",
+    tempRange: [8, 32],
+    rainfallRange: [400, 1200],
+    phRange: [6.5, 8.0],
+    humidityMin: 30,
+    baseYield: 10,
+    season: "Perennial (Year-round)",
+    tags: ["fodder", "temperate", "continental", "mediterranean", "subtropical", "arid"],
     dotSize: 7,
+  },
+  {
+    name: "Clover",
+    color: "#34D399",
+    spacing_m: 0.1,
+    waterNeeds: "medium",
+    tempRange: [5, 24],
+    rainfallRange: [500, 1200],
+    phRange: [6.0, 7.5],
+    humidityMin: 45,
+    baseYield: 6,
+    season: "Spring/Autumn cover",
+    tags: ["fodder", "temperate", "continental"],
+    dotSize: 6,
+  },
+  // === SPICES (Mediterranean/global) ===
+  {
+    name: "Lavender",
+    color: "#A78BFA",
+    spacing_m: 1.0,
+    waterNeeds: "low",
+    tempRange: [8, 32],
+    rainfallRange: [300, 800],
+    phRange: [6.5, 8.5],
+    humidityMin: 25,
+    baseYield: 3,
+    season: "Perennial (Jun-Aug harvest)",
+    tags: ["herb", "mediterranean"],
+    dotSize: 9,
+  },
+  {
+    name: "Rosemary",
+    color: "#0D9488",
+    spacing_m: 0.8,
+    waterNeeds: "low",
+    tempRange: [8, 30],
+    rainfallRange: [300, 800],
+    phRange: [6.0, 8.0],
+    humidityMin: 25,
+    baseYield: 4,
+    season: "Perennial (Year-round)",
+    tags: ["herb", "mediterranean"],
+    dotSize: 8,
+  },
+  {
+    name: "Saffron",
+    color: "#F97316",
+    spacing_m: 0.15,
+    waterNeeds: "low",
+    tempRange: [8, 28],
+    rainfallRange: [300, 700],
+    phRange: [6.0, 8.0],
+    humidityMin: 30,
+    baseYield: 0.005,
+    season: "Autumn (Oct-Nov harvest)",
+    tags: ["spice", "mediterranean", "arid", "highland"],
+    dotSize: 7,
+  },
+  // === DATE PALM (arid) ===
+  {
+    name: "Date Palm",
+    color: "#92400E",
+    spacing_m: 8,
+    waterNeeds: "low",
+    tempRange: [20, 45],
+    rainfallRange: [50, 400],
+    phRange: [7.0, 8.5],
+    humidityMin: 15,
+    baseYield: 8,
+    season: "Perennial (Aug-Nov harvest)",
+    tags: ["tree", "arid"],
+    dotSize: 16,
+  },
+  // === EUCALYPTUS (subtropical/temperate) ===
+  {
+    name: "Eucalyptus",
+    color: "#0EA5E9",
+    spacing_m: 6,
+    waterNeeds: "medium",
+    tempRange: [10, 35],
+    rainfallRange: [500, 1500],
+    phRange: [5.0, 7.5],
+    humidityMin: 35,
+    baseYield: 15,
+    season: "Perennial (Year-round)",
+    tags: ["tree", "subtropical", "temperate", "mediterranean"],
+    dotSize: 16,
+  },
+  // === CORK OAK ===
+  {
+    name: "Cork Oak",
+    color: "#6B7280",
+    spacing_m: 10,
+    waterNeeds: "low",
+    tempRange: [8, 32],
+    rainfallRange: [400, 900],
+    phRange: [5.0, 7.5],
+    humidityMin: 30,
+    baseYield: 0.3,
+    season: "Perennial (Year-round)",
+    tags: ["tree", "mediterranean"],
+    dotSize: 16,
+  },
+  // === PINE NUT ===
+  {
+    name: "Stone Pine",
+    color: "#1E3A2F",
+    spacing_m: 8,
+    waterNeeds: "low",
+    tempRange: [8, 32],
+    rainfallRange: [350, 900],
+    phRange: [5.5, 8.0],
+    humidityMin: 25,
+    baseYield: 0.6,
+    season: "Perennial (Year-round)",
+    tags: ["tree", "mediterranean"],
+    dotSize: 16,
+  },
+  // === BIRCH (temperate/continental) ===
+  {
+    name: "Birch",
+    color: "#D1D5DB",
+    spacing_m: 6,
+    waterNeeds: "medium",
+    tempRange: [0, 22],
+    rainfallRange: [500, 1200],
+    phRange: [4.5, 7.0],
+    humidityMin: 45,
+    baseYield: 5,
+    season: "Perennial (Year-round)",
+    tags: ["tree", "temperate", "continental"],
+    dotSize: 16,
+  },
+  // === OAK (temperate) ===
+  {
+    name: "Oak",
+    color: "#4B5563",
+    spacing_m: 10,
+    waterNeeds: "medium",
+    tempRange: [3, 28],
+    rainfallRange: [500, 1400],
+    phRange: [4.5, 7.5],
+    humidityMin: 40,
+    baseYield: 2,
+    season: "Perennial (Year-round)",
+    tags: ["tree", "temperate", "continental", "mediterranean"],
+    dotSize: 16,
+  },
+  // === HAZELNUT ===
+  {
+    name: "Hazelnut",
+    color: "#A16207",
+    spacing_m: 4,
+    waterNeeds: "medium",
+    tempRange: [5, 26],
+    rainfallRange: [600, 1200],
+    phRange: [5.5, 7.5],
+    humidityMin: 40,
+    baseYield: 2.5,
+    season: "Perennial (Sep-Oct harvest)",
+    tags: ["tree", "temperate", "mediterranean"],
+    dotSize: 14,
+  },
+  // === PISTACHIO ===
+  {
+    name: "Pistachio",
+    color: "#84CC16",
+    spacing_m: 6,
+    waterNeeds: "low",
+    tempRange: [10, 38],
+    rainfallRange: [200, 600],
+    phRange: [7.0, 8.5],
+    humidityMin: 20,
+    baseYield: 2.5,
+    season: "Perennial (Sep-Oct harvest)",
+    tags: ["tree", "mediterranean", "arid"],
+    dotSize: 14,
   },
 ];
 
@@ -399,6 +1067,11 @@ const SEASON_COLORS: Record<string, string> = {
   Rabi: "#F97316",
   Zaid: "#3B82F6",
   Perennial: "#16A34A",
+  Spring: "#22D3EE",
+  Summer: "#EAB308",
+  Autumn: "#F97316",
+  Winter: "#3B82F6",
+  Fall: "#F97316",
 };
 
 function getSeasonColor(season: string): string {
@@ -461,15 +1134,26 @@ function buildPlanningSignals({ ndviData, soilData, weatherData, suitabilityData
 }
 
 function getLocationBoost(profile: CropProfile, locationText: string) {
-  const tropicalLocations = ["kerala", "coastal", "goa", "tamil", "konkan", "andaman", "assam"];
-  const dryLocations = ["rajasthan", "dry", "arid", "plateau"];
-  const coolLocations = ["himachal", "uttarakhand", "kashmir", "hill", "mountain"];
-
-  if (profile.tags.includes("tropical") && tropicalLocations.some((keyword) => locationText.includes(keyword))) return 0.12;
-  if (profile.tags.includes("dry") && dryLocations.some((keyword) => locationText.includes(keyword))) return 0.12;
-  if (profile.tags.includes("cool") && coolLocations.some((keyword) => locationText.includes(keyword))) return 0.12;
-  if (profile.tags.includes("coastal") && locationText.includes("coast")) return 0.1;
-  return 0;
+  const detectedRegions = detectRegion(locationText);
+  // Boost crops that share region tags with the detected location
+  let boost = 0;
+  for (const tag of profile.tags) {
+    if (detectedRegions.includes(tag as RegionTag)) {
+      boost += 0.15;
+      break; // one match is enough for a strong boost
+    }
+  }
+  // Penalize crops that DON'T match any detected region
+  if (boost === 0) {
+    const profileRegionTags = profile.tags.filter(t =>
+      ["tropical", "subtropical", "mediterranean", "temperate", "continental", "arid", "highland"].includes(t)
+    );
+    if (profileRegionTags.length > 0) {
+      // Strong penalty for wrong-region crops
+      boost = -0.25;
+    }
+  }
+  return boost;
 }
 
 function scoreCropProfile(profile: CropProfile, signals: PlanningSignals, currentCrop: string) {
@@ -477,23 +1161,19 @@ function scoreCropProfile(profile: CropProfile, signals: PlanningSignals, curren
   const humidityFit = clamp((signals.humidity - profile.humidityMin + 20) / 40, 0, 1);
   const locationBoost = getLocationBoost(profile, signals.locationText);
   const currentBoost = currentCrop.toLowerCase() === profile.name.toLowerCase() ? 0.14 : 0;
-  const tropicalBoost = signals.annualRainfall > 1500 && signals.humidity > 68 && profile.tags.includes("tropical") ? 0.08 : 0;
-  const dryBoost = signals.annualRainfall < 850 && profile.tags.includes("dry") ? 0.08 : 0;
 
   return (
-    rangeScore(signals.temperature, profile.tempRange, 6) * 0.22 +
-    rangeScore(signals.annualRainfall, profile.rainfallRange, 500) * 0.22 +
-    rangeScore(signals.soilPH, profile.phRange, 0.8) * 0.14 +
-    clamp(waterFit, 0, 1) * 0.14 +
-    humidityFit * 0.08 +
-    signals.healthScore * 0.08 +
-    signals.soilQuality * 0.06 +
-    signals.climateQuality * 0.04 +
+    rangeScore(signals.temperature, profile.tempRange, 6) * 0.20 +
+    rangeScore(signals.annualRainfall, profile.rainfallRange, 500) * 0.18 +
+    rangeScore(signals.soilPH, profile.phRange, 0.8) * 0.12 +
+    clamp(waterFit, 0, 1) * 0.10 +
+    humidityFit * 0.06 +
+    signals.healthScore * 0.06 +
+    signals.soilQuality * 0.04 +
+    signals.climateQuality * 0.03 +
     signals.topographyQuality * 0.02 +
-    locationBoost +
-    currentBoost +
-    tropicalBoost +
-    dryBoost
+    locationBoost * 0.19 + // region match is heavily weighted
+    currentBoost
   );
 }
 
@@ -512,54 +1192,91 @@ function getZoneReason(profile: CropProfile, signals: PlanningSignals, index: nu
 
 function chooseRotationPlan(chosenProfiles: CropProfile[], signals: PlanningSignals): RotationStep[] {
   const names = new Set(chosenProfiles.map((profile) => profile.name));
+  const detectedRegions = detectRegion(signals.locationText);
+  const isTropical = detectedRegions.includes("tropical");
+  const isMediterranean = detectedRegions.includes("mediterranean");
+  const isTemplateOrCont = detectedRegions.includes("temperate") || detectedRegions.includes("continental");
 
-  // Determine current season based on month
-  const currentMonth = new Date().getMonth(); // 0-11
-  const isKharif = currentMonth >= 5 && currentMonth <= 9;
-  const isRabi = currentMonth >= 10 || currentMonth <= 2;
+  const currentMonth = new Date().getMonth();
 
-  const kharif = signals.annualRainfall > 1400 ? (names.has("Rice") ? "Rice" : names.has("Turmeric") ? "Turmeric" : "Maize") : names.has("Millet") ? "Millet" : "Groundnut";
-  const rabi = signals.temperature < 22 ? (names.has("Wheat") ? "Wheat" : "Chickpea") : names.has("Chickpea") ? "Chickpea" : "Mustard";
-  const zaid = names.has("Mung Bean") ? "Mung Bean" : names.has("Tomato") ? "Tomato" : "Groundnut";
+  if (isTropical) {
+    const isKharif = currentMonth >= 5 && currentMonth <= 9;
+    const isRabi = currentMonth >= 10 || currentMonth <= 2;
+    const kharif = signals.annualRainfall > 1400 ? (names.has("Rice") ? "Rice" : names.has("Turmeric") ? "Turmeric" : "Maize") : names.has("Millet") ? "Millet" : "Groundnut";
+    const rabi = signals.temperature < 22 ? (names.has("Wheat") ? "Wheat" : "Chickpea") : names.has("Chickpea") ? "Chickpea" : "Mustard";
+    const zaid = names.has("Mung Bean") ? "Mung Bean" : names.has("Tomato") ? "Tomato" : "Groundnut";
+    return [
+      { season: `Kharif${isKharif ? " (Current)" : ""}`, months: "Jun-Oct", crops: [kharif, names.has("Black Pepper") ? "Black Pepper" : "Cover crop", "Mung Bean"] },
+      { season: `Rabi${isRabi ? " (Current)" : ""}`, months: "Nov-Mar", crops: [rabi, names.has("Mustard") ? "Mustard" : "Lentil"] },
+      { season: `Zaid${!isKharif && !isRabi ? " (Current)" : ""}`, months: "Mar-Jun", crops: [zaid, "Mung Bean"] },
+    ];
+  }
 
-  // Order rotation starting from current season
-  const seasons: RotationStep[] = [
-    { season: `Kharif${isKharif ? " (Current)" : ""}`, months: "Jun-Oct", crops: [kharif, names.has("Black Pepper") ? "Black Pepper" : "Cover crop"] },
-    { season: `Rabi${isRabi ? " (Current)" : ""}`, months: "Nov-Mar", crops: [rabi, names.has("Mustard") ? "Mustard" : "Mulch recovery"] },
-    { season: `Zaid${!isKharif && !isRabi ? " (Current)" : ""}`, months: "Mar-Jun", crops: [zaid, "Mung Bean"] },
+  if (isMediterranean) {
+    const isWinter = currentMonth >= 10 || currentMonth <= 2;
+    const isSpring = currentMonth >= 3 && currentMonth <= 5;
+    const isSummer = currentMonth >= 6 && currentMonth <= 9;
+    const winter = names.has("Wheat") ? "Wheat" : names.has("Barley") ? "Barley" : "Fava Bean";
+    const spring = names.has("Chickpea") ? "Chickpea" : names.has("Lentil") ? "Lentil" : "Onion";
+    const summer = names.has("Tomato") ? "Tomato" : names.has("Sunflower") ? "Sunflower" : names.has("Maize") ? "Maize" : "Grape";
+    return [
+      { season: `Winter${isWinter ? " (Current)" : ""}`, months: "Nov-Feb", crops: [winter, names.has("Fava Bean") ? "Fava Bean" : "Barley", "Garlic"] },
+      { season: `Spring${isSpring ? " (Current)" : ""}`, months: "Mar-May", crops: [spring, names.has("Artichoke") ? "Artichoke" : "Onion"] },
+      { season: `Summer${isSummer ? " (Current)" : ""}`, months: "Jun-Oct", crops: [summer, names.has("Grape") ? "Grape" : "Alfalfa"] },
+    ];
+  }
+
+  // Temperate / Continental / default
+  const isSpring = currentMonth >= 2 && currentMonth <= 4;
+  const isSummer = currentMonth >= 5 && currentMonth <= 8;
+  const isAutumn = currentMonth >= 9 && currentMonth <= 11;
+  const spring = names.has("Wheat") ? "Wheat" : names.has("Barley") ? "Barley" : names.has("Oats") ? "Oats" : "Canola";
+  const summer = names.has("Maize") ? "Maize" : names.has("Sunflower") ? "Sunflower" : names.has("Potato") ? "Potato" : "Sugar Beet";
+  const autumn = names.has("Rye") ? "Rye" : names.has("Clover") ? "Clover" : "Field Pea";
+  return [
+    { season: `Spring${isSpring ? " (Current)" : ""}`, months: "Mar-May", crops: [spring, names.has("Field Pea") ? "Field Pea" : "Clover", "Oats"] },
+    { season: `Summer${isSummer ? " (Current)" : ""}`, months: "Jun-Sep", crops: [summer, names.has("Potato") ? "Potato" : "Alfalfa"] },
+    { season: `Autumn/Winter${isAutumn ? " (Current)" : ""}`, months: "Oct-Feb", crops: [autumn, "Cover crop"] },
   ];
-
-  return seasons;
 }
 
 function chooseIntercropping(chosenProfiles: CropProfile[], signals: PlanningSignals): IntercroppingPair[] {
   const chosenNames = chosenProfiles.map((profile) => profile.name);
+  const detectedRegions = detectRegion(signals.locationText);
   const pairs: IntercroppingPair[] = [];
 
-  if (chosenNames.includes("Coconut")) {
+  // Find tree crops in the plan
+  const treeCrops = chosenProfiles.filter(p => p.tags.includes("tree"));
+  const nonTreeCrops = chosenProfiles.filter(p => !p.tags.includes("tree"));
+
+  // Pair each tree with a ground crop
+  if (treeCrops.length > 0 && nonTreeCrops.length > 0) {
     pairs.push({
-      primary: "Coconut",
-      secondary: chosenNames.includes("Turmeric") ? "Turmeric" : "Ginger",
-      benefit: "Use the tree spacing as the long-cycle canopy layer and fill the filtered-light lanes with a lower-water intercrop for better land use and weed suppression.",
-      spacing: "Coconut at 8m centres, intercrop beds at 0.4m-0.6m between tree rows",
+      primary: treeCrops[0].name,
+      secondary: nonTreeCrops[0].name,
+      benefit: `${treeCrops[0].name} trees provide structural canopy while ${nonTreeCrops[0].name} fills the understory, improving land use efficiency and reducing bare soil erosion.`,
+      spacing: `${treeCrops[0].name} at ${treeCrops[0].spacing_m}m centres, ${nonTreeCrops[0].name} in ${nonTreeCrops[0].spacing_m}m rows between tree alleys`,
     });
   }
 
-  if (chosenNames.includes("Banana")) {
+  // Region-aware second pair
+  if (pairs.length < 2 && nonTreeCrops.length >= 2) {
     pairs.push({
-      primary: "Banana",
-      secondary: chosenNames.includes("Groundnut") ? "Groundnut" : "Mung Bean",
-      benefit: "Short-cycle legumes improve soil cover and nitrogen cycling while the banana block establishes canopy and retains humidity.",
-      spacing: "Banana at 3m centres, legumes in 0.25m rows between alleys",
+      primary: nonTreeCrops[0].name,
+      secondary: nonTreeCrops[1].name,
+      benefit: `Alternate rows of ${nonTreeCrops[0].name} and ${nonTreeCrops[1].name} balance nutrient uptake and water use across the field in ${signals.locationText || "this region"}.`,
+      spacing: `${nonTreeCrops[0].name} at ${nonTreeCrops[0].spacing_m}m, ${nonTreeCrops[1].name} every ${nonTreeCrops[1].spacing_m}m in companion rows`,
     });
   }
 
   if (pairs.length < 2) {
+    const fallbackPrimary = chosenNames[0] || "Wheat";
+    const fallbackSecondary = chosenNames[1] || (detectedRegions.includes("mediterranean") ? "Chickpea" : detectedRegions.includes("tropical") ? "Mung Bean" : "Clover");
     pairs.push({
-      primary: chosenNames[0] || "Maize",
-      secondary: chosenNames.includes("Mung Bean") ? "Mung Bean" : chosenNames[1] || "Groundnut",
-      benefit: `Blend a structural crop with a quick low-water companion to stabilize moisture use and reduce bare soil in ${signals.locationText || "the region"}.`,
-      spacing: `Primary rows at ${chosenProfiles[0]?.spacing_m ?? 0.4}m, companion rows every 0.25m-0.4m where access lanes permit`,
+      primary: fallbackPrimary,
+      secondary: fallbackSecondary,
+      benefit: `Combine a structural crop with a companion to stabilize moisture and build soil health.`,
+      spacing: `Primary at ${chosenProfiles[0]?.spacing_m ?? 0.4}m, companion at 0.25m-0.4m where access lanes permit`,
     });
   }
 
@@ -598,16 +1315,27 @@ function isValidPlan(data: any): data is CropPlan {
 
 function buildLocalCropPlan({ field, ndviData, soilData, weatherData, suitabilityData }: Omit<CropPlanningSectionProps, "mapToken">): CropPlan {
   const signals = buildPlanningSignals({ field, ndviData, soilData, weatherData, suitabilityData });
-  const scoredProfiles = CROP_PROFILES.map((profile) => ({
+  const detectedRegions = detectRegion(signals.locationText);
+
+  // Pre-filter profiles: only keep crops that share at least one region tag with the location
+  const regionFiltered = CROP_PROFILES.filter(profile => {
+    const profileRegionTags = profile.tags.filter(t =>
+      ["tropical", "subtropical", "mediterranean", "temperate", "continental", "arid", "highland"].includes(t)
+    );
+    // If profile has no region tags, allow it (generic crop)
+    if (profileRegionTags.length === 0) return true;
+    return profileRegionTags.some(tag => detectedRegions.includes(tag as RegionTag));
+  });
+
+  const scoredProfiles = regionFiltered.map((profile) => ({
     profile,
     score: scoreCropProfile(profile, signals, field.crop),
   })).sort((left, right) => right.score - left.score);
 
-  // Max 3-4 crops, ensure current crop is included, and ensure at least one tree if reasonable
   const zoneCount = clamp(field.area > 5 ? 4 : 3, 3, 4);
   let chosen = scoredProfiles.slice(0, zoneCount);
 
-  // Ensure current crop is in the plan
+  // Ensure current crop is in the plan (if it's region-appropriate)
   const currentCropInPlan = chosen.some(c => c.profile.name.toLowerCase() === field.crop.toLowerCase());
   if (!currentCropInPlan) {
     const currentProfile = scoredProfiles.find(c => c.profile.name.toLowerCase() === field.crop.toLowerCase());
@@ -616,12 +1344,11 @@ function buildLocalCropPlan({ field, ndviData, soilData, weatherData, suitabilit
     }
   }
 
-  // Ensure at least one tree-type crop (1 in ~80 dots minimum)
+  // Ensure at least one tree-type crop from the region-filtered list
   const hasTree = chosen.some(c => c.profile.tags.includes("tree"));
   if (!hasTree) {
-    const bestTree = scoredProfiles.find(c => c.profile.tags.includes("tree"));
+    const bestTree = scoredProfiles.find(c => c.profile.tags.includes("tree") && !chosen.includes(c));
     if (bestTree) {
-      // Replace lowest-scored non-current crop
       const replaceIdx = chosen.length - 1;
       chosen[replaceIdx] = bestTree;
     }
@@ -711,7 +1438,7 @@ function getZonePlacementMetrics(field: Field, zone: CropZone): ZonePlacementMet
   };
 }
 
-// Generate grid with spatial clustering so zones are somewhat localized but with mixing
+// Generate grid: trees spread uniformly across entire field at ~1/60 density, non-tree crops clustered
 function generateFullFieldGrid(
   field: Field,
   fieldBounds: { minLng: number; maxLng: number; minLat: number; maxLat: number },
@@ -730,60 +1457,78 @@ function generateFullFieldGrid(
   const allPoints: Array<{ lng: number; lat: number; zoneIndex: number }> = [];
   const pad = 0.0001;
 
-  // Build cumulative area thresholds for zone assignment
-  const cumPct: number[] = [];
+  // Identify tree zones vs non-tree zones
+  const treeZoneIndices = zones.map((z, i) => {
+    const profile = CROP_PROFILES.find(p => p.name.toLowerCase() === z.crop.toLowerCase());
+    return profile?.tags.includes("tree") ? i : -1;
+  }).filter(i => i >= 0);
+
+  const nonTreeZoneIndices = zones.map((_, i) => i).filter(i => !treeZoneIndices.includes(i));
+
+  // Build cumulative area thresholds for non-tree zone assignment
+  const nonTreePcts = nonTreeZoneIndices.map(i => zones[i].area_pct);
+  const nonTreeTotal = nonTreePcts.reduce((s, v) => s + v, 0) || 1;
+  const nonTreeCum: number[] = [];
   let running = 0;
-  for (const z of zones) {
-    running += z.area_pct;
-    cumPct.push(running);
+  for (const pct of nonTreePcts) {
+    running += (pct / nonTreeTotal) * 100;
+    nonTreeCum.push(running);
   }
 
-  // Create zone centers for spatial clustering
+  // Zone centers for non-tree clustering
   const fieldCenterLng = (fieldBounds.minLng + fieldBounds.maxLng) / 2;
   const fieldCenterLat = (fieldBounds.minLat + fieldBounds.maxLat) / 2;
   const fieldWidth = fieldBounds.maxLng - fieldBounds.minLng;
   const fieldHeight = fieldBounds.maxLat - fieldBounds.minLat;
 
-  // Assign zone centers at different positions in the field
-  const zoneCenters = zones.map((_, i) => {
-    const angle = (i / zones.length) * Math.PI * 2 + Math.PI / 4;
+  const nonTreeCenters = nonTreeZoneIndices.map((_, i) => {
+    const angle = (i / Math.max(nonTreeZoneIndices.length, 1)) * Math.PI * 2 + Math.PI / 4;
     return {
       lng: fieldCenterLng + Math.cos(angle) * fieldWidth * 0.25,
       lat: fieldCenterLat + Math.sin(angle) * fieldHeight * 0.25,
     };
   });
 
+  const TREE_FREQUENCY = 60; // 1 tree per ~60 points
   let idx = 0;
+
   for (let lat = fieldBounds.minLat - pad; lat <= fieldBounds.maxLat + pad; lat += spacingLat) {
     const rowNum = Math.round((lat - fieldBounds.minLat) / spacingLat);
     const offset = rowNum % 2 === 0 ? 0 : spacingLng * 0.5;
     for (let lng = fieldBounds.minLng - pad + offset; lng <= fieldBounds.maxLng + pad; lng += spacingLng) {
       if (!pointInPolygon([lng, lat], polygon)) continue;
 
-      // Assign zone based on distance to zone centers (with some randomness for mixing)
       const hash = Math.abs(Math.sin(lng * 73856093 + lat * 19349663) * 100);
-      const mixFactor = 0.3; // 30% random mixing
 
-      if (hash % 100 < mixFactor * 100) {
-        // Random assignment for mixing
-        const randomHash = hash % 100;
-        let zoneIndex = 0;
-        for (let z = 0; z < cumPct.length; z++) {
-          if (randomHash < cumPct[z]) { zoneIndex = z; break; }
+      // Uniformly spread trees across entire field at 1/TREE_FREQUENCY
+      if (treeZoneIndices.length > 0 && idx % TREE_FREQUENCY === 0) {
+        // Pick a tree zone (round-robin if multiple)
+        const treeIdx = treeZoneIndices[Math.floor(hash) % treeZoneIndices.length];
+        allPoints.push({ lng, lat, zoneIndex: treeIdx });
+      } else if (nonTreeZoneIndices.length > 0) {
+        // Non-tree: cluster with 25% mixing
+        const mixFactor = 0.25;
+        if (hash % 100 < mixFactor * 100) {
+          const randomHash = hash % 100;
+          let localIdx = 0;
+          for (let z = 0; z < nonTreeCum.length; z++) {
+            if (randomHash < nonTreeCum[z]) { localIdx = z; break; }
+          }
+          allPoints.push({ lng, lat, zoneIndex: nonTreeZoneIndices[localIdx] });
+        } else {
+          let minDist = Infinity;
+          let localIdx = 0;
+          nonTreeCenters.forEach((center, z) => {
+            const dLng = (lng - center.lng) * metersPerLng;
+            const dLat = (lat - center.lat) * metersPerLat;
+            const dist = Math.sqrt(dLng * dLng + dLat * dLat) / Math.sqrt(zones[nonTreeZoneIndices[z]].area_pct / 100 + 0.1);
+            if (dist < minDist) { minDist = dist; localIdx = z; }
+          });
+          allPoints.push({ lng, lat, zoneIndex: nonTreeZoneIndices[localIdx] });
         }
-        allPoints.push({ lng, lat, zoneIndex });
       } else {
-        // Distance-based assignment for clustering
-        let minDist = Infinity;
-        let zoneIndex = 0;
-        zoneCenters.forEach((center, z) => {
-          const dLng = (lng - center.lng) * metersPerLng;
-          const dLat = (lat - center.lat) * metersPerLat;
-          // Weight by area percentage (larger zones pull more)
-          const dist = Math.sqrt(dLng * dLng + dLat * dLat) / Math.sqrt(zones[z].area_pct / 100 + 0.1);
-          if (dist < minDist) { minDist = dist; zoneIndex = z; }
-        });
-        allPoints.push({ lng, lat, zoneIndex });
+        // Fallback: all zones are trees, just assign round-robin
+        allPoints.push({ lng, lat, zoneIndex: treeZoneIndices[idx % treeZoneIndices.length] });
       }
 
       idx++;
@@ -822,6 +1567,7 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
   const [error, setError] = useState<string | null>(null);
   const [plannerNotice, setPlannerNotice] = useState<string | null>(null);
   const [selectedZone, setSelectedZone] = useState<CropZone | null>(null);
+  const [filterCrop, setFilterCrop] = useState<string | null>(null); // null = show all
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
@@ -974,6 +1720,8 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
       allPoints.forEach((point) => {
         const zone = cropPlan.zones[point.zoneIndex];
         if (!zone) return;
+        // Skip if filtering to a specific crop
+        if (filterCrop && zone.crop !== filterCrop) return;
 
         const dotSize = getDotSize(zone.crop);
         const dot = document.createElement("div");
@@ -994,7 +1742,7 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
         markersRef.current.push(gridMarker);
       });
     },
-    [field, fieldBounds],
+    [field, fieldBounds, filterCrop],
   );
 
   useEffect(() => {
@@ -1238,15 +1986,28 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
           </div>
         )}
 
-        {/* Legend overlay */}
+        {/* Filter + Legend overlay */}
         {plan && (
-          <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-sm rounded-lg px-3 py-2 flex flex-wrap gap-x-3 gap-y-1">
+          <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-sm rounded-lg px-2.5 py-2 flex flex-wrap gap-1.5">
+            <button
+              onClick={() => setFilterCrop(null)}
+              className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-colors ${
+                filterCrop === null ? "bg-white/20 text-white" : "text-white/60 hover:text-white/90"
+              }`}
+            >
+              <Layers className="w-3 h-3" /> All
+            </button>
             {plan.zones.map((zone) => (
-              <div key={zone.id} className="flex items-center gap-1.5 text-[10px]">
-                <span className="rounded-full flex-shrink-0" style={{ backgroundColor: zone.color, width: getDotSize(zone.crop), height: getDotSize(zone.crop) }} />
-                <span className="text-white/80">{zone.crop}</span>
-                <span className="text-white/50">{zone.area_pct}%</span>
-              </div>
+              <button
+                key={zone.id}
+                onClick={() => setFilterCrop(filterCrop === zone.crop ? null : zone.crop)}
+                className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-medium transition-colors ${
+                  filterCrop === zone.crop ? "bg-white/20 text-white" : "text-white/60 hover:text-white/90"
+                }`}
+              >
+                <span className="rounded-full flex-shrink-0" style={{ backgroundColor: zone.color, width: 8, height: 8 }} />
+                {zone.crop}
+              </button>
             ))}
           </div>
         )}
