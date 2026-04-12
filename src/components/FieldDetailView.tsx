@@ -128,7 +128,7 @@ function getAqiLabel(aqi: number): { label: string; color: string } {
 }
 
 function waterStressLabel(soilMoisture: number | null, rainfall: number | null): { label: string; color: string; detail: string } {
-  if (soilMoisture == null) return { label: "N/A", color: "hsl(150, 10%, 55%)", detail: "Insufficient data" };
+  if (soilMoisture == null) return { label: "Checking…", color: "hsl(150, 10%, 55%)", detail: "Waiting for soil moisture data" };
   if (soilMoisture < 15) return { label: "High Stress", color: "#d73027", detail: "Under-irrigated — soil moisture critically low" };
   if (soilMoisture < 25) return { label: "Moderate", color: "#C6B77E", detail: "Monitor closely — may need supplemental irrigation" };
   if (soilMoisture > 45) return { label: "Over-irrigated", color: "#61AFEF", detail: "Excess moisture — risk of waterlogging and root rot" };
@@ -409,16 +409,16 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
                 <span className="text-2xl font-light text-foreground">{Math.round(weather.temperature_2m)}°C</span>
                 <span className="text-xs text-muted-foreground">{weatherCodes[weather.weather_code] || "Unknown"}</span>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1.5"><Droplets className="w-3.5 h-3.5" />{weather.relative_humidity_2m}%</span>
-                <span className="flex items-center gap-1.5"><Wind className="w-3.5 h-3.5" />{Math.round(weather.wind_speed_10m)} km/h</span>
+              <div className="grid grid-cols-2 gap-3 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1.5"><Droplets className="w-3.5 h-3.5" /> Humidity: {weather.relative_humidity_2m}%</span>
+                <span className="flex items-center gap-1.5"><Wind className="w-3.5 h-3.5" /> Wind: {Math.round(weather.wind_speed_10m)} km/h</span>
                 {aqiData && (
                   <span className="flex items-center gap-1.5" style={{ color: getAqiLabel(aqiData.european_aqi).color }}>
                     <Factory className="w-3.5 h-3.5" />AQI {aqiData.european_aqi}
                   </span>
                 )}
                 {soilMoisture != null && (
-                  <span className="flex items-center gap-1.5"><Droplets className="w-3.5 h-3.5" />Soil {soilMoisture}%</span>
+                  <span className="flex items-center gap-1.5"><Droplets className="w-3.5 h-3.5" />Soil Moisture: {soilMoisture}%</span>
                 )}
               </div>
             </div>
