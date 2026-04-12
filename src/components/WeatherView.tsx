@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import CropPlanningSection from "@/components/CropPlanningSection";
 import { CalendarArrowUp, CalendarArrowDown, Droplets, Wind, Sprout, Thermometer, Leaf, TrendingUp, Loader2, GitCompareArrows, X, CloudRain, Factory, Building2 } from "lucide-react";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -161,6 +162,10 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
   // NDVI time-series state
   const [ndviTimeSeries, setNdviTimeSeries] = useState<any>(null);
   const [ndviTsLoading, setNdviTsLoading] = useState(false);
+  // Map token for crop planning
+  const [mapToken, setMapToken] = useState("");
+  // Soil data for crop planning
+  const [soilData, setSoilData] = useState<any>(null);
 
   const effectiveField = activeField || selectedFields[0];
 
@@ -220,7 +225,33 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
     fetchTs();
   }, [effectiveField?.id]);
 
-  // Fetch live weather
+  // Fetch mapbox token for crop planning map
+  useEffect(() => {
+    const fetchToken = async () => {
+      try {
+        const { data } = await supabase.functions.invoke("get-mapbox-token");
+        if (data?.token) setMapToken(data.token);
+      } catch (e) { console.error("Failed to fetch mapbox token for crop planning", e); }
+    };
+    fetchToken();
+  }, []);
+
+  // Fetch soil data for crop planning
+  useEffect(() => {
+    if (!effectiveField) { setSoilData(null); return; }
+    const fetchSoil = async () => {
+      try {
+        const { lat, lng } = getFieldCenter(effectiveField);
+        const { data, error } = await supabase.functions.invoke("soil-data", {
+          body: { lat, lon: lng },
+        });
+        if (error) throw error;
+        setSoilData(data);
+      } catch (e) { console.error("Soil data for planning error:", e); setSoilData(null); }
+    };
+    fetchSoil();
+  }, [effectiveField?.id]);
+
   useEffect(() => {
     if (!effectiveField) return;
     const fetchLive = async () => {
@@ -795,7 +826,17 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
             </div>
             )}
 
-            {/* Urban: Sustainability Insights */}
+            {/* AI Crop Planning */}
+            {!urban && effectiveField && mapToken && (
+              <CropPlanningSection
+                field={effectiveField}
+                ndviData={ndviTimeSeries ? { mean_ndvi: ndviTimeSeries.mean_ndvi, min_ndvi: ndviTimeSeries.min_ndvi, max_ndvi: ndviTimeSeries.max_ndvi, vegetation_health_score: ndviTimeSeries.vegetation_health_score } : undefined}
+                soilData={soilData || undefined}
+                weatherData={liveWeather ? { temperature: liveWeather.temperature, humidity: liveWeather.humidity, windSpeed: liveWeather.windSpeed } : undefined}
+                suitabilityData={geeData?.suitability || undefined}
+                mapToken={mapToken}
+              />
+            )}
             {urban && (
               <div className="animate-fade-in p-4 rounded-xl border border-border bg-accent/15" style={{ animationDelay: "400ms" }}>
                 <h3 className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
