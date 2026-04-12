@@ -67,7 +67,7 @@ Create a JSON response with this EXACT structure (no markdown, pure JSON):
       "name": "Zone A - Primary Crop",
       "crop": "Wheat",
       "emoji": "🌾",
-      "color": "#4CAF50",
+      "color": "#22C55E",
       "area_pct": 40,
       "reason": "Best suited for the soil type and pH",
       "spacing_m": 0.15,
@@ -99,14 +99,15 @@ Create a JSON response with this EXACT structure (no markdown, pure JSON):
 }
 
 RULES:
-- Create 3-6 zones that divide the field logically
+- Create EXACTLY 3 or 4 zones (no more, no less)
+- The current crop "${crop}" MUST be one of the zones
+- Include at least one tree crop (e.g. Coconut, Mango) even if it gets a small area percentage
+- Use VIBRANT, highly distinct colors for each zone — avoid similar shades (e.g. use #EF4444 red, #3B82F6 blue, #16A34A green, #EAB308 yellow, #7C3AED purple, #EC4899 pink — NOT orange/red/brown together)
 - Position x,y are normalized 0-1 within the field bounds
 - Consider intercropping opportunities (trees with ground crops)
-- Factor in water needs — put high-water crops near water sources
-- Consider companion planting and pest management
 - Include at least 2 intercropping suggestions
-- Suggest a 3-season rotation plan
-- Colors should be distinct and meaningful (green for leafy, gold for grain, etc.)
+- Suggest a 3-season rotation plan with specific crop names (2-3 crops per season, first crop is highest priority)
+- Mark the current season based on today's date
 - Be specific to the region, soil type, and climate
 - Return ONLY valid JSON, no markdown`;
 
@@ -114,7 +115,7 @@ RULES:
       method: "POST",
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-2.5-pro",
         messages: [
           { role: "system", content: "You are a precision agriculture expert. Return ONLY valid JSON. No markdown formatting, no code blocks, no explanation text." },
           { role: "user", content: prompt },
