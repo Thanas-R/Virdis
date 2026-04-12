@@ -101,14 +101,17 @@ Create a JSON response with this EXACT structure (no markdown, pure JSON):
 RULES:
 - Create EXACTLY 3 or 4 zones (no more, no less)
 - The current crop "${crop}" MUST be one of the zones
-- Include at least one tree crop (e.g. Coconut, Mango) even if it gets a small area percentage
+- **ABSOLUTELY CRITICAL — NATIVE PLANTS ONLY**: You MUST only suggest crops, trees, and plants that are ACTUALLY grown and cultivated in the specific region of "${location}". Think carefully about the climate zone, latitude, and agricultural traditions of this EXACT location. For example: Do NOT suggest Coconut in Spain or Europe — Coconut is tropical. Do NOT suggest Rice in arid regions. Do NOT suggest Mango in cold climates. If it's a Mediterranean region, suggest Mediterranean crops (olive, almond, grape, fig, citrus, carob, etc.). If it's tropical, suggest tropical crops. VERIFY each plant is genuinely native or traditionally cultivated in "${location}" before including it.
+- Include at least one NATIVE tree species appropriate for "${location}" (e.g. Olive in Mediterranean, Almond in Spain, Mango in tropical India, Neem in arid India, Apple in temperate hills). The tree density should be low (about 1 tree per 60 crop plants).
+- Give the tree zone a small area_pct (5-12%) since trees are sparse
 - Use VIBRANT, highly distinct colors for each zone — avoid similar shades (e.g. use #EF4444 red, #3B82F6 blue, #16A34A green, #EAB308 yellow, #7C3AED purple, #EC4899 pink — NOT orange/red/brown together)
 - Position x,y are normalized 0-1 within the field bounds
 - Consider intercropping opportunities (trees with ground crops)
-- Include at least 2 intercropping suggestions
-- Suggest a 3-season rotation plan with specific crop names (2-3 crops per season, first crop is highest priority)
+- Include at least 2 intercropping suggestions using ONLY crops native to "${location}"
+- Suggest a 3-season rotation plan appropriate for the climate of "${location}" with specific crop names that are ACTUALLY grown there (2-3 crops per season, first crop is highest priority). Use local season names if applicable (e.g. Spring/Summer/Winter for temperate, Kharif/Rabi/Zaid for India).
 - Mark the current season based on today's date
 - Be specific to the region, soil type, and climate
+- ZERO TOLERANCE for non-native or climatically inappropriate species. Every single plant you suggest must be verifiably cultivated in "${location}".
 - Return ONLY valid JSON, no markdown`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
