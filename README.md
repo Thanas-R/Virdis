@@ -110,7 +110,7 @@ Radar chart of six land suitability metrics :
 
 Dual-approach crop planning system:
 
-**Local Agronomy Model **
+**Local Agronomy Model**
 
 A client-side scoring engine with 50+ crop profiles that runs immediately:
 
