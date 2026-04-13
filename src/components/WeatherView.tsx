@@ -535,11 +535,6 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
                 <span className="text-xs text-muted-foreground leading-relaxed">Press <strong className="text-foreground">Enter</strong> to save, then come back here for analytics</span>
               </div>
             </div>
-            <div className="mt-6 p-3 rounded-xl bg-accent/10 border border-border/30 w-full max-w-xs">
-              <p className="text-[10px] text-muted-foreground text-center">
-                📡 Analytics include satellite NDVI, precipitation, temperature, soil moisture, air quality, land use classification, and AI crop planning
-              </p>
-            </div>
           </div>
         ) : compareField ? (
           /* ===== COMPARISON MODE ===== */
@@ -772,42 +767,6 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
               </div>
           }
 
-            {/* NDVI Vegetation Trend */}
-            <div className="animate-fade-in" style={{ animationDelay: "350ms" }}>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-medium text-foreground">
-                  {urban ? "Green Cover Trend (90 days)" : "NDVI Vegetation Trend (90 days)"}
-                </h3>
-                {ndviTimeSeries?.growth_stage && (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-accent/30 text-foreground">{ndviTimeSeries.growth_stage}</span>
-                )}
-              </div>
-              {ndviTsLoading ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground p-3">
-                  <Loader2 className="w-4 h-4 animate-spin" /> Loading NDVI time-series...
-                </div>
-              ) : ndviChartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={200}>
-                  <AreaChart data={ndviChartData}>
-                    <defs>
-                      <linearGradient id="ndviGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={CHART_GREEN} stopOpacity={0.3} />
-                        <stop offset="95%" stopColor={CHART_GREEN} stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(150, 12%, 22%)" />
-                    <XAxis dataKey="date" stroke="hsl(150, 10%, 55%)" fontSize={10} interval="preserveStartEnd" />
-                    <YAxis stroke="hsl(150, 10%, 55%)" fontSize={11} domain={[0, 1]} />
-                    <Tooltip content={<CustomChartTooltip />} />
-                    <Area type="monotone" dataKey="ndvi" stroke={CHART_GREEN} strokeWidth={2.5} fill="url(#ndviGrad)" dot={{ r: 3, fill: CHART_GREEN }} activeDot={{ r: 5 }} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="p-4 rounded-xl border border-border bg-accent/10 text-sm text-muted-foreground">
-                  No satellite data available for this region.
-                </div>
-              )}
-            </div>
 
             {/* Crop Growth Indicators - only for non-urban */}
             {!urban && (
@@ -858,6 +817,7 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
                 soilData={soilData || undefined}
                 weatherData={liveWeather ? { temperature: liveWeather.temperature, humidity: liveWeather.humidity, windSpeed: liveWeather.windSpeed } : undefined}
                 suitabilityData={geeData?.suitability || undefined}
+                landUseData={geeData?.land_use || undefined}
                 mapToken={mapToken}
               />
             )}
