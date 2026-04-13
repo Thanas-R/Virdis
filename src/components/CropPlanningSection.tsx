@@ -125,6 +125,49 @@ const CROP_PLAN_CACHE_KEY = "crop-plan-cache";
 const MAX_GRID_MARKERS_TOTAL = 500;
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
+// Edge case detection for unsuitable regions
+type RegionEdgeCase = "water" | "desert" | "arctic" | "urban" | null;
+
+function detectEdgeCase(field: Field, suitabilityData?: any, ndviData?: any, weatherData?: any): { edgeCase: RegionEdgeCase; confidence: number; message: string } | null {
+  const loc = field.location.toLowerCase();
+  
+  // Arctic/Antarctic detection
+  const coords = field.coordinates[0];
+  const avgLat = coords.reduce((s, c) => s + c[1], 0) / coords.length;
+  if (Math.abs(avgLat) > 66) {
+    return { edgeCase: "arctic", confidence: 95, message: "This region is in the Arctic/Antarctic zone where agriculture is not feasible. Permafrost and extreme cold make crop cultivation impossible." };
+  }
+
+  // Antarctic keyword detection
+  if (["antarctica", "antarctic", "south pole", "north pole"].some(k => loc.includes(k))) {
+    return { edgeCase: "arctic", confidence: 98, message: "This region is in a polar zone. Agriculture is not viable in these extreme conditions." };
+  }
+
+  // Desert detection - extreme aridity
+  if (suitabilityData?.raw?.annual_rainfall_mm != null && suitabilityData.raw.annual_rainfall_mm < 50) {
+    return { edgeCase: "desert", confidence: 90, message: `Extreme desert: only ${suitabilityData.raw.annual_rainfall_mm}mm annual rainfall. Agriculture requires major irrigation infrastructure.` };
+  }
+  if (["sahara", "empty quarter", "rub al khali", "gobi desert", "atacama", "death valley", "namib desert"].some(k => loc.includes(k))) {
+    return { edgeCase: "desert", confidence: 92, message: "This region is in an extreme desert. Agriculture is not viable without massive irrigation infrastructure." };
+  }
+
+  // Water body detection - very low NDVI + suitability clues
+  if (ndviData?.mean_ndvi != null && ndviData.mean_ndvi < 0.05 && suitabilityData?.water_access > 80) {
+    return { edgeCase: "water", confidence: 85, message: "This region appears to be predominantly a water body (ocean, lake, or river). Crop planning is not applicable." };
+  }
+  if (["ocean", "sea ", "lake ", "reservoir", "pacific", "atlantic", "indian ocean", "mediterranean sea", "gulf of"].some(k => loc.includes(k))) {
+    return { edgeCase: "water", confidence: 80, message: "This region appears to be over a water body. Satellite analysis shows no suitable land for agriculture." };
+  }
+
+  // Very high elevation (above treeline)
+  if (suitabilityData?.raw?.elevation_m != null && suitabilityData.raw.elevation_m > 5000) {
+    return { edgeCase: "arctic", confidence: 85, message: `Extreme high altitude (${suitabilityData.raw.elevation_m}m). Above the treeline — agriculture is not feasible at this elevation.` };
+  }
+
+  return null;
+}
+
+
 // Vibrant, distinct colors for each crop
 // Region detection helpers
 type RegionTag = "tropical" | "subtropical" | "mediterranean" | "temperate" | "continental" | "arid" | "humid" | "coastal" | "highland";
@@ -1285,17 +1328,21 @@ function chooseIntercropping(chosenProfiles: CropProfile[], signals: PlanningSig
 
 function normalizeAreaPercents(rawWeights: number[]) {
   const total = rawWeights.reduce((sum, value) => sum + value, 0) || 1;
-  let normalized = rawWeights.map((value) => Math.max(12, Math.round((value / total) * 100)));
+  // Scale proportionally — do NOT force equal minimums
+  // The best-scoring crop should get the most area
+  let normalized = rawWeights.map((value) => Math.max(5, Math.round((value / total) * 100)));
   let current = normalized.reduce((sum, value) => sum + value, 0);
 
+  // Adjust to sum to 100
   while (current > 100) {
-    const index = normalized.findIndex((value) => value > 12);
-    if (index === -1) break;
+    // Reduce the smallest non-minimum zone
+    const index = normalized.reduce((minIdx, val, i, arr) => val > 5 && val > arr[minIdx] ? minIdx : i, 0);
     normalized[index] -= 1;
     current -= 1;
   }
 
   while (current < 100) {
+    // Add to the largest zone (best crop gets more)
     normalized[normalized.indexOf(Math.max(...normalized))] += 1;
     current += 1;
   }
@@ -1567,11 +1614,14 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
   const [error, setError] = useState<string | null>(null);
   const [plannerNotice, setPlannerNotice] = useState<string | null>(null);
   const [selectedZone, setSelectedZone] = useState<CropZone | null>(null);
-  const [filterCrop, setFilterCrop] = useState<string | null>(null); // null = show all
+  const [filterCrop, setFilterCrop] = useState<string | null>(null);
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
   const popupsRef = useRef<mapboxgl.Popup[]>([]);
+
+  // Edge case detection (computed but rendered after all hooks)
+  const edgeCaseResult = useMemo(() => detectEdgeCase(field, suitabilityData, ndviData, weatherData), [field, suitabilityData, ndviData, weatherData]);
 
   const fieldCenter = useMemo(() => {
     const coords = field.coordinates[0];
@@ -1920,6 +1970,34 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
 
     doc.save(`crop-plan-${field.name.replace(/\s+/g, "-").toLowerCase()}.pdf`);
   }, [field, plan]);
+
+  // Edge case early return (after all hooks)
+  if (edgeCaseResult) {
+    const icons: Record<string, string> = { water: "🌊", desert: "🏜️", arctic: "🧊", urban: "🏙️" };
+    const labels: Record<string, string> = { water: "Water Body Detected", desert: "Extreme Desert", arctic: "Polar / Extreme Altitude", urban: "Urban Region" };
+    return (
+      <div className="animate-fade-in space-y-4" style={{ animationDelay: "450ms" }}>
+        <h3 className="text-sm font-medium text-foreground flex items-center gap-2">
+          <Sprout className="w-4 h-4" /> Crop Planning
+        </h3>
+        <div className="p-5 rounded-xl border border-destructive/30 bg-destructive/5 space-y-3">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">{icons[edgeCaseResult.edgeCase!] || "⚠️"}</span>
+            <div>
+              <h4 className="text-sm font-semibold text-foreground">{labels[edgeCaseResult.edgeCase!] || "Unsuitable Region"}</h4>
+              <p className="text-[10px] text-muted-foreground">Confidence: {edgeCaseResult.confidence}%</p>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed">{edgeCaseResult.message}</p>
+          <div className="p-3 rounded-lg bg-accent/10 border border-border/50">
+            <p className="text-[10px] text-muted-foreground italic">
+              ⚠️ AI crop planning is not available for this region type. Analytics data (weather, NDVI, land use) may still be available above.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="animate-fade-in space-y-5" style={{ animationDelay: "450ms" }}>

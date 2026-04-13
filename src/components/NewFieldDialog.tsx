@@ -10,6 +10,16 @@ const PRESET_COLORS = [
   "#D19A66", "#56B6C2", "#BE5046", "#E5C07B", "#FF6B6B",
 ];
 
+// Auto-cycle: pick a color not already used by existing fields
+function getNextAutoColor(existingColors: string[]): string {
+  const used = new Set(existingColors.map(c => c.toUpperCase()));
+  for (const color of PRESET_COLORS) {
+    if (!used.has(color.toUpperCase())) return color;
+  }
+  // All used — cycle from start
+  return PRESET_COLORS[existingColors.length % PRESET_COLORS.length];
+}
+
 const URBAN_LAND_USES = [
   "Residential", "Commercial", "Park / Garden", "Industrial",
   "Mixed Use", "Rooftop / Terrace", "Community Garden",
@@ -31,6 +41,7 @@ function calculateAreaAcres(coords: [number, number][]): number {
 interface NewFieldDialogProps {
   coordinates: [number, number][];
   mapToken?: string;
+  existingFieldColors?: string[];
   onSave: (field: {
     name: string;
     crop: string;
@@ -44,13 +55,13 @@ interface NewFieldDialogProps {
   onCancel: () => void;
 }
 
-const NewFieldDialog = ({ coordinates, mapToken, onSave, onCancel }: NewFieldDialogProps) => {
+const NewFieldDialog = ({ coordinates, mapToken, existingFieldColors, onSave, onCancel }: NewFieldDialogProps) => {
   const [name, setName] = useState("");
   const [regionType, setRegionType] = useState<"rural" | "urban">("rural");
   const [detecting, setDetecting] = useState(true);
   const [crop, setCrop] = useState("Wheat");
   const [urbanLandUse, setUrbanLandUse] = useState("Residential");
-  const [color, setColor] = useState("#EAB947");
+  const [color, setColor] = useState(() => getNextAutoColor(existingFieldColors || []));
   const [group, setGroup] = useState("");
   const [location, setLocation] = useState("");
   const [cropSearch, setCropSearch] = useState("");

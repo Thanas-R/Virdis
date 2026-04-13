@@ -475,7 +475,7 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
       )}
 
       {showNewFieldDialog && drawVertices.length >= 3 && (
-        <NewFieldDialog coordinates={drawVertices} mapToken={mapToken} onSave={handleSaveNewField} onCancel={() => { setShowNewFieldDialog(false); setDrawVertices([]); }} />
+        <NewFieldDialog coordinates={drawVertices} mapToken={mapToken} existingFieldColors={allFields.map(f => f.color)} onSave={handleSaveNewField} onCancel={() => { setShowNewFieldDialog(false); setDrawVertices([]); }} />
       )}
 
       {showNdvi && <NdviLegend />}
