@@ -165,14 +165,14 @@ The system detects unsuitable regions and blocks crop planning:
 User / Browser
       │
       ▼
-Frontend
+   Frontend
 React + Mapbox GL JS + Tailwind + shadcn
       │
       ▼
 Edge Functions (Supabase - Deno)
       │
  ┌───────────────┬───────────────┬───────────────┬───────────────┬───────────────┬───────────────┐
- ▼               ▼               ▼               ▼               ▼               ▼
+ ▼               ▼               ▼               ▼               ▼               ▼               
 Mapbox Token   Field Analysis   Land Analytics  NDVI Tiles      NDVI Series     Soil Data
 (Mapbox API)   (GEE + AI)       (GEE)           (GEE)           (GEE)           (SoilGrids)
                    │               │               │               │               │
@@ -188,12 +188,11 @@ Mapbox Token   Field Analysis   Land Analytics  NDVI Tiles      NDVI Series     
 External Data Sources
       │
  ┌───────────────┬───────────────┬───────────────┬───────────────┐
- ▼               ▼               ▼               ▼
-Google Earth    Open-Meteo     SoilGrids       Mapbox
-Engine          (Weather)      (Soil Data)     (Maps API)
-      │
-      ▼
-Sentinel-2 • ESA WorldCover • SRTM • CHIRPS
+ ▼               ▼               ▼               ▼               ▼
+Google Earth    Open-Meteo     SoilGrids       Mapbox         Sentinel-2 
+Engine          (Weather)      (Soil Data)     (Maps API)    ESA WorldCover
+                                                              SRTM • CHIRPS
+
 ```
 
 ## Tech Stack
