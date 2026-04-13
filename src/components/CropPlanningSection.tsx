@@ -79,6 +79,7 @@ interface CropPlanningSectionProps {
   soilData?: any;
   weatherData?: any;
   suitabilityData?: any;
+  landUseData?: any;
   mapToken: string;
 }
 
@@ -122,13 +123,13 @@ interface ZonePlacementMetrics {
 }
 
 const CROP_PLAN_CACHE_KEY = "crop-plan-cache";
-const MAX_GRID_MARKERS_TOTAL = 500;
+const MAX_GRID_MARKERS_TOTAL = 800;
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 // Edge case detection for unsuitable regions
 type RegionEdgeCase = "water" | "desert" | "arctic" | "urban" | null;
 
-function detectEdgeCase(field: Field, suitabilityData?: any, ndviData?: any, weatherData?: any): { edgeCase: RegionEdgeCase; confidence: number; message: string } | null {
+function detectEdgeCase(field: Field, suitabilityData?: any, ndviData?: any, weatherData?: any, landUseData?: any): { edgeCase: RegionEdgeCase; confidence: number; message: string } | null {
   const loc = field.location.toLowerCase();
   
   // Arctic/Antarctic detection
@@ -151,12 +152,10 @@ function detectEdgeCase(field: Field, suitabilityData?: any, ndviData?: any, wea
     return { edgeCase: "desert", confidence: 92, message: "This region is in an extreme desert. Agriculture is not viable without massive irrigation infrastructure." };
   }
 
-  // Water body detection - very low NDVI + suitability clues
-  if (ndviData?.mean_ndvi != null && ndviData.mean_ndvi < 0.05 && suitabilityData?.water_access > 80) {
-    return { edgeCase: "water", confidence: 85, message: "This region appears to be predominantly a water body (ocean, lake, or river). Crop planning is not applicable." };
-  }
-  if (["ocean", "sea ", "lake ", "reservoir", "pacific", "atlantic", "indian ocean", "mediterranean sea", "gulf of"].some(k => loc.includes(k))) {
-    return { edgeCase: "water", confidence: 80, message: "This region appears to be over a water body. Satellite analysis shows no suitable land for agriculture." };
+  // Water body detection: use Regional Land Use "Water" percentage, only block at 80%+
+  const waterPct = landUseData?.["Water"] ?? 0;
+  if (waterPct >= 80) {
+    return { edgeCase: "water", confidence: Math.min(99, Math.round(waterPct)), message: `This region is ${waterPct}% water (ocean, lake, or river) based on satellite land use classification. Crop planning is not applicable.` };
   }
 
   // Very high elevation (above treeline)
@@ -1485,7 +1484,7 @@ function getZonePlacementMetrics(field: Field, zone: CropZone): ZonePlacementMet
   };
 }
 
-// Generate grid: trees spread uniformly across entire field at ~1/60 density, non-tree crops clustered
+// Generate grid: fill entire field polygon uniformly, trees spread at ~1/60 density
 function generateFullFieldGrid(
   field: Field,
   fieldBounds: { minLng: number; maxLng: number; minLat: number; maxLat: number },
@@ -1497,12 +1496,16 @@ function generateFullFieldGrid(
   const metersPerLat = 111320;
   const fieldAreaSqM = field.area * 10000;
 
-  const baseSpacing = Math.sqrt(fieldAreaSqM / MAX_GRID_MARKERS_TOTAL);
+  // Calculate spacing to target MAX markers but ensure full coverage
+  const targetPoints = MAX_GRID_MARKERS_TOTAL;
+  const baseSpacing = Math.sqrt(fieldAreaSqM / targetPoints);
   const spacingLng = baseSpacing / metersPerLng;
   const spacingLat = baseSpacing / metersPerLat;
 
   const allPoints: Array<{ lng: number; lat: number; zoneIndex: number }> = [];
-  const pad = 0.0001;
+  // Add generous padding to ensure edge coverage
+  const padLng = spacingLng * 1.5;
+  const padLat = spacingLat * 1.5;
 
   // Identify tree zones vs non-tree zones
   const treeZoneIndices = zones.map((z, i) => {
@@ -1522,7 +1525,7 @@ function generateFullFieldGrid(
     nonTreeCum.push(running);
   }
 
-  // Zone centers for non-tree clustering
+  // Zone centers for non-tree clustering - spread across field quadrants
   const fieldCenterLng = (fieldBounds.minLng + fieldBounds.maxLng) / 2;
   const fieldCenterLat = (fieldBounds.minLat + fieldBounds.maxLat) / 2;
   const fieldWidth = fieldBounds.maxLng - fieldBounds.minLng;
@@ -1531,31 +1534,32 @@ function generateFullFieldGrid(
   const nonTreeCenters = nonTreeZoneIndices.map((_, i) => {
     const angle = (i / Math.max(nonTreeZoneIndices.length, 1)) * Math.PI * 2 + Math.PI / 4;
     return {
-      lng: fieldCenterLng + Math.cos(angle) * fieldWidth * 0.25,
-      lat: fieldCenterLat + Math.sin(angle) * fieldHeight * 0.25,
+      lng: fieldCenterLng + Math.cos(angle) * fieldWidth * 0.22,
+      lat: fieldCenterLat + Math.sin(angle) * fieldHeight * 0.22,
     };
   });
 
   const TREE_FREQUENCY = 60; // 1 tree per ~60 points
   let idx = 0;
 
-  for (let lat = fieldBounds.minLat - pad; lat <= fieldBounds.maxLat + pad; lat += spacingLat) {
+  // Scan the entire bounding box with padding, no early exit - fill everything
+  for (let lat = fieldBounds.minLat - padLat; lat <= fieldBounds.maxLat + padLat; lat += spacingLat) {
     const rowNum = Math.round((lat - fieldBounds.minLat) / spacingLat);
     const offset = rowNum % 2 === 0 ? 0 : spacingLng * 0.5;
-    for (let lng = fieldBounds.minLng - pad + offset; lng <= fieldBounds.maxLng + pad; lng += spacingLng) {
+    for (let lng = fieldBounds.minLng - padLng + offset; lng <= fieldBounds.maxLng + padLng; lng += spacingLng) {
       if (!pointInPolygon([lng, lat], polygon)) continue;
 
       const hash = Math.abs(Math.sin(lng * 73856093 + lat * 19349663) * 100);
 
       // Uniformly spread trees across entire field at 1/TREE_FREQUENCY
       if (treeZoneIndices.length > 0 && idx % TREE_FREQUENCY === 0) {
-        // Pick a tree zone (round-robin if multiple)
         const treeIdx = treeZoneIndices[Math.floor(hash) % treeZoneIndices.length];
         allPoints.push({ lng, lat, zoneIndex: treeIdx });
       } else if (nonTreeZoneIndices.length > 0) {
-        // Non-tree: cluster with 25% mixing
-        const mixFactor = 0.25;
+        // Non-tree: use area-weighted distribution with mild spatial clustering (40% mixing)
+        const mixFactor = 0.40;
         if (hash % 100 < mixFactor * 100) {
+          // Random assignment by area proportion
           const randomHash = hash % 100;
           let localIdx = 0;
           for (let z = 0; z < nonTreeCum.length; z++) {
@@ -1563,6 +1567,7 @@ function generateFullFieldGrid(
           }
           allPoints.push({ lng, lat, zoneIndex: nonTreeZoneIndices[localIdx] });
         } else {
+          // Cluster by nearest zone center, weighted by area
           let minDist = Infinity;
           let localIdx = 0;
           nonTreeCenters.forEach((center, z) => {
@@ -1574,12 +1579,10 @@ function generateFullFieldGrid(
           allPoints.push({ lng, lat, zoneIndex: nonTreeZoneIndices[localIdx] });
         }
       } else {
-        // Fallback: all zones are trees, just assign round-robin
         allPoints.push({ lng, lat, zoneIndex: treeZoneIndices[idx % treeZoneIndices.length] });
       }
 
       idx++;
-      if (idx >= MAX_GRID_MARKERS_TOTAL) return allPoints;
     }
   }
   return allPoints;
@@ -1607,7 +1610,7 @@ function getDotSize(cropName: string): number {
   return profile?.dotSize || 10;
 }
 
-const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabilityData, mapToken }: CropPlanningSectionProps) => {
+const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabilityData, landUseData, mapToken }: CropPlanningSectionProps) => {
   const isMobile = useIsMobile();
   const [plan, setPlan] = useState<CropPlan | null>(null);
   const [loading, setLoading] = useState(false);
@@ -1621,7 +1624,7 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
   const popupsRef = useRef<mapboxgl.Popup[]>([]);
 
   // Edge case detection (computed but rendered after all hooks)
-  const edgeCaseResult = useMemo(() => detectEdgeCase(field, suitabilityData, ndviData, weatherData), [field, suitabilityData, ndviData, weatherData]);
+  const edgeCaseResult = useMemo(() => detectEdgeCase(field, suitabilityData, ndviData, weatherData, landUseData), [field, suitabilityData, ndviData, weatherData, landUseData]);
 
   const fieldCenter = useMemo(() => {
     const coords = field.coordinates[0];
