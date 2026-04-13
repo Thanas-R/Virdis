@@ -84,7 +84,7 @@ Soil data fetched from the ISRIC SoilGrids REST API at 250m resolution:
 - Soil composition (sand, silt, clay percentages) with USDA texture class
 - Water retention: field capacity, wilting point, available water capacity
 - Donut chart to visualize soil composition
-- 
+  
 ### Land Use Classification
 
 ESA WorldCover 10m land cover classification via Google Earth Engine:
