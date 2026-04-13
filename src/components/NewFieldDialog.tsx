@@ -4,20 +4,40 @@ import LocationAutocomplete from "./LocationAutocomplete";
 import { supabase } from "@/integrations/supabase/client";
 import { CROP_OPTIONS, CROP_CATEGORIES } from "@/data/crops";
 
-const PRESET_COLORS = [
-  "#D4A853", "#C75B7A", "#5BB8C7", "#8B9A5B", "#7BC75B",
-  "#EAB947", "#E06C75", "#61AFEF", "#C678DD", "#98C379",
-  "#D19A66", "#56B6C2", "#BE5046", "#E5C07B", "#FF6B6B",
+// Ordered default colors for the first 6 fields
+const DEFAULT_COLOR_ORDER = [
+  "#E5C07B", // light yellow
+  "#61AFEF", // blue
+  "#BE5046", // red
+  "#C678DD", // purple
+  "#7BC75B", // green
+  "#EAB947", // gold
 ];
 
-// Auto-cycle: pick a color not already used by existing fields
+const PRESET_COLORS = [
+  "#E5C07B", "#61AFEF", "#BE5046", "#C678DD", "#7BC75B",
+  "#EAB947", "#D4A853", "#C75B7A", "#5BB8C7", "#8B9A5B",
+  "#E06C75", "#98C379", "#D19A66", "#56B6C2", "#FF6B6B",
+];
+
+// Auto-cycle: first 6 follow DEFAULT_COLOR_ORDER, then pick unused, then random
 function getNextAutoColor(existingColors: string[]): string {
   const used = new Set(existingColors.map(c => c.toUpperCase()));
+  const count = existingColors.length;
+
+  // First 6 fields: use the ordered defaults
+  if (count < DEFAULT_COLOR_ORDER.length) {
+    const color = DEFAULT_COLOR_ORDER[count];
+    if (!used.has(color.toUpperCase())) return color;
+  }
+
+  // After that, pick first unused from full palette
   for (const color of PRESET_COLORS) {
     if (!used.has(color.toUpperCase())) return color;
   }
-  // All used — cycle from start
-  return PRESET_COLORS[existingColors.length % PRESET_COLORS.length];
+
+  // All used: random from palette
+  return PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)];
 }
 
 const URBAN_LAND_USES = [
