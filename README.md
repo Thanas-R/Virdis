@@ -186,29 +186,37 @@ The system detects unsuitable regions and blocks crop planning:
 
 ```
 User / Browser
-      |
-      v
+      │
+      ▼
 Frontend
-React + Mapbox GL JS + Tailwind CSS + shadcn/ui
-      |
-      v
-Supabase Edge Functions (Deno runtime)
-      |
-      |--- get-mapbox-token --> Mapbox API
-      |--- analyze-field -----> Sentinel-2 via GEE + AI Analysis
-      |--- gee-analytics -----> Google Earth Engine (land use, vegetation, suitability)
-      |--- gee-ndvi-tiles ----> GEE NDVI tile generation for map overlay
-      |--- ndvi-timeseries ---> GEE 90-day NDVI time-series with growth detection
-      |--- soil-data ---------> ISRIC SoilGrids REST API
-      |--- crop-planning -----> Google Gemini 2.5 Pro via AI Gateway
-      |--- keepalive ---------> Health check endpoint
-      |
-      v
+React + Mapbox GL JS + Tailwind + shadcn
+      │
+      ▼
+Edge Functions (Supabase - Deno)
+      │
+ ┌───────────────┬───────────────┬───────────────┬───────────────┬───────────────┬───────────────┐
+ ▼               ▼               ▼               ▼               ▼               ▼
+Mapbox Token   Field Analysis   Land Analytics  NDVI Tiles      NDVI Series     Soil Data
+(Mapbox API)   (GEE + AI)       (GEE)           (GEE)           (GEE)           (SoilGrids)
+                   │               │               │               │               │
+                   ▼               ▼               ▼               ▼               ▼
+             AI Crop Planning   Land Use        Tile Service    Time-Series     Soil Properties
+             (Gemini 2.5 Pro)   + Suitability                                   (250m)
+                   │
+                   ▼
+            Crop Recommendations
+
+      │
+      ▼
 External Data Sources
-Google Earth Engine (Sentinel-2, ESA WorldCover, SRTM, CHIRPS)
-Open-Meteo (weather forecast, historical archive, air quality)
-ISRIC SoilGrids (soil properties at 250m resolution)
-Mapbox (vector/satellite tiles, geocoding)
+      │
+ ┌───────────────┬───────────────┬───────────────┬───────────────┐
+ ▼               ▼               ▼               ▼
+Google Earth    Open-Meteo     SoilGrids       Mapbox
+Engine          (Weather)      (Soil Data)     (Maps API)
+      │
+      ▼
+Sentinel-2 • ESA WorldCover • SRTM • CHIRPS
 ```
 
 ## Tech Stack
