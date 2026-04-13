@@ -181,16 +181,6 @@ The system detects unsuitable regions and blocks crop planning:
 - Selectable comparison target from existing regions
 - Independent chart rendering per region
 
-### Mobile Layout
-
-Responsive mobile experience with dedicated components:
-
-- Bottom navigation bar with Map, Fields, and Analytics tabs
-- Swipe gestures between tabs
-- Full-screen map always rendered behind overlays
-- Slide-up bottom sheets for field list and detail views
-- Compact chart sizing for mobile viewports
-- Touch-optimized draw prompts and controls
 
 ## Architecture
 
@@ -291,52 +281,52 @@ Mapbox (vector/satellite tiles, geocoding)
 | crop-planning | POST | field name, crop, area, location, coordinates, NDVI/soil/weather/suitability data | zones, intercropping, rotation_plan, summary, tips, scores | Gemini 2.5 Pro |
 | keepalive | GET | (none) | { status: "ok" } | (none) |
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 src/
-  components/
-    MapView.tsx              Main map with drawing, NDVI overlay, field rendering
-    MapToolbar.tsx           Left toolbar (zoom, draw, layers, NDVI, compass)
-    SidePanel.tsx            Right sidebar with field list and detail view
-    FieldDetailView.tsx      Per-field: weather, NDVI, soil, water stress, AI analysis
-    FieldCard.tsx            Compact field card for lists
-    FieldEditDialog.tsx      Edit field name, crop, color, group
-    FieldComparisonColumn.tsx Side-by-side field comparison charts
-    WeatherView.tsx          Full analytics dashboard with all charts
-    CropPlanningSection.tsx  AI crop planning with map visualization and calendar
-    NewFieldDialog.tsx       Create new field with auto-color and region detection
-    SearchBar.tsx            Map search with Mapbox geocoding
-    LocationAutocomplete.tsx Location input with Mapbox suggestions
-    NdviLegend.tsx           NDVI color scale legend
-    NdviScrubber.tsx         NDVI date navigation
-    MobileBottomNav.tsx      Mobile tab bar
-    MobileFieldSheet.tsx     Mobile field list overlay
-    MobileDrawPrompt.tsx     Mobile draw mode controls
-    ui/                      shadcn/ui components (Radix primitives)
-  data/
-    fields.ts               Field type definition and area conversion helpers
-    crops.ts                 Crop options for field creation dialog
-  hooks/
-    use-mobile.tsx           Responsive breakpoint hook (768px)
-    use-swipe.ts             Touch swipe gesture detection
-    use-toast.ts             Toast notification hook
-  pages/
-    Index.tsx                Main page with desktop/mobile layouts
-    NotFound.tsx             404 page
-  integrations/
-    supabase/
-      client.ts              Supabase client configuration
+├── components/
+│   ├── MapView.tsx              # Main map with drawing, NDVI overlay, field rendering
+│   ├── MapToolbar.tsx           # Left toolbar (zoom, draw, layers, NDVI, compass)
+│   ├── SidePanel.tsx            # Right sidebar with field list & detail view
+│   ├── FieldDetailView.tsx      # Per-field detail: weather, NDVI, soil, AI analysis
+│   ├── FieldCard.tsx            # Compact field card for lists
+│   ├── FieldEditDialog.tsx      # Edit field name, crop, color, group
+│   ├── FieldComparisonColumn.tsx# Side-by-side field comparison charts
+│   ├── WeatherView.tsx          # Full analytics dashboard
+│   ├── CropPlanningSection.tsx  # AI crop planning with map visualization
+│   ├── NewFieldDialog.tsx       # Create new field from drawn polygon
+│   ├── SearchBar.tsx            # Map search with geocoding
+│   ├── LocationAutocomplete.tsx # Location input with Mapbox suggestions
+│   ├── NdviLegend.tsx           # NDVI color scale legend
+│   ├── NdviScrubber.tsx         # NDVI date navigation
+│   ├── MobileBottomNav.tsx      # Mobile tab bar
+│   ├── MobileFieldSheet.tsx     # Mobile field list overlay
+│   ├── MobileDrawPrompt.tsx     # Mobile draw mode controls
+│   └── ui/                     # shadcn/ui components
+├── data/
+│   ├── fields.ts               # Field type definition & helpers
+│   └── crops.ts                # Crop options for field creation
+├── hooks/
+│   ├── use-mobile.tsx           # Responsive breakpoint hook (768px)
+│   ├── use-swipe.ts             # Touch swipe gesture detection
+│   └── use-toast.ts             # Toast notification hook
+├── pages/
+│   ├── Index.tsx                # Main page with desktop/mobile layouts
+│   └── NotFound.tsx             # 404 page
+└── integrations/
+    └── supabase/
+        └── client.ts            # Supabase client configuration
 
 supabase/functions/
-  analyze-field/index.ts     AI field analysis endpoint
-  crop-planning/index.ts     AI crop planning endpoint (Gemini 2.5 Pro)
-  gee-analytics/index.ts     Google Earth Engine analytics endpoint
-  gee-ndvi-tiles/index.ts    GEE NDVI tile generation endpoint
-  get-mapbox-token/index.ts  Mapbox token provider endpoint
-  keepalive/index.ts         Health check endpoint
-  ndvi-timeseries/index.ts   NDVI time-series data endpoint
-  soil-data/index.ts         SoilGrids API integration endpoint
+├── analyze-field/index.ts       # AI field analysis
+├── crop-planning/index.ts       # AI crop planning (Gemini 2.5 Pro)
+├── gee-analytics/index.ts       # Google Earth Engine analytics
+├── gee-ndvi-tiles/index.ts      # GEE NDVI tile generation
+├── get-mapbox-token/index.ts    # Mapbox token provider
+├── keepalive/index.ts           # Health check
+├── ndvi-timeseries/index.ts     # NDVI time-series data
+└── soil-data/index.ts           # SoilGrids API integration
 ```
 
 ## Secrets and Configuration
