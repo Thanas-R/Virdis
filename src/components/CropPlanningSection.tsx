@@ -1971,6 +1971,34 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
     doc.save(`crop-plan-${field.name.replace(/\s+/g, "-").toLowerCase()}.pdf`);
   }, [field, plan]);
 
+  // Edge case early return (after all hooks)
+  if (edgeCaseResult) {
+    const icons: Record<string, string> = { water: "🌊", desert: "🏜️", arctic: "🧊", urban: "🏙️" };
+    const labels: Record<string, string> = { water: "Water Body Detected", desert: "Extreme Desert", arctic: "Polar / Extreme Altitude", urban: "Urban Region" };
+    return (
+      <div className="animate-fade-in space-y-4" style={{ animationDelay: "450ms" }}>
+        <h3 className="text-sm font-medium text-foreground flex items-center gap-2">
+          <Sprout className="w-4 h-4" /> Crop Planning
+        </h3>
+        <div className="p-5 rounded-xl border border-destructive/30 bg-destructive/5 space-y-3">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">{icons[edgeCaseResult.edgeCase!] || "⚠️"}</span>
+            <div>
+              <h4 className="text-sm font-semibold text-foreground">{labels[edgeCaseResult.edgeCase!] || "Unsuitable Region"}</h4>
+              <p className="text-[10px] text-muted-foreground">Confidence: {edgeCaseResult.confidence}%</p>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed">{edgeCaseResult.message}</p>
+          <div className="p-3 rounded-lg bg-accent/10 border border-border/50">
+            <p className="text-[10px] text-muted-foreground italic">
+              ⚠️ AI crop planning is not available for this region type. Analytics data (weather, NDVI, land use) may still be available above.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="animate-fade-in space-y-5" style={{ animationDelay: "450ms" }}>
       <div className="flex items-center justify-between gap-3">
