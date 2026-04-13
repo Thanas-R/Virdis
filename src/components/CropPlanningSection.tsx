@@ -1285,17 +1285,21 @@ function chooseIntercropping(chosenProfiles: CropProfile[], signals: PlanningSig
 
 function normalizeAreaPercents(rawWeights: number[]) {
   const total = rawWeights.reduce((sum, value) => sum + value, 0) || 1;
-  let normalized = rawWeights.map((value) => Math.max(12, Math.round((value / total) * 100)));
+  // Scale proportionally — do NOT force equal minimums
+  // The best-scoring crop should get the most area
+  let normalized = rawWeights.map((value) => Math.max(5, Math.round((value / total) * 100)));
   let current = normalized.reduce((sum, value) => sum + value, 0);
 
+  // Adjust to sum to 100
   while (current > 100) {
-    const index = normalized.findIndex((value) => value > 12);
-    if (index === -1) break;
+    // Reduce the smallest non-minimum zone
+    const index = normalized.reduce((minIdx, val, i, arr) => val > 5 && val > arr[minIdx] ? minIdx : i, 0);
     normalized[index] -= 1;
     current -= 1;
   }
 
   while (current < 100) {
+    // Add to the largest zone (best crop gets more)
     normalized[normalized.indexOf(Math.max(...normalized))] += 1;
     current += 1;
   }
