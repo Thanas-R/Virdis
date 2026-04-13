@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import CropPlanningSection from "@/components/CropPlanningSection";
-import { CalendarArrowUp, CalendarArrowDown, Droplets, Wind, Sprout, Thermometer, Leaf, TrendingUp, Loader2, GitCompareArrows, X, CloudRain, Factory, Building2 } from "lucide-react";
+import { CalendarArrowUp, CalendarArrowDown, Droplets, Wind, Sprout, Thermometer, Leaf, TrendingUp, Loader2, GitCompareArrows, X, CloudRain, Factory, Building2, PenTool } from "lucide-react";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   Area, AreaChart, PieChart, Pie, Cell, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
@@ -513,9 +513,33 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
       {/* Charts */}
       <div className={`flex-1 overflow-y-auto ${isMobile ? 'p-4 pb-24 space-y-6' : 'p-6 space-y-8'}`}>
         {!effectiveField ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <Sprout className="w-10 h-10 text-muted-foreground mb-3" />
-            <p className="text-sm text-muted-foreground">Select a region to view analytics</p>
+          <div className="flex flex-col items-center justify-center py-16 text-center px-6 max-w-md mx-auto">
+            <div className="w-20 h-20 rounded-2xl bg-accent/20 border border-border flex items-center justify-center mb-5">
+              <Sprout className="w-9 h-9 text-muted-foreground/60" />
+            </div>
+            <h3 className="text-base font-semibold text-foreground mb-2">No regions to analyze</h3>
+            <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
+              Create a region on the map to see detailed climate analytics, vegetation trends, soil moisture, and AI-powered crop planning.
+            </p>
+            <div className="text-left space-y-2.5 w-full max-w-xs">
+              <div className="flex items-start gap-2.5 p-3 rounded-lg bg-accent/15 border border-border/50">
+                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-semibold">1</span>
+                <span className="text-xs text-muted-foreground leading-relaxed">Switch to the <strong className="text-foreground">Map</strong> tab and click the <PenTool className="inline-block align-text-bottom mx-0.5 text-foreground w-3.5 h-3.5" /> icon on the left toolbar</span>
+              </div>
+              <div className="flex items-start gap-2.5 p-3 rounded-lg bg-accent/15 border border-border/50">
+                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-semibold">2</span>
+                <span className="text-xs text-muted-foreground leading-relaxed"><strong className="text-foreground">Click on the map</strong> to place boundary points around your region</span>
+              </div>
+              <div className="flex items-start gap-2.5 p-3 rounded-lg bg-accent/15 border border-border/50">
+                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-semibold">3</span>
+                <span className="text-xs text-muted-foreground leading-relaxed">Press <strong className="text-foreground">Enter</strong> to save, then come back here for analytics</span>
+              </div>
+            </div>
+            <div className="mt-6 p-3 rounded-xl bg-accent/10 border border-border/30 w-full max-w-xs">
+              <p className="text-[10px] text-muted-foreground text-center">
+                📡 Analytics include satellite NDVI, precipitation, temperature, soil moisture, air quality, land use classification, and AI crop planning
+              </p>
+            </div>
           </div>
         ) : compareField ? (
           /* ===== COMPARISON MODE ===== */

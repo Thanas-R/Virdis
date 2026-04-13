@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, ArrowUpDown, SlidersHorizontal, MapPin, X } from "lucide-react";
+import { Search, ArrowUpDown, SlidersHorizontal, MapPin, X, PenTool } from "lucide-react";
 import { Field } from "@/data/fields";
 import FieldCard from "./FieldCard";
 import FieldEditDialog from "./FieldEditDialog";
@@ -115,7 +115,7 @@ const MobileFieldSheet = ({
             </div>
             <div className="space-y-2">
               <h3 className="text-sm font-semibold text-foreground">No regions yet</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed">Go to the Map tab and use auto-detect or the draw tool to create your first region.</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">Go to the Map tab and tap the <PenTool className="inline-block align-text-bottom mx-0.5 text-foreground w-3.5 h-3.5" /> icon to draw your first region.</p>
             </div>
           </div>
         )}
