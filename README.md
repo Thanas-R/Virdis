@@ -30,13 +30,10 @@ Virdis enables users to:
 
 - Map and manage regions on an interactive satellite map with polygon drawing tools
 - Monitor vegetation health using NDVI analysis from Sentinel-2 10m resolution imagery
-- View real-time weather conditions and historical climate analytics for any region
 - Access detailed soil health profiling from the ISRIC SoilGrids database
 - Monitor air quality with PM2.5, PM10, and AQI readings
 - Classify land use from ESA WorldCover satellite data via Google Earth Engine
-- Score land suitability across six dimensions (soil, water, climate, topography, drainage, nutrients)
-- Receive AI-powered crop planning with visual field layouts, intercropping strategies, and rotation plans
-- Detect edge cases: water bodies, extreme deserts, polar regions, high altitude, and urban areas
+- AI-based crop planning with visual field layouts, intercropping strategies, and crop rotation plans
 - Compare two regions side-by-side with synchronized analytics charts
 - Export crop plans as PDF documents
 
@@ -49,14 +46,14 @@ Virdis enables users to:
 - Region editing and deletion with boundary modification
 - Fly-to animations when selecting regions from the list
 - NDVI overlay from Google Earth Engine tile service
-- Layer visibility toggles and compass reset
 - Location search with Mapbox geocoding and reverse geocoding
 - Auto-detection of region type (rural vs urban) using GEE land use data
-- Auto-cycling distinct field colors for new regions
+
 
 ### NDVI Vegetation Analysis
 
 Sentinel-2 imagery is processed through Google Earth Engine to calculate the Normalized Difference Vegetation Index.
+This NDVI data is displayed as a semi-transparent raster layer above the satellite basemap,
 
 NDVI = (NIR - Red) / (NIR + Red)
 
@@ -67,41 +64,27 @@ NDVI = (NIR - Red) / (NIR + Red)
 | 0.4 to 0.6 | Moderate vegetation |
 | Above 0.6 | Healthy vegetation |
 
-NDVI data is displayed as a semi-transparent raster layer above the satellite basemap, with a color scale legend and date scrubber for temporal navigation.
-
 ### Climate Analytics Dashboard
 
-Per-region historical and real-time weather analysis including:
+Per-region weather analysis with current conditions, precipitation trends (incl. evapotranspiration), temperature ranges, soil moisture (surface & deep), and selectable date range
 
-- Current conditions: temperature, humidity, wind speed, feels-like temperature, weather description
-- Accumulated precipitation area chart with evapotranspiration overlay
-- Daily precipitation bar chart
-- Temperature range line chart (daily min/max)
-- Soil moisture at two depths (0-7cm surface, 7-28cm deep)
-- Configurable date range with calendar pickers
-
-### Air Quality Monitoring
-
-- European AQI index with severity classification
-- PM2.5 and PM10 particulate concentrations
-- US AQI cross-reference
-- Color-coded severity indicators (Good, Fair, Moderate, Poor, Very Poor, Hazardous)
+Air quality monitoring with AQI , PM2.5 levels, and color-coded indicators.
 
 ### Soil Health Profiling
 
 Soil data fetched from the ISRIC SoilGrids REST API at 250m resolution:
 
-- Soil classification (WRB taxonomy) with description and icon
+- Soil classification (WRB taxonomy) with descriptions and icons
 - pH measurement with rating
-- Organic carbon content (g/kg)
-- Total nitrogen content (g/kg)
+- Organic carbon content 
+- Total nitrogen content
 - Cation exchange capacity (CEC)
 - Bulk density
 - Coarse fragment percentage
-- Soil texture composition (sand, silt, clay percentages) with USDA texture class
+- Soil composition (sand, silt, clay percentages) with USDA texture class
 - Water retention: field capacity, wilting point, available water capacity
-- Visual texture composition pie chart
-
+- Donut chart to visualize soil composition
+- 
 ### Land Use Classification
 
 ESA WorldCover 10m land cover classification via Google Earth Engine:
@@ -113,7 +96,7 @@ ESA WorldCover 10m land cover classification via Google Earth Engine:
 
 ### Land Suitability Scoring
 
-Six-dimension radar chart powered by Google Earth Engine analysis:
+Radar chart of six land suitability metrics :
 
 - Soil quality (from SoilGrids data)
 - Water access (rainfall and soil moisture)
@@ -122,24 +105,22 @@ Six-dimension radar chart powered by Google Earth Engine analysis:
 - Drainage assessment
 - Nutrient level scoring
 
-Raw metrics displayed: elevation (m), slope (degrees), annual rainfall (mm/year).
 
 ### AI Crop Planning
 
 Dual-approach crop planning system:
 
-**Local Agronomy Model (Instant)**
+**Local Agronomy Model **
 
 A client-side scoring engine with 50+ crop profiles that runs immediately:
 
 - Detects climate region from location text (tropical, Mediterranean, temperate, arid, continental, highland, coastal, humid, subtropical)
 - Scores each crop against field signals: temperature, rainfall, soil pH, NDVI health, water index, humidity, soil quality, climate quality, topography
 - Allocates area proportionally to suitability scores (best crop gets 40-55%, not equal splitting)
-- Ensures the user's current crop and at least one native tree species are included
-- Generates intercropping pairs and 3-season rotation plans with region-appropriate crops
+- Generates intercropping pairs and 3-season rotation plans
 - Penalizes crops that do not match the detected climate region
 
-**AI Planner (Background)**
+**Planner (Background)**
 
 Calls Google Gemini 2.5 Pro with full field context (NDVI, soil, weather, suitability, land use data). The AI response replaces the local model when available.
 
@@ -148,9 +129,6 @@ Calls Google Gemini 2.5 Pro with full field context (NDVI, soil, weather, suitab
 - Satellite minimap showing the field boundary on Mapbox satellite imagery
 - Static dot grid fills the entire field polygon with crop markers using point-in-polygon testing
 - Variable dot sizes: trees get 16px dots, small grains get 7px
-- Tree distribution: 1 tree per approximately 60 crop plants, spread uniformly
-- Non-tree crop clustering: spatial zone assignment with 40% random mixing for natural distribution
-- Increased density (800 max markers) with generous edge padding for full field coverage
 - Color-coded legend with crop filtering (click to show/hide individual crops)
 
 **Plan Outputs**
@@ -159,7 +137,6 @@ Calls Google Gemini 2.5 Pro with full field context (NDVI, soil, weather, suitab
 - Per-zone details: area percentage, spacing, water needs, yield estimate, season, reasoning
 - Intercropping pair suggestions with spacing guidance
 - 3-season crop rotation plan with current season highlighted
-- Crop calendar with 12-month timeline grid
 - Water saving percentage and revenue boost estimates
 - PDF export of the complete crop plan
 
@@ -337,7 +314,7 @@ supabase/functions/
 └── soil-data/index.ts           # SoilGrids API integration
 ```
 
-## Secrets and Configuration
+## Configuration
 
 | Secret | Purpose |
 |--------|---------|
