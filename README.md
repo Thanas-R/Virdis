@@ -340,6 +340,12 @@ GEE_PROJECT_ID=
 
 Open-Meteo and ISRIC SoilGrids are free public APIs that do not require API keys.
 
+## Contributors
+
+<a href="https://github.com/thanas-r/virdis/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=thanas-r/virdis" />
+</a>
+
 ## License
 ```
 GNU AFFERO GENERAL PUBLIC LICENSE
