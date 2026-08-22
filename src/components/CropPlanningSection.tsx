@@ -1715,7 +1715,10 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
         });
 
       const timeout = new Promise<never>((_, reject) => {
-        timeoutId = window.setTimeout(() => reject(new Error("Crop planning request timed out")), 15000);
+        // GPT-OSS can take longer than 15 seconds for a multi-zone JSON plan,
+        // especially on a cold Vercel edge invocation. Do not discard a valid
+        // Groq response before it has a chance to arrive.
+        timeoutId = window.setTimeout(() => reject(new Error("Crop planning request timed out")), 45000);
       });
 
       const { data, error: fnError } = await Promise.race([invocation, timeout]);

@@ -117,8 +117,11 @@ serve(async (req) => {
 
     // Groq is the configured AI provider for analysis, crop identification, and crop planning.
     // Accept either GROQ_API_KEY directly or AI_API_KEY when it contains a Groq key.
-    const FALLBACK_AI_KEY = Deno.env.get("AI_API_KEY");
-    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY") ?? (FALLBACK_AI_KEY?.startsWith("gsk_") ? FALLBACK_AI_KEY : undefined);
+    const FALLBACK_AI_KEY = Deno.env.get("AI_API_KEY")?.trim();
+    // Environment-variable values copied into Vercel can contain surrounding
+    // whitespace. Groq treats that as part of the bearer token and rejects it.
+    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY")?.trim() ||
+      (FALLBACK_AI_KEY?.startsWith("gsk_") ? FALLBACK_AI_KEY : undefined);
     if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY not configured");
     const GROQ_MODEL = Deno.env.get("GROQ_MODEL") || "openai/gpt-oss-120b";
     const AI_URL = "https://api.groq.com/openai/v1/chat/completions";
@@ -233,10 +236,11 @@ RULES:
           { role: "system", content: `You are a precision agriculture expert. Return ONLY valid JSON. No markdown formatting, no code blocks, no explanation text. Write all user-facing strings in ${responseLanguage} only.` },
           { role: "user", content: prompt },
         ],
-        temperature: 1,
-        max_completion_tokens: 2048,
-        top_p: 1,
-        reasoning_effort: "medium",
+        // JSON mode prevents the model from wrapping the plan in prose or a
+        // Markdown fence, which otherwise makes the planner look unavailable.
+        response_format: { type: "json_object" },
+        temperature: 0.7,
+        max_tokens: 2048,
         stream: false,
       }),
     });
@@ -249,7 +253,13 @@ RULES:
       if (response.status === 401 || response.status === 403) {
         return new Response(JSON.stringify({ error: `AI key rejected (${response.status}). Check GROQ_API_KEY.` }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-      throw new Error(`AI gateway error: ${response.status}`);
+      // Include the provider's safe diagnostic in the response. The UI keeps
+      // its regional fallback, while this makes Vercel misconfiguration and
+      // unsupported model settings actionable instead of reporting a generic 500.
+      const diagnostic = errText.slice(0, 500).replace(/\s+/g, " ").trim();
+      return new Response(JSON.stringify({
+        error: `Groq request failed (${response.status})${diagnostic ? `: ${diagnostic}` : ""}`,
+      }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const aiData = await response.json();
