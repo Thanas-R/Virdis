@@ -8,6 +8,7 @@ import MobileBottomNav from "@/components/MobileBottomNav";
 import MobileFieldSheet from "@/components/MobileFieldSheet";
 import { useSwipe } from "@/hooks/use-swipe";
 import { LanguageToggle } from "@/components/LanguageToggle";
+import { useLanguage } from "@/lib/language";
 
 const ALL_FIELDS_KEY = "virdis-regions-v7";
 const SELECTED_IDS_KEY = "virdis-sel-v7";
@@ -36,6 +37,7 @@ function loadSelectedIds(allFields: Field[]): string[] {
 
 const Index = () => {
   const isMobile = useIsMobile();
+  const { t } = useLanguage();
   const [view, setView] = useState<"map" | "analytics">("map");
   const [allFields, setAllFields] = useState<Field[]>(loadAllFields);
   const [selectedIds, setSelectedIds] = useState<string[]>(() => loadSelectedIds(loadAllFields()));
@@ -161,7 +163,7 @@ const Index = () => {
           {(["map", "analytics"] as const).map((v) => (
             <button key={v} onClick={() => setView(v)}
               className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all duration-300 ${view === v ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
-              {v === "map" ? "Map" : "Analytics"}
+              {v === "map" ? t("map") : t("analytics")}
             </button>
           ))}
         </div>

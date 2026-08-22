@@ -1614,7 +1614,7 @@ function getDotSize(cropName: string): number {
 
 const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabilityData, landUseData, mapToken }: CropPlanningSectionProps) => {
   const isMobile = useIsMobile();
-  const { language, languageName } = useLanguage();
+  const { language, languageName, t } = useLanguage();
   const [plan, setPlan] = useState<CropPlan | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1696,7 +1696,7 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
     const planCacheKey = `${field.id}:${language}`;
     setPlanCache(planCacheKey, fallbackPlan);
     setSelectedZone(fallbackPlan.zones[0] || null);
-    setPlannerNotice("Regional crop layout generated from NDVI, soil, rainfall, and water signals while live AI refinement runs in the background.");
+    setPlannerNotice(t("cropPlannerRunning"));
 
     let timeoutId: number | undefined;
 
@@ -1735,16 +1735,16 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
       setPlan(edgePlan);
       setPlanCache(planCacheKey, edgePlan);
       setSelectedZone(edgePlan.zones[0] || null);
-      setPlannerNotice("Live AI analysis completed and updated this crop plan.");
+      setPlannerNotice(t("cropPlannerDone"));
     } catch (invokeError) {
       console.error("Crop planning invoke failed, keeping regional model:", invokeError);
-      setPlannerNotice("Live planner is unavailable right now, so this view is using the regional agronomy model with NDVI, soil, rainfall, and water signals.");
+      setPlannerNotice(t("cropPlannerUnavailable"));
       setError(null);
     } finally {
       if (timeoutId) window.clearTimeout(timeoutId);
       setLoading(false);
     }
-  }, [buildFallbackPlan, field, language, languageName, ndviData, soilData, suitabilityData, weatherData]);
+  }, [buildFallbackPlan, field, language, languageName, ndviData, soilData, suitabilityData, t, weatherData]);
 
   useEffect(() => {
     const cache = getPlanCache();

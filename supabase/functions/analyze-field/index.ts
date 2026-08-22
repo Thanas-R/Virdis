@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const MAX_STR = 200;
-const LANGUAGE_NAMES: Record<string, string> = { en: "English", hi: "Hindi (हिन्दी)", kn: "Kannada (ಕನ್ನಡ)", te: "Telugu (తెలుగు)", ta: "Tamil (தமிழ்)" };
+const LANGUAGE_NAMES: Record<string, string> = { en: "English", hi: "Hindi (हिन्दी)", bn: "Bengali (বাংলা)", mr: "Marathi (मराठी)", gu: "Gujarati (ગુજરાતી)", pa: "Punjabi (ਪੰਜਾਬੀ)", kn: "Kannada (ಕನ್ನಡ)", te: "Telugu (తెలుగు)", ta: "Tamil (தமிழ்)", ml: "Malayalam (മലയാളം)", or: "Odia (ଓଡ଼ିଆ)", as: "Assamese (অসমীয়া)", ur: "Urdu (اردو)" };
 function sanitizeLanguage(v: unknown): string {
   const value = clampStr(v).toLowerCase();
   if (LANGUAGE_NAMES[value]) return LANGUAGE_NAMES[value];
