@@ -18,6 +18,7 @@ const MAP_STYLES = {
 };
 
 const MAP_POS_KEY = "map-last-position";
+const DEFAULT_INDIA_VIEW = { lng: 78.9629, lat: 20.5937, zoom: 5, bearing: 0, pitch: 0 };
 
 function saveMapPosition(map: mapboxgl.Map) {
   const center = map.getCenter();
@@ -26,7 +27,7 @@ function saveMapPosition(map: mapboxgl.Map) {
 
 function loadMapPosition() {
   try { const s = localStorage.getItem(MAP_POS_KEY); if (s) return JSON.parse(s); } catch {}
-  return { lng: 0.722, lat: 40.719, zoom: 13, bearing: 0, pitch: 0 };
+  return DEFAULT_INDIA_VIEW;
 }
 
 function hideExtraLabels(map: mapboxgl.Map) {
@@ -125,7 +126,18 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
       attributionControl: false, doubleClickZoom: false,
     });
     mapRef.current = map;
-    map.on("load", () => { hideExtraLabels(map); setMapLoaded(true); refreshFieldLayers(map, allFieldsRef.current, allFieldsRef.current); });
+    map.on("load", () => {
+      hideExtraLabels(map);
+      setMapLoaded(true);
+      refreshFieldLayers(map, allFieldsRef.current, allFieldsRef.current);
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => { map.flyTo({ center: [pos.coords.longitude, pos.coords.latitude], zoom: 15, duration: 2000 }); },
+          (err) => { console.warn("Initial geolocation error:", err.message); },
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
+        );
+      }
+    });
     map.on("moveend", () => saveMapPosition(map));
     map.on("click", (e) => {
       if (drawModeRef.current) return;

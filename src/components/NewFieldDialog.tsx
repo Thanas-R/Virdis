@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { X, Search, Building2, Trees, Loader2 } from "lucide-react";
 import LocationAutocomplete from "./LocationAutocomplete";
-import { supabase } from "@/integrations/supabase/client";
 import { CROP_OPTIONS, CROP_CATEGORIES } from "@/data/crops";
 import { callBackend } from "@/lib/call-backend";
 
@@ -80,6 +79,7 @@ const NewFieldDialog = ({ coordinates, mapToken, existingFieldColors, onSave, on
   const [name, setName] = useState("");
   const [regionType, setRegionType] = useState<"rural" | "urban">("rural");
   const [detecting, setDetecting] = useState(true);
+  const [guessingCrop, setGuessingCrop] = useState(false);
   const [crop, setCrop] = useState("Wheat");
   const [urbanLandUse, setUrbanLandUse] = useState("Residential");
   const [color, setColor] = useState(() => getNextAutoColor(existingFieldColors || []));
@@ -128,6 +128,26 @@ const NewFieldDialog = ({ coordinates, mapToken, existingFieldColors, onSave, on
 
       setRegionType(isUrban ? "urban" : "rural");
       setDetecting(false);
+
+      if (!isUrban) {
+        setGuessingCrop(true);
+        try {
+          const cropNames = CROP_OPTIONS.map(c => c.name);
+          const { data } = await callBackend<{ crop?: string }>("guess-crop", {
+            location: geoData?.features?.[0]?.place_name || "",
+            lng: center[0],
+            lat: center[1],
+            allowedCrops: cropNames,
+          });
+          const guessedCrop = data?.crop && cropNames.includes(data.crop) ? data.crop : "Wheat";
+          setCrop(guessedCrop);
+        } catch (e) {
+          console.warn("Crop guess failed, keeping Wheat:", e);
+          setCrop("Wheat");
+        } finally {
+          setGuessingCrop(false);
+        }
+      }
     };
     detect();
   }, [coordinates, mapToken]);
@@ -215,7 +235,7 @@ const NewFieldDialog = ({ coordinates, mapToken, existingFieldColors, onSave, on
         {/* Crop / Land Use - different options per type */}
         {regionType === "rural" ? (
           <div className="relative">
-            <label className="text-xs text-muted-foreground block mb-1">Crop / Land Use</label>
+            <label className="text-xs text-muted-foreground block mb-1 flex items-center gap-1.5">Crop / Land Use{guessingCrop && <Loader2 className="w-3 h-3 animate-spin text-primary" />} {!guessingCrop && !detecting && <span className="text-[10px] text-primary font-medium">(AI guessed)</span>}</label>
             <button
               type="button"
               onClick={() => setShowCropDropdown(!showCropDropdown)}
