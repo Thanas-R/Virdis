@@ -56,6 +56,15 @@ export async function callBackend<T = any>(
     }
   }
 
+  if (!supabase) {
+    return {
+      data: null,
+      error: new Error(
+        `Backend function "${name}" is unavailable. Deploy the /api routes (Vercel) or set VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY.`
+      ),
+    };
+  }
+
   const { data, error } = await supabase.functions.invoke(name, { body });
   return { data: (data ?? null) as T | null, error };
 }
