@@ -120,7 +120,7 @@ serve(async (req) => {
     const FALLBACK_AI_KEY = Deno.env.get("AI_API_KEY");
     const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY") ?? (FALLBACK_AI_KEY?.startsWith("gsk_") ? FALLBACK_AI_KEY : undefined);
     if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY not configured");
-    const GROQ_MODEL = Deno.env.get("GROQ_MODEL") || "openai/gpt-oss-20b";
+    const GROQ_MODEL = Deno.env.get("GROQ_MODEL") || "openai/gpt-oss-120b";
     const AI_URL = "https://api.groq.com/openai/v1/chat/completions";
 
     // Build context for AI
@@ -233,6 +233,11 @@ RULES:
           { role: "system", content: `You are a precision agriculture expert. Return ONLY valid JSON. No markdown formatting, no code blocks, no explanation text. Write all user-facing strings in ${responseLanguage} only.` },
           { role: "user", content: prompt },
         ],
+        temperature: 1,
+        max_completion_tokens: 2048,
+        top_p: 1,
+        reasoning_effort: "medium",
+        stream: false,
       }),
     });
 

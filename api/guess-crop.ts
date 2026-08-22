@@ -61,13 +61,16 @@ serve(async (req) => {
       method: "POST",
       headers: { "Authorization": `Bearer ${GROQ_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: Deno.env.get("GROQ_MODEL") || "llama-3.1-8b-instant",
+        model: Deno.env.get("GROQ_MODEL") || "openai/gpt-oss-120b",
         messages: [
           { role: "system", content: "You are an agronomy assistant. Return only valid JSON and choose exactly one crop from the provided allowed list." },
           { role: "user", content: prompt },
         ],
-        temperature: 0.2,
-        max_tokens: 80,
+        temperature: 1,
+        max_completion_tokens: 2048,
+        top_p: 1,
+        reasoning_effort: "medium",
+        stream: false,
         response_format: { type: "json_object" },
       }),
     });
