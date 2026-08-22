@@ -108,8 +108,14 @@ serve(async (req) => {
     }
 
     // AI gateway credentials: prefer AI_API_KEY, fall back to the platform-managed key name
-    const AI_API_KEY = Deno.env.get("AI_API_KEY") ?? Deno.env.get(atob("TE9WQUJMRV9BUElfS0VZ"));
+    const AI_API_KEY = Deno.env.get("AI_API_KEY") ?? Deno.env.get("OPENROUTER_API_KEY") ?? Deno.env.get(atob("TE9WQUJMRV9BUElfS0VZ"));
     if (!AI_API_KEY) throw new Error("AI_API_KEY not configured");
+    // OpenRouter keys start with "sk-or-" and must go to OpenRouter, not the Lovable gateway.
+    const IS_OPENROUTER = AI_API_KEY.startsWith("sk-or-");
+    const AI_URL = Deno.env.get("AI_GATEWAY_URL") ??
+      (IS_OPENROUTER
+        ? "https://openrouter.ai/api/v1/chat/completions"
+        : atob("aHR0cHM6Ly9haS5nYXRld2F5LmxvdmFibGUuZGV2L3YxL2NoYXQvY29tcGxldGlvbnM="));
 
     // Build context for AI
     let context = `**Field:** ${fieldName}\n**Current Crop:** ${crop}\n**Area:** ${area} acres\n**Location:** ${location}\n`;
@@ -208,9 +214,13 @@ RULES:
 - ZERO TOLERANCE for non-native or climatically inappropriate species. Every single plant you suggest must be verifiably cultivated in "${location}".
 - Return ONLY valid JSON, no markdown`;
 
-    const response = await fetch(Deno.env.get("AI_GATEWAY_URL") ?? atob("aHR0cHM6Ly9haS5nYXRld2F5LmxvdmFibGUuZGV2L3YxL2NoYXQvY29tcGxldGlvbnM="), {
+    const response = await fetch(AI_URL, {
       method: "POST",
-      headers: { Authorization: `Bearer ${AI_API_KEY}`, "Content-Type": "application/json" },
+      headers: {
+        Authorization: `Bearer ${AI_API_KEY}`,
+        "Content-Type": "application/json",
+        ...(IS_OPENROUTER ? { "HTTP-Referer": "https://lovable.dev", "X-Title": "Field Analytics" } : {}),
+      },
       body: JSON.stringify({
         model: "google/gemini-2.5-pro",
         messages: [
@@ -222,7 +232,12 @@ RULES:
 
     if (!response.ok) {
       if (response.status === 429) return new Response(JSON.stringify({ error: "Rate limit exceeded" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      if (response.status === 402) return new Response(JSON.stringify({ error: "Usage limit reached" }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (response.status === 402) return new Response(JSON.stringify({ error: "Usage limit reached - the AI account is out of credits" }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const errText = await response.text();
+      console.error("AI gateway error:", response.status, errText);
+      if (response.status === 401 || response.status === 403) {
+        return new Response(JSON.stringify({ error: `AI key rejected (${response.status}). Check AI_API_KEY matches its provider.` }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
       throw new Error(`AI gateway error: ${response.status}`);
     }
 
