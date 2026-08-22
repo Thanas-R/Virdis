@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.mapbox-geocode]
 verify_jwt = false
+
+[functions.guess-crop]
+verify_jwt = false
