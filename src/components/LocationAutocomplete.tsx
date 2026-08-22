@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { MapPin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { callBackend } from "@/lib/call-backend";
 
 interface LocationAutocompleteProps {
   value: string;
@@ -32,9 +33,7 @@ const LocationAutocomplete = ({ value, onChange, placeholder = "Search locationâ
   const geocode = async (text: string) => {
     if (text.length < 2) { setResults([]); return; }
     try {
-      const { data } = await supabase.functions.invoke("mapbox-geocode", {
-        body: { mode: "forward", query: text, limit: 4 },
-      });
+      const { data } = await callBackend("mapbox-geocode", { mode: "forward", query: text, limit: 4 });
       setResults(data?.features || []);
       setShowResults(true);
     } catch {

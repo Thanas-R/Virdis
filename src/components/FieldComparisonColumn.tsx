@@ -8,6 +8,7 @@ import { Field, haToAcres } from "@/data/fields";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { getFreshLocalCacheValue, hasGeeAnalyticsPayload, hasNdviPayload, isFallbackPayload, setLocalCache } from "@/lib/query-cache";
+import { callBackend } from "@/lib/call-backend";
 
 const CHART_GOLD = "#C6B77E";
 const CHART_CREAM = "#F7F4E4";
@@ -97,9 +98,7 @@ const FieldComparisonColumn = ({ field, startDate, endDate, compact = false, gra
       setGeeLoading(true);
       try {
         const polygon = field.coordinates[0];
-        const { data, error } = await supabase.functions.invoke("gee-analytics", {
-          body: { polygon, analyses: ["land_use", "vegetation", "suitability"] },
-        });
+        const { data, error } = await callBackend("gee-analytics", { polygon, analyses: ["land_use", "vegetation", "suitability"] });
         if (error) throw error;
         if (hasGeeAnalyticsPayload(data)) {
           setGeeData(data);
@@ -129,9 +128,7 @@ const FieldComparisonColumn = ({ field, startDate, endDate, compact = false, gra
       setNdviTsLoading(true);
       try {
         const polygon = field.coordinates[0];
-        const { data, error } = await supabase.functions.invoke("ndvi-timeseries", {
-          body: { polygon },
-        });
+        const { data, error } = await callBackend("ndvi-timeseries", { polygon });
         if (error) throw error;
         if (hasNdviPayload(data)) {
           setNdviTimeSeries(data);

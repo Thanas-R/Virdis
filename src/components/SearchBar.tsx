@@ -1,6 +1,7 @@
 import { Search, MapPin } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { callBackend } from "@/lib/call-backend";
 
 interface SearchBarProps {
   onSearch: (query: string) => void;
@@ -38,9 +39,7 @@ const SearchBar = ({ onSearch, onLocationSelect }: SearchBarProps) => {
       return;
     }
     try {
-      const { data } = await supabase.functions.invoke("mapbox-geocode", {
-        body: { mode: "forward", query: text, limit: 4 },
-      });
+      const { data } = await callBackend("mapbox-geocode", { mode: "forward", query: text, limit: 4 });
       setResults(((data?.features as GeocodingResult[]) || []).slice(0, 4));
       setShowResults(true);
     } catch {

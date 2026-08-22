@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import { getFreshLocalCacheValue, hasNdviPayload, hasSoilPayload, isFallbackPayload, setLocalCache } from "@/lib/query-cache";
 import { invokeWithRetry } from "@/lib/invoke-with-retry";
+import { callBackend } from "@/lib/call-backend";
 
 const URBAN_CROPS = ["Residential", "Commercial", "Park / Garden", "Industrial", "Mixed Use", "Rooftop / Terrace", "Community Garden"];
 
@@ -324,8 +325,7 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
     setShowAnalysis(true);
     try {
       const ndviEstimate = ndviStats?.mean_ndvi?.toFixed(2) || "0.55";
-      const { data, error } = await supabase.functions.invoke("analyze-field", {
-        body: {
+      const { data, error } = await callBackend("analyze-field", {
           fieldName: field.name, crop: field.crop, area: areaAcres, location: field.location,
           temperature: weather?.temperature_2m ?? 25, humidity: weather?.relative_humidity_2m ?? 60,
           windSpeed: weather?.wind_speed_10m ?? 10, soilMoisture: soilMoisture ?? 45, ndviEstimate,
@@ -340,8 +340,7 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
             cec: soilData.metrics.cec,
           } : undefined,
           aqiData: aqiData ? { pm2_5: aqiData.pm2_5, pm10: aqiData.pm10, aqi: aqiData.european_aqi } : undefined,
-        },
-      });
+        });
       if (error) throw error;
       setAiAnalysis(data.analysis);
       setCache(ANALYSIS_CACHE_KEY, field.id, data.analysis);

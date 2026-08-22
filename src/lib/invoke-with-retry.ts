@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { callBackend } from "@/lib/call-backend";
 import { isFallbackPayload } from "@/lib/query-cache";
 
 interface RetryOptions {
@@ -42,7 +42,7 @@ export async function invokeWithRetry<T = any>(
   for (let attempt = 0; attempt <= retries; attempt++) {
     if (signal?.aborted) return lastData;
     try {
-      const { data, error } = await supabase.functions.invoke(fn, { body });
+      const { data, error } = await callBackend(fn, body);
       if (error) throw error;
       lastData = data as T;
       const empty = isFallbackPayload(data) || (isEmpty ? isEmpty(data) : false);

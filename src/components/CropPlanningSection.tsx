@@ -30,6 +30,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import jsPDF from "jspdf";
+import { callBackend } from "@/lib/call-backend";
 
 interface CropZone {
   id: string;
@@ -1697,8 +1698,7 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
     let timeoutId: number | undefined;
 
     try {
-      const invocation = supabase.functions.invoke("crop-planning", {
-        body: {
+      const invocation = callBackend("crop-planning", {
           fieldName: field.name,
           crop: field.crop,
           area: haToAcres(field.area),
@@ -1708,8 +1708,7 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
           soilData,
           weatherData,
           suitabilityData,
-        },
-      });
+        });
 
       const timeout = new Promise<never>((_, reject) => {
         timeoutId = window.setTimeout(() => reject(new Error("Crop planning request timed out")), 15000);

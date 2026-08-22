@@ -3,6 +3,7 @@ import { X, Search, Building2, Trees, Loader2 } from "lucide-react";
 import LocationAutocomplete from "./LocationAutocomplete";
 import { supabase } from "@/integrations/supabase/client";
 import { CROP_OPTIONS, CROP_CATEGORIES } from "@/data/crops";
+import { callBackend } from "@/lib/call-backend";
 
 // Ordered default colors for the first 6 fields
 const DEFAULT_COLOR_ORDER = [
@@ -100,13 +101,10 @@ const NewFieldDialog = ({ coordinates, mapToken, existingFieldColors, onSave, on
       );
 
       // Parallel: reverse geocode (via edge proxy) + GEE land use
-      const geocodePromise = supabase.functions
-        .invoke("mapbox-geocode", { body: { mode: "reverse", lng: center[0], lat: center[1], limit: 1 } })
+      const geocodePromise = callBackend("mapbox-geocode", { mode: "reverse", lng: center[0], lat: center[1], limit: 1 })
         .then(r => r.data).catch(() => null);
 
-      const geePromise = supabase.functions.invoke("gee-analytics", {
-        body: { polygon: coordinates, analyses: ["land_use"] },
-      }).then(r => r.data).catch(() => null);
+      const geePromise = callBackend("gee-analytics", { polygon: coordinates, analyses: ["land_use"] }).then(r => r.data).catch(() => null);
 
       const [geoData, geeData] = await Promise.all([geocodePromise, geePromise]);
 

@@ -10,6 +10,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import NdviLegend from "./NdviLegend";
+import { callBackend } from "@/lib/call-backend";
 
 const MAP_STYLES = {
   dark: "mapbox://styles/mapbox/dark-v11",
@@ -79,7 +80,7 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
   useEffect(() => {
     const fetchToken = async () => {
       try {
-        const { data } = await supabase.functions.invoke("get-mapbox-token");
+        const { data } = await callBackend("get-mapbox-token");
         if (data?.token) setMapToken(data.token);
       } catch (e) { console.error("Failed to fetch mapbox token", e); }
     };
@@ -413,7 +414,7 @@ const MapView = ({ allFields, selectedFields, activeField, flyToField, onFlyToDo
     toast.info("Loading NDVI overlay…");
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
-        const { data, error } = await supabase.functions.invoke("gee-ndvi-tiles");
+        const { data, error } = await callBackend("gee-ndvi-tiles");
         if (error) throw error;
         if (data?.tileUrl) {
           const map = mapRef.current;

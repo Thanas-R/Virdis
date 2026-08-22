@@ -14,6 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { supabase } from "@/integrations/supabase/client";
 import { getFreshLocalCacheValue, hasGeeAnalyticsPayload, hasNdviPayload, hasSoilPayload, isFallbackPayload, setLocalCache } from "@/lib/query-cache";
 import { invokeWithRetry } from "@/lib/invoke-with-retry";
+import { callBackend } from "@/lib/call-backend";
 
 const CHART_GOLD = "#C6B77E";
 const CHART_CREAM = "#F7F4E4";
@@ -233,7 +234,7 @@ const WeatherView = ({ activeField, selectedFields, allFields }: WeatherViewProp
   useEffect(() => {
     const fetchToken = async () => {
       try {
-        const { data } = await supabase.functions.invoke("get-mapbox-token");
+        const { data } = await callBackend("get-mapbox-token");
         if (data?.token) setMapToken(data.token);
       } catch (e) { console.error("Failed to fetch mapbox token for crop planning", e); }
     };

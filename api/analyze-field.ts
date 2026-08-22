@@ -1,4 +1,19 @@
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+// AUTO-GENERATED from supabase/functions/<name>/index.ts by scripts/gen-vercel-api.mjs
+// Do not edit directly - edit the Supabase function and re-run the generator.
+export const config = { runtime: "edge" };
+
+type Handler = (req: Request) => Response | Promise<Response>;
+let _handler: Handler = () => new Response("not ready", { status: 500 });
+const serve = (fn: Handler) => {
+  _handler = fn;
+};
+// Deno.env shim -> Vercel Environment Variables
+const Deno = {
+  env: {
+    get: (key: string): string | undefined => (process.env as Record<string, string | undefined>)[key],
+  },
+};
+void Deno;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -421,3 +436,7 @@ Based on the soil data (${soilData?.texture || "unknown"} texture, pH ${soilData
     });
   }
 });
+
+export default function handler(req: Request) {
+  return _handler(req);
+}
