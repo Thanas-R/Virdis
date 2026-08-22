@@ -22,6 +22,13 @@ const corsHeaders = {
 };
 
 const MAX_STR = 200;
+const LANGUAGE_NAMES: Record<string, string> = { en: "English", hi: "Hindi (हिन्दी)", kn: "Kannada (ಕನ್ನಡ)", te: "Telugu (తెలుగు)", ta: "Tamil (தமிழ்)" };
+function sanitizeLanguage(v: unknown): string {
+  const value = clampStr(v).toLowerCase();
+  if (LANGUAGE_NAMES[value]) return LANGUAGE_NAMES[value];
+  const allowed = Object.values(LANGUAGE_NAMES);
+  return allowed.includes(clampStr(v)) ? clampStr(v) : "English";
+}
 function validatePolygon(coords: any): string | null {
   if (!Array.isArray(coords) || coords.length < 3) return "Polygon must have at least 3 vertices";
   if (coords.length > 500) return "Polygon exceeds maximum 500 vertices";
@@ -270,16 +277,20 @@ serve(async (req) => {
     isUrban = !!isUrban;
     soilData = sanitizeSoil(soilData);
     aqiData = sanitizeAqi(aqiData);
+    responseLanguage = sanitizeLanguage(responseLanguage);
 
     // AI gateway credentials: prefer AI_API_KEY, fall back to the platform-managed key name
-    const AI_API_KEY = Deno.env.get("AI_API_KEY") ?? Deno.env.get("OPENROUTER_API_KEY") ?? Deno.env.get(atob("TE9WQUJMRV9BUElfS0VZ"));
+    const AI_API_KEY = Deno.env.get("GROQ_API_KEY") ?? Deno.env.get("AI_API_KEY") ?? Deno.env.get("OPENROUTER_API_KEY") ?? Deno.env.get(atob("TE9WQUJMRV9BUElfS0VZ"));
     if (!AI_API_KEY) throw new Error("AI_API_KEY not configured");
     // OpenRouter keys start with "sk-or-" and must go to OpenRouter, not the Lovable gateway.
-    const IS_OPENROUTER = AI_API_KEY.startsWith("sk-or-");
+    const IS_GROQ = !!Deno.env.get("GROQ_API_KEY") || AI_API_KEY.startsWith("gsk_");
+    const IS_OPENROUTER = !IS_GROQ && AI_API_KEY.startsWith("sk-or-");
     const AI_URL = Deno.env.get("AI_GATEWAY_URL") ??
-      (IS_OPENROUTER
-        ? "https://openrouter.ai/api/v1/chat/completions"
-        : atob("aHR0cHM6Ly9haS5nYXRld2F5LmxvdmFibGUuZGV2L3YxL2NoYXQvY29tcGxldGlvbnM="));
+      (IS_GROQ
+        ? "https://api.groq.com/openai/v1/chat/completions"
+        : IS_OPENROUTER
+          ? "https://openrouter.ai/api/v1/chat/completions"
+          : atob("aHR0cHM6Ly9haS5nYXRld2F5LmxvdmFibGUuZGV2L3YxL2NoYXQvY29tcGxldGlvbnM="));
 
 
     // Build soil context string
@@ -307,7 +318,7 @@ serve(async (req) => {
 **NDVI (Green Cover):** ${ndviEstimate || "0.30"}
 **Soil Moisture:** ${soilMoisture || "N/A"}%${soilContext}${aqiContext}
 
-Respond in this EXACT format (keep each section to 1-2 sentences max):
+Respond in this EXACT format (keep each section to 1-2 sentences max). Write the whole analysis in ${responseLanguage} only:
 
 ## Green Infrastructure Assessment
 [Assess green cover NDVI ${ndviEstimate || "0.30"} for an urban ${crop} area. Is it adequate?]
@@ -349,7 +360,7 @@ Respond in this EXACT format (keep each section to 1-2 sentences max):
 **Weather:** ${temperature}°C, ${humidity}% humidity, ${windSpeed} km/h wind
 **Soil Moisture:** ${soilMoisture || "N/A"}% | **NDVI Estimate:** ${ndviEstimate || "0.55"}${soilContext}${aqiContext}
 
-Respond in this EXACT format (keep each section to 1-2 sentences max):
+Respond in this EXACT format (keep each section to 1-2 sentences max). Write the whole analysis in ${responseLanguage} only:
 
 ## Vegetation Health
 [Quick assessment of NDVI ${ndviEstimate || "0.55"} for ${crop}. Is it healthy or concerning?]
@@ -400,11 +411,11 @@ Based on the soil data (${soilData?.texture || "unknown"} texture, pH ${soilData
         ...(IS_OPENROUTER ? { "HTTP-Referer": "https://lovable.dev", "X-Title": "Field Analytics" } : {}),
       },
       body: JSON.stringify({
-        model: IS_OPENROUTER ? "google/gemini-2.5-flash" : "google/gemini-2.5-flash",
+        model: IS_GROQ ? "openai/gpt-oss-20b" : "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: isUrban
-            ? "You are an urban sustainability and environmental expert. Provide data-driven, actionable insights. Use markdown formatting. Focus on sustainability, green infrastructure, air quality, and livability. Present data clearly for non-technical stakeholders."
-            : "You are a precision agriculture expert who communicates clearly with farmers. Provide data-driven, actionable insights. Use markdown formatting. Be specific with numbers. Include soil health and water management recommendations based on the soil data provided. Make recommendations a farmer can act on today."
+            ? `You are an urban sustainability and environmental expert. Provide data-driven, actionable insights. Use markdown formatting. Focus on sustainability, green infrastructure, air quality, and livability. Present data clearly for non-technical stakeholders. Write in ${responseLanguage} only.`
+            : `You are a precision agriculture expert who communicates clearly with farmers. Provide data-driven, actionable insights. Use markdown formatting. Be specific with numbers. Include soil health and water management recommendations based on the soil data provided. Make recommendations a farmer can act on today. Write in ${responseLanguage} only.`
           },
           { role: "user", content: prompt },
         ],

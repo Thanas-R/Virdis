@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/tooltip";
 import jsPDF from "jspdf";
 import { callBackend } from "@/lib/call-backend";
+import { useLanguage } from "@/lib/language";
 
 interface CropZone {
   id: string;
@@ -1082,9 +1083,9 @@ function getPlanCache(): Record<string, { data: CropPlan; timestamp: number }> {
   }
 }
 
-function setPlanCache(fieldId: string, data: CropPlan) {
+function setPlanCache(cacheKey: string, data: CropPlan) {
   const cache = getPlanCache();
-  cache[fieldId] = { data, timestamp: Date.now() };
+  cache[cacheKey] = { data, timestamp: Date.now() };
   localStorage.setItem(CROP_PLAN_CACHE_KEY, JSON.stringify(cache));
 }
 
@@ -1613,6 +1614,7 @@ function getDotSize(cropName: string): number {
 
 const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabilityData, landUseData, mapToken }: CropPlanningSectionProps) => {
   const isMobile = useIsMobile();
+  const { language, languageName } = useLanguage();
   const [plan, setPlan] = useState<CropPlan | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1691,7 +1693,8 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
 
     const fallbackPlan = buildFallbackPlan();
     setPlan(fallbackPlan);
-    setPlanCache(field.id, fallbackPlan);
+    const planCacheKey = `${field.id}:${language}`;
+    setPlanCache(planCacheKey, fallbackPlan);
     setSelectedZone(fallbackPlan.zones[0] || null);
     setPlannerNotice("Regional crop layout generated from NDVI, soil, rainfall, and water signals while live AI refinement runs in the background.");
 
@@ -1708,6 +1711,7 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
           soilData,
           weatherData,
           suitabilityData,
+          responseLanguage: languageName,
         });
 
       const timeout = new Promise<never>((_, reject) => {
@@ -1729,7 +1733,7 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
         generated_from: "edge",
       };
       setPlan(edgePlan);
-      setPlanCache(field.id, edgePlan);
+      setPlanCache(planCacheKey, edgePlan);
       setSelectedZone(edgePlan.zones[0] || null);
       setPlannerNotice("Live AI analysis completed and updated this crop plan.");
     } catch (invokeError) {
@@ -1740,11 +1744,11 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
       if (timeoutId) window.clearTimeout(timeoutId);
       setLoading(false);
     }
-  }, [buildFallbackPlan, field, ndviData, soilData, suitabilityData, weatherData]);
+  }, [buildFallbackPlan, field, language, languageName, ndviData, soilData, suitabilityData, weatherData]);
 
   useEffect(() => {
     const cache = getPlanCache();
-    const cached = cache[field.id];
+    const cached = cache[`${field.id}:${language}`];
     if (cached && Date.now() - cached.timestamp < 3600000) {
       setPlan(cached.data);
       setSelectedZone(cached.data.zones[0] || null);
@@ -1758,7 +1762,7 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
       setSelectedZone(null);
       setPlannerNotice(null);
     }
-  }, [field.id]);
+  }, [field.id, language]);
 
   const addZoneMarkers = useCallback(
     (map: mapboxgl.Map, cropPlan: CropPlan) => {

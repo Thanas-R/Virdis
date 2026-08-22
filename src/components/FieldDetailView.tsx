@@ -14,6 +14,7 @@ import {
 import { getFreshLocalCacheValue, hasNdviPayload, hasSoilPayload, isFallbackPayload, setLocalCache } from "@/lib/query-cache";
 import { invokeWithRetry } from "@/lib/invoke-with-retry";
 import { callBackend } from "@/lib/call-backend";
+import { useLanguage } from "@/lib/language";
 
 const URBAN_CROPS = ["Residential", "Commercial", "Park / Garden", "Industrial", "Mixed Use", "Rooftop / Terrace", "Community Garden"];
 
@@ -216,6 +217,7 @@ const CustomTooltip = ({ active, payload }: any) => {
 const TEXTURE_COLORS = { sand: "#EAB947", silt: "#A0785A", clay: "#854F0B" };
 
 const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps) => {
+  const { language, languageName } = useLanguage();
   const [weather, setWeather] = useState<FieldWeather | null>(null);
   const [loading, setLoading] = useState(true);
   const [ndviStats, setNdviStats] = useState<NdviStats | null>(null);
@@ -316,10 +318,11 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
   // Load cached AI analysis
   useEffect(() => {
     const cache = getCache<string>(ANALYSIS_CACHE_KEY);
-    const cached = cache[field.id];
+    const cacheKey = `${field.id}:${language}`;
+    const cached = cache[cacheKey];
     if (cached && Date.now() - cached.timestamp < 3600000) { setAiAnalysis(cached.data); setShowAnalysis(true); }
     else { setAiAnalysis(""); setShowAnalysis(false); }
-  }, [field.id]);
+  }, [field.id, language]);
 
   const fetchAiAnalysis = async () => {
     setAiLoading(true);
@@ -331,6 +334,7 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
           temperature: weather?.temperature_2m ?? 25, humidity: weather?.relative_humidity_2m ?? 60,
           windSpeed: weather?.wind_speed_10m ?? 10, soilMoisture: soilMoisture ?? 45, ndviEstimate,
           isUrban: urban,
+          responseLanguage: languageName,
           soilData: soilData ? {
             type: soilData.classification.soil_class,
             ph: soilData.metrics.ph,
@@ -354,7 +358,7 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
           : "";
       if (!analysisText.trim()) throw new Error("Empty analysis response");
       setAiAnalysis(analysisText);
-      setCache(ANALYSIS_CACHE_KEY, field.id, analysisText);
+      setCache(ANALYSIS_CACHE_KEY, `${field.id}:${language}`, analysisText);
     } catch (e) {
       console.error("AI analysis error:", e);
       const msg = e instanceof Error ? e.message : String(e);
