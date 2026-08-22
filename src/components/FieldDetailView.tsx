@@ -342,7 +342,12 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
           } : undefined,
           aqiData: aqiData ? { pm2_5: aqiData.pm2_5, pm10: aqiData.pm10, aqi: aqiData.european_aqi } : undefined,
         });
-      if (error) throw error;
+      const errMsg =
+        typeof (data as { error?: unknown })?.error === "string"
+          ? ((data as { error: string }).error as string)
+          : null;
+      if (error) throw new Error(errMsg ?? (error instanceof Error ? error.message : String(error)));
+      if (errMsg) throw new Error(errMsg);
       const analysisText =
         typeof (data as { analysis?: unknown })?.analysis === "string"
           ? ((data as { analysis: string }).analysis as string)
@@ -352,7 +357,9 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
       setCache(ANALYSIS_CACHE_KEY, field.id, analysisText);
     } catch (e) {
       console.error("AI analysis error:", e);
-      setAiAnalysis("Analysis temporarily unavailable. Please try again.");
+      const msg = e instanceof Error ? e.message : String(e);
+      setAiAnalysis(`Analysis unavailable: ${msg}`);
+
     } finally { setAiLoading(false); }
   };
 
