@@ -78,7 +78,8 @@ const isTableRow = (line: string) => /^\s*\|.*\|\s*$/.test(line);
 const parseTableRow = (line: string) => line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((cell) => cell.trim());
 const isSeparatorCell = (cell: string) => /^:?-{3,}:?$/.test(cell.trim());
 
-function splitAnalysisBlocks(rawText: string): AnalysisBlock[] {
+function splitAnalysisBlocks(rawText: unknown): AnalysisBlock[] {
+  if (typeof rawText !== "string" || !rawText.trim()) return [];
   const text = rawText.replace(/\\n/g, "\n");
   const lines = text.split("\n");
   const blocks: AnalysisBlock[] = [];
@@ -342,8 +343,13 @@ const FieldDetailView = ({ field, onBack, onEditBoundary }: FieldDetailViewProps
           aqiData: aqiData ? { pm2_5: aqiData.pm2_5, pm10: aqiData.pm10, aqi: aqiData.european_aqi } : undefined,
         });
       if (error) throw error;
-      setAiAnalysis(data.analysis);
-      setCache(ANALYSIS_CACHE_KEY, field.id, data.analysis);
+      const analysisText =
+        typeof (data as { analysis?: unknown })?.analysis === "string"
+          ? ((data as { analysis: string }).analysis as string)
+          : "";
+      if (!analysisText.trim()) throw new Error("Empty analysis response");
+      setAiAnalysis(analysisText);
+      setCache(ANALYSIS_CACHE_KEY, field.id, analysisText);
     } catch (e) {
       console.error("AI analysis error:", e);
       setAiAnalysis("Analysis temporarily unavailable. Please try again.");
