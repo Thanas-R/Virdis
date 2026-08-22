@@ -36,7 +36,8 @@ serve(async (req) => {
 
     if (!allowedCrops.includes("Wheat")) allowedCrops.unshift("Wheat");
 
-    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY") ?? Deno.env.get("AI_API_KEY");
+    const FALLBACK_AI_KEY = Deno.env.get("AI_API_KEY");
+    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY") ?? (FALLBACK_AI_KEY?.startsWith("gsk_") ? FALLBACK_AI_KEY : undefined);
     if (!GROQ_API_KEY) return new Response(JSON.stringify({ crop: "Wheat", fallback: true, error: "GROQ_API_KEY not configured" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const prompt = `Pick the single most likely suitable crop or agricultural land use for a newly drawn rural region. Use the exact crop name from this allowed list only. If uncertain, return Wheat.\n\nLocation: ${location || "Unknown"}\nCenter: ${lat ?? "unknown"}, ${lng ?? "unknown"}\nAllowed crops: ${allowedCrops.join(", ")}\n\nRespond as compact JSON only: {"crop":"Wheat"}`;

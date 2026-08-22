@@ -115,18 +115,13 @@ serve(async (req) => {
       }
     }
 
-    // AI gateway credentials: prefer AI_API_KEY, fall back to the platform-managed key name
-    const AI_API_KEY = Deno.env.get("GROQ_API_KEY") ?? Deno.env.get("AI_API_KEY") ?? Deno.env.get("OPENROUTER_API_KEY") ?? Deno.env.get(atob("TE9WQUJMRV9BUElfS0VZ"));
-    if (!AI_API_KEY) throw new Error("AI_API_KEY not configured");
-    // OpenRouter keys start with "sk-or-" and must go to OpenRouter, not the Lovable gateway.
-    const IS_GROQ = !!Deno.env.get("GROQ_API_KEY") || AI_API_KEY.startsWith("gsk_");
-    const IS_OPENROUTER = !IS_GROQ && AI_API_KEY.startsWith("sk-or-");
-    const AI_URL = Deno.env.get("AI_GATEWAY_URL") ??
-      (IS_GROQ
-        ? "https://api.groq.com/openai/v1/chat/completions"
-        : IS_OPENROUTER
-          ? "https://openrouter.ai/api/v1/chat/completions"
-          : atob("aHR0cHM6Ly9haS5nYXRld2F5LmxvdmFibGUuZGV2L3YxL2NoYXQvY29tcGxldGlvbnM="));
+    // Groq is the configured AI provider for analysis, crop identification, and crop planning.
+    // Accept either GROQ_API_KEY directly or AI_API_KEY when it contains a Groq key.
+    const FALLBACK_AI_KEY = Deno.env.get("AI_API_KEY");
+    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY") ?? (FALLBACK_AI_KEY?.startsWith("gsk_") ? FALLBACK_AI_KEY : undefined);
+    if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY not configured");
+    const GROQ_MODEL = Deno.env.get("GROQ_MODEL") || "openai/gpt-oss-20b";
+    const AI_URL = "https://api.groq.com/openai/v1/chat/completions";
 
     // Build context for AI
     let context = `**Field:** ${fieldName}\n**Current Crop:** ${crop}\n**Area:** ${area} acres\n**Location:** ${location}\n`;
@@ -229,12 +224,11 @@ RULES:
     const response = await fetch(AI_URL, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${AI_API_KEY}`,
+        Authorization: `Bearer ${GROQ_API_KEY}`,
         "Content-Type": "application/json",
-        ...(IS_OPENROUTER ? { "HTTP-Referer": "https://lovable.dev", "X-Title": "Field Analytics" } : {}),
       },
       body: JSON.stringify({
-        model: IS_GROQ ? "openai/gpt-oss-20b" : "google/gemini-2.5-pro",
+        model: GROQ_MODEL,
         messages: [
           { role: "system", content: `You are a precision agriculture expert. Return ONLY valid JSON. No markdown formatting, no code blocks, no explanation text. Write all user-facing strings in ${responseLanguage} only.` },
           { role: "user", content: prompt },
@@ -248,7 +242,7 @@ RULES:
       const errText = await response.text();
       console.error("AI gateway error:", response.status, errText);
       if (response.status === 401 || response.status === 403) {
-        return new Response(JSON.stringify({ error: `AI key rejected (${response.status}). Check AI_API_KEY matches its provider.` }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ error: `AI key rejected (${response.status}). Check GROQ_API_KEY.` }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       throw new Error(`AI gateway error: ${response.status}`);
     }

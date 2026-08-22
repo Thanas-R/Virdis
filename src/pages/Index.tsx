@@ -7,7 +7,6 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import MobileBottomNav from "@/components/MobileBottomNav";
 import MobileFieldSheet from "@/components/MobileFieldSheet";
 import { useSwipe } from "@/hooks/use-swipe";
-import { LanguageToggle } from "@/components/LanguageToggle";
 
 const ALL_FIELDS_KEY = "virdis-regions-v7";
 const SELECTED_IDS_KEY = "virdis-sel-v7";
@@ -96,10 +95,6 @@ const Index = () => {
   if (isMobile) {
     return (
       <div className="h-screen w-screen bg-background flex flex-col relative overflow-hidden" {...swipeHandlers}>
-        <div className="absolute right-3 top-3 z-40">
-          <LanguageToggle />
-        </div>
-
         {/* Full-screen map always rendered behind */}
         <div className="absolute inset-0" style={{ bottom: 0 }}>
           <MapView allFields={allFields} selectedFields={selectedFields} activeField={activeField} flyToField={flyToField}
@@ -151,11 +146,6 @@ const Index = () => {
   return (
     <div className="h-screen w-screen bg-surface-outer flex items-center justify-center p-6">
       <div className="w-full h-full max-w-[1400px] max-h-[900px] rounded-2xl overflow-hidden bg-background shadow-2xl relative border-[#041009] border-2">
-        {/* Website language toggle */}
-        <div className="absolute right-4 top-4 z-20">
-          <LanguageToggle />
-        </div>
-
         {/* View toggle */}
         <div className="absolute top-4 z-20 flex gap-1 bg-card/80 backdrop-blur-sm rounded-lg border border-border p-1" style={{ left: "calc(50% - 15px)", transform: "translateX(-50%)" }}>
           {(["map", "analytics"] as const).map((v) => (

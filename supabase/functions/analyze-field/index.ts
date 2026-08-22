@@ -264,18 +264,13 @@ serve(async (req) => {
     aqiData = sanitizeAqi(aqiData);
     responseLanguage = sanitizeLanguage(responseLanguage);
 
-    // AI gateway credentials: prefer AI_API_KEY, fall back to the platform-managed key name
-    const AI_API_KEY = Deno.env.get("GROQ_API_KEY") ?? Deno.env.get("AI_API_KEY") ?? Deno.env.get("OPENROUTER_API_KEY") ?? Deno.env.get(atob("TE9WQUJMRV9BUElfS0VZ"));
-    if (!AI_API_KEY) throw new Error("AI_API_KEY not configured");
-    // OpenRouter keys start with "sk-or-" and must go to OpenRouter, not the Lovable gateway.
-    const IS_GROQ = !!Deno.env.get("GROQ_API_KEY") || AI_API_KEY.startsWith("gsk_");
-    const IS_OPENROUTER = !IS_GROQ && AI_API_KEY.startsWith("sk-or-");
-    const AI_URL = Deno.env.get("AI_GATEWAY_URL") ??
-      (IS_GROQ
-        ? "https://api.groq.com/openai/v1/chat/completions"
-        : IS_OPENROUTER
-          ? "https://openrouter.ai/api/v1/chat/completions"
-          : atob("aHR0cHM6Ly9haS5nYXRld2F5LmxvdmFibGUuZGV2L3YxL2NoYXQvY29tcGxldGlvbnM="));
+    // Groq is the configured AI provider for analysis, crop identification, and crop planning.
+    // Accept either GROQ_API_KEY directly or AI_API_KEY when it contains a Groq key.
+    const FALLBACK_AI_KEY = Deno.env.get("AI_API_KEY");
+    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY") ?? (FALLBACK_AI_KEY?.startsWith("gsk_") ? FALLBACK_AI_KEY : undefined);
+    if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY not configured");
+    const GROQ_MODEL = Deno.env.get("GROQ_MODEL") || "openai/gpt-oss-20b";
+    const AI_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 
     // Build soil context string
@@ -391,12 +386,11 @@ Based on the soil data (${soilData?.texture || "unknown"} texture, pH ${soilData
     const response = await fetch(AI_URL, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${AI_API_KEY}`,
+        Authorization: `Bearer ${GROQ_API_KEY}`,
         "Content-Type": "application/json",
-        ...(IS_OPENROUTER ? { "HTTP-Referer": "https://lovable.dev", "X-Title": "Field Analytics" } : {}),
       },
       body: JSON.stringify({
-        model: IS_GROQ ? "openai/gpt-oss-20b" : "google/gemini-2.5-flash",
+        model: GROQ_MODEL,
         messages: [
           { role: "system", content: isUrban
             ? `You are an urban sustainability and environmental expert. Provide data-driven, actionable insights. Use markdown formatting. Focus on sustainability, green infrastructure, air quality, and livability. Present data clearly for non-technical stakeholders. Write in ${responseLanguage} only.`
@@ -413,7 +407,7 @@ Based on the soil data (${soilData?.texture || "unknown"} texture, pH ${soilData
       if (response.status === 429) return new Response(JSON.stringify({ error: "Rate limit exceeded." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       if (response.status === 402) return new Response(JSON.stringify({ error: "Usage limit reached — the AI account is out of credits." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       if (response.status === 401 || response.status === 403) {
-        return new Response(JSON.stringify({ error: `AI key rejected (${response.status}). Check that AI_API_KEY matches the provider it is sent to.` }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ error: `AI key rejected (${response.status}). Check GROQ_API_KEY.` }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       return new Response(JSON.stringify({ error: `AI provider error ${response.status}: ${t.slice(0, 300)}` }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
