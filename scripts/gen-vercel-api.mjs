@@ -13,6 +13,8 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const srcDir = join(root, "supabase", "functions");
 const outDir = join(root, "api");
+const sharedAi = readFileSync(join(srcDir, "_shared", "ai.ts"), "utf8")
+  .replace(/\bexport\s+(?=(?:class|function|interface)\b)/g, "");
 
 const PRELUDE = `// AUTO-GENERATED from supabase/functions/<name>/index.ts by scripts/gen-vercel-api.mjs
 // Do not edit directly - edit the Supabase function and re-run the generator.
@@ -42,6 +44,8 @@ function transform(source) {
   let out = source
     // drop Deno std http server import (serve is shimmed above)
     .replace(/^\s*import\s*\{\s*serve\s*\}\s*from\s*["']https:\/\/deno\.land\/[^"']+["'];?\s*$/m, "")
+    // Vercel routes are standalone, so inline the shared AI helper.
+    .replace(/^\s*import\s*\{[^}]+\}\s*from\s*["']\.\.\/_shared\/ai\.ts["'];?\s*$/m, sharedAi)
     // tile proxy lives at /api/gee-tile-proxy on Vercel
     .replace(/\$\{supabaseUrl\}\/functions\/v1\/gee-tile-proxy/g, "/api/gee-tile-proxy");
 
