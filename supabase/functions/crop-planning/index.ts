@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { AiError, generateJson } from "../_shared/ai.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -115,14 +116,6 @@ serve(async (req) => {
       }
     }
 
-    // Groq is the configured AI provider for analysis, crop identification, and crop planning.
-    // Accept either GROQ_API_KEY directly or AI_API_KEY when it contains a Groq key.
-    const FALLBACK_AI_KEY = Deno.env.get("AI_API_KEY");
-    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY") ?? (FALLBACK_AI_KEY?.startsWith("gsk_") ? FALLBACK_AI_KEY : undefined);
-    if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY not configured");
-    const GROQ_MODEL = Deno.env.get("GROQ_MODEL") || "openai/gpt-oss-120b";
-    const AI_URL = "https://api.groq.com/openai/v1/chat/completions";
-
     // Build context for AI
     let context = `**Field:** ${fieldName}\n**Current Crop:** ${crop}\n**Area:** ${area} acres\n**Location:** ${location}\n`;
 
@@ -221,58 +214,21 @@ RULES:
 - Return ONLY valid JSON, no markdown
 - Write every human-facing JSON string (zone names, reasons, benefits, spacing, seasons, summary, tips, and crop explanations) in ${responseLanguage} only. Keep crop names understandable in that language.`;
 
-    const response = await fetch(AI_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${GROQ_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: GROQ_MODEL,
-        messages: [
-          { role: "system", content: `You are a precision agriculture expert. Return ONLY valid JSON. No markdown formatting, no code blocks, no explanation text. Write all user-facing strings in ${responseLanguage} only.` },
-          { role: "user", content: prompt },
-        ],
-        temperature: 1,
-        max_completion_tokens: 2048,
-        top_p: 1,
-        reasoning_effort: "medium",
-        stream: false,
-      }),
+    const plan = await generateJson(prompt, {
+      system: `You are a precision agriculture expert. Return only a valid JSON object matching the requested structure. Do not use markdown, code blocks, or explanation outside JSON. Write all user-facing strings in ${responseLanguage} only. Ground every recommendation in the supplied field measurements and location; never invent a measurement that was not supplied.`,
+      temperature: 0.35,
+      maxOutputTokens: 4096,
     });
-
-    if (!response.ok) {
-      if (response.status === 429) return new Response(JSON.stringify({ error: "Rate limit exceeded" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      if (response.status === 402) return new Response(JSON.stringify({ error: "Usage limit reached - the AI account is out of credits" }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      const errText = await response.text();
-      console.error("AI gateway error:", response.status, errText);
-      if (response.status === 401 || response.status === 403) {
-        return new Response(JSON.stringify({ error: `AI key rejected (${response.status}). Check GROQ_API_KEY.` }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      }
-      throw new Error(`AI gateway error: ${response.status}`);
-    }
-
-    const aiData = await response.json();
-    let content = aiData.choices?.[0]?.message?.content || "";
-
-    // Clean markdown code blocks if present
-    content = content.replace(/```json\s*/gi, "").replace(/```\s*/gi, "").trim();
-
-    let plan;
-    try {
-      plan = JSON.parse(content);
-    } catch {
-      console.error("Failed to parse AI response:", content.substring(0, 500));
-      throw new Error("AI returned invalid JSON");
-    }
 
     return new Response(JSON.stringify(plan), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error("crop-planning error:", e);
-    return new Response(JSON.stringify({ error: "An internal error occurred while generating the plan" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    const aiError = e as AiError;
+    const status = typeof aiError?.status === "number" ? aiError.status : 500;
+    return new Response(JSON.stringify({ error: aiError?.message || "Crop planning is temporarily unavailable" }), {
+      status: status === 404 ? 502 : status, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
