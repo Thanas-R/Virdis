@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import { generateText, hasAiProvider, AiError } from "../_shared/ai.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -264,13 +265,12 @@ serve(async (req) => {
     aqiData = sanitizeAqi(aqiData);
     responseLanguage = sanitizeLanguage(responseLanguage);
 
-    // Groq is the configured AI provider for analysis, crop identification, and crop planning.
-    // Accept either GROQ_API_KEY directly or AI_API_KEY when it contains a Groq key.
-    const FALLBACK_AI_KEY = Deno.env.get("AI_API_KEY");
-    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY") ?? (FALLBACK_AI_KEY?.startsWith("gsk_") ? FALLBACK_AI_KEY : undefined);
-    if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY not configured");
-    const GROQ_MODEL = Deno.env.get("GROQ_MODEL") || "openai/gpt-oss-120b";
-    const AI_URL = "https://api.groq.com/openai/v1/chat/completions";
+    // Gemini (GEMINI_API_KEY) is the AI provider; Groq only as a legacy fallback.
+    if (!hasAiProvider()) {
+      return new Response(JSON.stringify({ error: "GEMINI_API_KEY is not configured" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
 
     // Build soil context string
@@ -383,45 +383,25 @@ Based on the soil data (${soilData?.texture || "unknown"} texture, pH ${soilData
 | Nitrogen | ${soilData?.nitrogen ?? "N/A"} g/kg | [status] |
 | Yield Potential | [estimate] | [status] |`;
 
-    const response = await fetch(AI_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${GROQ_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: GROQ_MODEL,
-        messages: [
-          { role: "system", content: isUrban
-            ? `You are an urban sustainability and environmental expert. Provide data-driven, actionable insights. Use markdown formatting. Focus on sustainability, green infrastructure, air quality, and livability. Present data clearly for non-technical stakeholders. Write in ${responseLanguage} only.`
-            : `You are a precision agriculture expert who communicates clearly with farmers. Provide data-driven, actionable insights. Use markdown formatting. Be specific with numbers. Include soil health and water management recommendations based on the soil data provided. Make recommendations a farmer can act on today. Write in ${responseLanguage} only.`
-          },
-          { role: "user", content: prompt },
-        ],
-        temperature: 1,
-        max_completion_tokens: 2048,
-        top_p: 1,
-        reasoning_effort: "medium",
-        stream: false,
-      }),
-    });
-
-    if (!response.ok) {
-      const t = await response.text();
-      console.error("AI gateway error:", response.status, t);
-      if (response.status === 429) return new Response(JSON.stringify({ error: "Rate limit exceeded." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      if (response.status === 402) return new Response(JSON.stringify({ error: "Usage limit reached — the AI account is out of credits." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      if (response.status === 401 || response.status === 403) {
-        return new Response(JSON.stringify({ error: `AI key rejected (${response.status}). Check GROQ_API_KEY.` }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      }
-      return new Response(JSON.stringify({ error: `AI provider error ${response.status}: ${t.slice(0, 300)}` }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    let analysis: string;
+    try {
+      analysis = await generateText(prompt, {
+        system: isUrban
+          ? `You are an urban sustainability and environmental expert. Provide data-driven, actionable insights. Use markdown formatting. Focus on sustainability, green infrastructure, air quality, and livability. Write in ${responseLanguage} only.`
+          : `You are a precision agriculture expert who communicates clearly with farmers. Provide data-driven, actionable insights. Use markdown formatting. Be specific with numbers. Make recommendations a farmer can act on today. Write in ${responseLanguage} only.`,
+        temperature: 0.5,
+        maxOutputTokens: 4096,
+      });
+    } catch (err) {
+      const aiErr = err as AiError;
+      const status = typeof aiErr?.status === "number" ? aiErr.status : 502;
+      return new Response(JSON.stringify({ error: aiErr?.message || "AI provider error" }), {
+        status: status === 404 ? 502 : status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-
-    const aiData = await response.json();
-    const analysis = aiData.choices?.[0]?.message?.content || "Analysis unavailable.";
-
-    return new Response(JSON.stringify({ analysis }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ analysis: analysis || "Analysis unavailable." }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("analyze-field error:", e);
     const msg = e instanceof Error ? e.message : String(e);
