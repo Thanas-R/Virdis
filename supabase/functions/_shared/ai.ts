@@ -2,15 +2,12 @@
 //
 // Environment variables (Vercel Environment Variables / edge secrets):
 //   GEMINI_API_KEY  - required for every AI feature
-//   GEMINI_MODEL    - optional, defaults to the Flash model alias
+//   GEMINI_MODEL    - optional, defaults to Gemini 2.5 Pro
 //
-// Groq is kept only as an automatic fallback when GEMINI_API_KEY is absent so
-// existing deployments do not break mid-migration.
-
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
 /** Model aliases tried in order when the configured model returns 404. */
-const MODEL_FALLBACKS = ["gemini-flash-latest", "gemini-2.5-flash", "gemini-2.0-flash"];
+const MODEL_FALLBACKS = ["gemini-3.5-flash", "gemini-2.5-pro", "gemini-2.5-flash"];
 
 export class AiError extends Error {
   status: number;
@@ -21,8 +18,10 @@ export class AiError extends Error {
 }
 
 export function getGeminiKey(): string | undefined {
-  const direct = Deno.env.get("GEMINI_API_KEY");
-  if (direct) return direct;
+  const direct = Deno.env.get("GEMINI_API_KEY")
+    || Deno.env.get("GOOGLE_GENERATIVE_AI_API_KEY")
+    || Deno.env.get("GOOGLE_API_KEY");
+  if (direct) return direct.trim();
   const generic = Deno.env.get("AI_API_KEY");
   // Google API keys start with "AIza"; do not mistake a Groq key for one.
   if (generic && generic.startsWith("AIza")) return generic;
@@ -34,14 +33,7 @@ export function getGeminiModel(): string {
 }
 
 export function hasAiProvider(): boolean {
-  return Boolean(getGeminiKey() || getGroqKey());
-}
-
-function getGroqKey(): string | undefined {
-  const direct = Deno.env.get("GROQ_API_KEY");
-  if (direct) return direct;
-  const generic = Deno.env.get("AI_API_KEY");
-  return generic?.startsWith("gsk_") ? generic : undefined;
+  return Boolean(getGeminiKey());
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -56,7 +48,7 @@ export interface GenerateOptions {
 }
 
 /**
- * Calls Gemini (or Groq as a fallback) and returns raw text.
+ * Calls Gemini and returns raw text.
  * Retries 429/500/503 with exponential backoff. Never uses an artificial
  * request timeout - generation is allowed to take as long as it needs.
  */
@@ -64,10 +56,7 @@ export async function generateText(prompt: string, opts: GenerateOptions = {}): 
   const geminiKey = getGeminiKey();
   if (geminiKey) return await callGemini(geminiKey, prompt, opts);
 
-  const groqKey = getGroqKey();
-  if (groqKey) return await callGroq(groqKey, prompt, opts);
-
-  throw new AiError("GEMINI_API_KEY is not configured", 401);
+  throw new AiError("Gemini is not configured. Add GEMINI_API_KEY to the Vercel environment and redeploy.", 401);
 }
 
 /** Calls the model and parses a JSON object out of the reply. */
@@ -153,7 +142,7 @@ async function callGemini(apiKey: string, prompt: string, opts: GenerateOptions)
         break;
       }
       if (res.status === 401 || res.status === 403) {
-        throw new AiError("The Gemini API key was rejected. Check GEMINI_API_KEY.", 401);
+        throw new AiError("The Gemini API key was rejected. Check the Gemini key in Vercel and redeploy.", 401);
       }
       if (res.status === 400) {
         throw new AiError(`Gemini rejected the request: ${errText.slice(0, 300)}`, 400);
@@ -176,26 +165,3 @@ async function callGemini(apiKey: string, prompt: string, opts: GenerateOptions)
   throw lastError ?? new AiError("Gemini request failed", 502);
 }
 
-async function callGroq(apiKey: string, prompt: string, opts: GenerateOptions): Promise<string> {
-  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: Deno.env.get("GROQ_MODEL") || "openai/gpt-oss-120b",
-      messages: [
-        ...(opts.system ? [{ role: "system", content: opts.system }] : []),
-        { role: "user", content: prompt },
-      ],
-      temperature: opts.temperature ?? 0.4,
-      max_completion_tokens: opts.maxOutputTokens ?? 4096,
-      stream: false,
-      ...(opts.json || opts.schema ? { response_format: { type: "json_object" } } : {}),
-    }),
-  });
-  if (!res.ok) {
-    const t = await res.text().catch(() => "");
-    throw new AiError(`Groq fallback error ${res.status}: ${t.slice(0, 200)}`, res.status === 429 ? 429 : 502);
-  }
-  const data = await res.json();
-  return data?.choices?.[0]?.message?.content ?? "";
-}
