@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import { generateJson } from "../_shared/ai.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -36,34 +37,12 @@ serve(async (req) => {
 
     if (!allowedCrops.includes("Wheat")) allowedCrops.unshift("Wheat");
 
-    const FALLBACK_AI_KEY = Deno.env.get("AI_API_KEY");
-    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY") ?? (FALLBACK_AI_KEY?.startsWith("gsk_") ? FALLBACK_AI_KEY : undefined);
-    if (!GROQ_API_KEY) return new Response(JSON.stringify({ crop: "Wheat", fallback: true, error: "GROQ_API_KEY not configured" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-
     const prompt = `Pick the single most likely suitable crop or agricultural land use for a newly drawn rural region. Use the exact crop name from this allowed list only. If uncertain, return Wheat.\n\nLocation: ${location || "Unknown"}\nCenter: ${lat ?? "unknown"}, ${lng ?? "unknown"}\nAllowed crops: ${allowedCrops.join(", ")}\n\nRespond as compact JSON only: {"crop":"Wheat"}`;
-
-    const aiRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: { "Authorization": `Bearer ${GROQ_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: Deno.env.get("GROQ_MODEL") || "openai/gpt-oss-120b",
-        messages: [
-          { role: "system", content: "You are an agronomy assistant. Return only valid JSON and choose exactly one crop from the provided allowed list." },
-          { role: "user", content: prompt },
-        ],
-        temperature: 1,
-        max_completion_tokens: 2048,
-        top_p: 1,
-        reasoning_effort: "medium",
-        stream: false,
-        response_format: { type: "json_object" },
-      }),
+    const parsed = await generateJson<{ crop?: string }>(prompt, {
+      system: "You are an agronomy assistant. Return only a valid JSON object and choose exactly one crop from the provided allowed list.",
+      temperature: 0.2,
+      maxOutputTokens: 256,
     });
-
-    if (!aiRes.ok) throw new Error(`Groq HTTP ${aiRes.status}`);
-    const aiJson = await aiRes.json();
-    const content = aiJson?.choices?.[0]?.message?.content || "{}";
-    const parsed = JSON.parse(content);
     return new Response(JSON.stringify({ crop: normalizeCrop(parsed.crop, allowedCrops) }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("guess-crop error:", e);
