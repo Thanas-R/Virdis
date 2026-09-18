@@ -329,6 +329,15 @@ ${context}
 
 Create a JSON response with this EXACT structure (no markdown, pure JSON):
 {
+  "top_crops": [
+    {
+      "crop": "Wheat",
+      "emoji": "🌾",
+      "confidence_pct": 92,
+      "season": "Rabi (Oct-Mar)",
+      "reason": "Loamy soil, pH 7.1 and 650mm rainfall match wheat's needs; widely grown around this district"
+    }
+  ],
   "zones": [
     {
       "id": "zone-1",
@@ -367,6 +376,7 @@ Create a JSON response with this EXACT structure (no markdown, pure JSON):
 }
 
 RULES:
+- **"top_crops" IS MANDATORY**: return EXACTLY 3 entries, ordered from most likely to least likely — the 3 crops that are genuinely the most probable / best bets for this exact region and this field's soil, rainfall and climate. Descending "confidence_pct" (0-100, first one highest). Each must be actually cultivated around "${location}". These are the headline recommendations shown at the top of the screen, so the first entry should normally also be the largest zone crop.
 - Create EXACTLY 3 or 4 zones (no more, no less)
 - The current crop "${crop}" MUST be one of the zones
 - **CRITICAL — AREA ALLOCATION**: Do NOT split equally. The most suitable crop for this specific region should get the LARGEST area (40-55%). The second best gets 20-30%. The third gets 10-20%. A tree zone should be smallest (5-12%). Base area allocation on how well each crop fits the soil, climate, and rainfall of "${location}".
