@@ -62,6 +62,14 @@ interface RotationStep {
   crops: string[];
 }
 
+interface TopCrop {
+  crop: string;
+  emoji?: string;
+  confidence_pct?: number;
+  season?: string;
+  reason?: string;
+}
+
 interface CropPlan {
   zones: CropZone[];
   intercropping: IntercroppingPair[];
@@ -71,6 +79,7 @@ interface CropPlan {
   overall_score: number;
   water_saving_pct: number;
   expected_revenue_increase_pct: number;
+  top_crops?: TopCrop[];
   planner_source?: string;
   generated_from?: "edge" | "local";
 }
@@ -1351,6 +1360,33 @@ function normalizeAreaPercents(rawWeights: number[]) {
   return normalized;
 }
 
+function normalizeTopCrops(raw: any, zones: CropZone[]): TopCrop[] {
+  const fromAi: TopCrop[] = Array.isArray(raw)
+    ? raw
+        .filter((c: any) => c && typeof c.crop === "string" && c.crop.trim())
+        .slice(0, 3)
+        .map((c: any) => ({
+          crop: String(c.crop).slice(0, 60),
+          emoji: typeof c.emoji === "string" ? c.emoji.slice(0, 8) : undefined,
+          confidence_pct: typeof c.confidence_pct === "number" ? Math.max(0, Math.min(100, Math.round(c.confidence_pct))) : undefined,
+          season: typeof c.season === "string" ? c.season.slice(0, 80) : undefined,
+          reason: typeof c.reason === "string" ? c.reason.slice(0, 300) : undefined,
+        }))
+    : [];
+  if (fromAi.length >= 2) return fromAi;
+  // Fall back to the largest zones so the panel is never empty
+  return [...zones]
+    .sort((a, b) => b.area_pct - a.area_pct)
+    .slice(0, 3)
+    .map((zone, index) => ({
+      crop: zone.crop,
+      emoji: zone.emoji,
+      confidence_pct: Math.max(45, Math.round(88 - index * 11)),
+      season: zone.season,
+      reason: zone.reason,
+    }));
+}
+
 function isValidPlan(data: any): data is CropPlan {
   return Boolean(
     data &&
@@ -1437,6 +1473,14 @@ function buildLocalCropPlan({ field, ndviData, soilData, weatherData, suitabilit
 
   const summary = `This regional agronomy plan splits ${field.name} into ${zones.length} recommendation zones using NDVI health, soil response, rainfall, water access, and field geometry. The layout favors ${zones[0].crop.toLowerCase()} and ${zones[1]?.crop.toLowerCase() || zones[0].crop.toLowerCase()} in the strongest production pockets while reserving lower-water companion zones to improve rotation flexibility and field health.`;
 
+  const top_crops: TopCrop[] = zones.slice(0, 3).map((zone, index) => ({
+    crop: zone.crop,
+    emoji: zone.emoji,
+    confidence_pct: Math.max(45, Math.round(88 - index * 11)),
+    season: zone.season,
+    reason: zone.reason,
+  }));
+
   return {
     zones,
     intercropping,
@@ -1446,6 +1490,7 @@ function buildLocalCropPlan({ field, ndviData, soilData, weatherData, suitabilit
     overall_score: overallScore,
     water_saving_pct,
     expected_revenue_increase_pct,
+    top_crops,
     planner_source: "Regional agronomy model",
     generated_from: "local",
   };
@@ -1625,6 +1670,8 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
   const popupsRef = useRef<mapboxgl.Popup[]>([]);
+  const activeRequestRef = useRef<string | null>(null);
+  const autoStartedRef = useRef<Set<string>>(new Set());
 
   // Edge case detection (computed but rendered after all hooks)
   const edgeCaseResult = useMemo(() => detectEdgeCase(field, suitabilityData, ndviData, weatherData, landUseData), [field, suitabilityData, ndviData, weatherData, landUseData]);
@@ -1690,6 +1737,9 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
   const fetchPlan = useCallback(async () => {
     setLoading(true);
     setError(null);
+    const requestKeyAtStart = `${field.id}:${language}`;
+    activeRequestRef.current = requestKeyAtStart;
+
 
     const fallbackPlan = buildFallbackPlan();
     setPlan(fallbackPlan);
@@ -1698,27 +1748,19 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
     setSelectedZone(fallbackPlan.zones[0] || null);
     setPlannerNotice("Regional crop layout generated from NDVI, soil, rainfall, and water signals while live AI refinement runs in the background.");
 
-    let timeoutId: number | undefined;
-
     try {
-      const invocation = callBackend("crop-planning", {
-          fieldName: field.name,
-          crop: field.crop,
-          area: haToAcres(field.area),
-          location: field.location,
-          coordinates: field.coordinates,
-          ndviData,
-          soilData,
-          weatherData,
-          suitabilityData,
-          responseLanguage: languageName,
-        });
-
-      const timeout = new Promise<never>((_, reject) => {
-        timeoutId = window.setTimeout(() => reject(new Error("Crop planning request timed out")), 15000);
+      const { data, error: fnError } = await callBackend("crop-planning", {
+        fieldName: field.name,
+        crop: field.crop,
+        area: haToAcres(field.area),
+        location: field.location,
+        coordinates: field.coordinates,
+        ndviData,
+        soilData,
+        weatherData,
+        suitabilityData,
+        responseLanguage: languageName,
       });
-
-      const { data, error: fnError } = await Promise.race([invocation, timeout]);
 
       if (fnError) throw fnError;
       if (data?.error) throw new Error(data.error);
@@ -1729,20 +1771,23 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
       const edgePlan: CropPlan = {
         ...data,
         zones: limitedZones,
+        top_crops: normalizeTopCrops(data.top_crops, limitedZones),
         planner_source: data.planner_source || "AI planner",
         generated_from: "edge",
       };
-      setPlan(edgePlan);
       setPlanCache(planCacheKey, edgePlan);
+      // Ignore a late answer if the user moved to another field or language
+      if (activeRequestRef.current !== requestKeyAtStart) return;
+      setPlan(edgePlan);
       setSelectedZone(edgePlan.zones[0] || null);
       setPlannerNotice("Live AI analysis completed and updated this crop plan.");
     } catch (invokeError) {
       console.error("Crop planning invoke failed, keeping regional model:", invokeError);
+      if (activeRequestRef.current !== requestKeyAtStart) return;
       setPlannerNotice("Live planner is unavailable right now, so this view is using the regional agronomy model with NDVI, soil, rainfall, and water signals.");
       setError(null);
     } finally {
-      if (timeoutId) window.clearTimeout(timeoutId);
-      setLoading(false);
+      if (activeRequestRef.current === requestKeyAtStart) setLoading(false);
     }
   }, [buildFallbackPlan, field, language, languageName, ndviData, soilData, suitabilityData, weatherData]);
 
@@ -1763,6 +1808,22 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
       setPlannerNotice(null);
     }
   }, [field.id, language]);
+
+  // Start the AI plan in the background as soon as the field opens, so the
+  // recommendations are ready without the user pressing anything.
+  useEffect(() => {
+    const key = `${field.id}:${language}`;
+    if (autoStartedRef.current.has(key)) return;
+    const cached = getPlanCache()[key];
+    if (cached && cached.data.generated_from === "edge" && Date.now() - cached.timestamp < 3600000) {
+      autoStartedRef.current.add(key);
+      return;
+    }
+    autoStartedRef.current.add(key);
+    const timer = window.setTimeout(() => { void fetchPlan(); }, 150);
+    return () => window.clearTimeout(timer);
+  }, [field.id, language, fetchPlan]);
+
 
   const addZoneMarkers = useCallback(
     (map: mapboxgl.Map, cropPlan: CropPlan) => {
@@ -2037,6 +2098,37 @@ const CropPlanningSection = ({ field, ndviData, soilData, weatherData, suitabili
           )}
         </div>
       </div>
+
+      {/* Most likely crops for this region */}
+      {plan?.top_crops && plan.top_crops.length > 0 && (
+        <div className="rounded-2xl border border-border bg-accent/15 p-3 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              Most likely crops for this region
+            </h4>
+            {loading && <Loader2 className="w-3 h-3 animate-spin text-primary" />}
+          </div>
+          <div className={`grid gap-2 ${isMobile ? "grid-cols-1" : "grid-cols-3"}`}>
+            {plan.top_crops.map((top, index) => (
+              <div
+                key={`${top.crop}-${index}`}
+                className={`rounded-xl border p-2.5 space-y-1 ${index === 0 ? "border-primary/60 bg-primary/10" : "border-border/60 bg-background/20"}`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-base">{top.emoji || "🌱"}</span>
+                  <span className="text-sm font-semibold text-foreground flex-1 truncate">{top.crop}</span>
+                  {typeof top.confidence_pct === "number" && (
+                    <span className="text-[10px] font-semibold text-primary">{top.confidence_pct}%</span>
+                  )}
+                </div>
+                {top.season && <div className="text-[10px] text-muted-foreground">{top.season}</div>}
+                {top.reason && <p className="text-[10px] text-muted-foreground leading-relaxed line-clamp-3">{top.reason}</p>}
+                {index === 0 && <div className="text-[9px] uppercase tracking-wider text-primary font-semibold">Top pick</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Map */}
       <div className="relative">
