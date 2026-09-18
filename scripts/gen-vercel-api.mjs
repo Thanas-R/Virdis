@@ -14,6 +14,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const srcDir = join(root, "supabase", "functions");
 const outDir = join(root, "api");
 const sharedAi = readFileSync(join(srcDir, "_shared", "ai.ts"), "utf8")
+  .replace(/from\s+["']npm:@google\/genai["']/g, 'from "@google/genai"')
   .replace(/\bexport\s+(?=(?:class|function|interface)\b)/g, "");
 
 const PRELUDE = `// AUTO-GENERATED from supabase/functions/<name>/index.ts by scripts/gen-vercel-api.mjs
