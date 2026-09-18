@@ -1,20 +1,9 @@
-import { supabase } from "@/integrations/supabase/client";
-
 /**
- * Calls a backend function.
- *
- * Order of preference:
- *   1. `/api/<name>` - Vercel Edge Function (reads MAPBOX_TOKEN, GEE_SERVICE_ACCOUNT_JSON
- *      and GEE_PROJECT_ID from Vercel Environment Variables)
- *   2. Supabase Edge Function - used in the hosted preview, or if `/api` is unavailable
- *
- * The result of the probe is cached per session so we don't pay the 404 round-trip
- * on every call in environments where `/api` isn't deployed.
+ * Calls this deployment's Vercel API route. Server credentials are read only
+ * inside `/api/*`; requests never fall through to another backend/provider.
  */
 
 type BackendResult<T> = { data: T | null; error: unknown };
-
-let apiAvailable: boolean | null = null;
 
 async function callVercelApi<T>(name: string, body?: Record<string, unknown>): Promise<BackendResult<T>> {
   const res = await fetch(`/api/${name}`, {
@@ -41,30 +30,14 @@ export async function callBackend<T = any>(
   name: string,
   body?: Record<string, unknown>
 ): Promise<BackendResult<T>> {
-  if (apiAvailable !== false) {
-    try {
-      const result = await callVercelApi<T>(name, body);
-      apiAvailable = true;
-      return result;
-    } catch (e) {
-      if (apiAvailable === true) {
-        // API exists but this call failed for another reason - still fall back once.
-        console.warn(`[callBackend] /api/${name} failed, falling back to Supabase`, e);
-      } else {
-        apiAvailable = false;
-      }
-    }
-  }
-
-  if (!supabase) {
+  try {
+    return await callVercelApi<T>(name, body);
+  } catch (error) {
     return {
       data: null,
-      error: new Error(
-        `Backend function "${name}" is unavailable. Deploy the /api routes (Vercel) or set VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY.`
-      ),
+      error: error instanceof Error
+        ? error
+        : new Error(`Vercel API route /api/${name} is unavailable.`),
     };
   }
-
-  const { data, error } = await supabase.functions.invoke(name, { body });
-  return { data: (data ?? null) as T | null, error };
 }
