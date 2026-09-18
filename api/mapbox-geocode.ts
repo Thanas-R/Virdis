@@ -7,10 +7,25 @@ let _handler: Handler = () => new Response("not ready", { status: 500 });
 const serve = (fn: Handler) => {
   _handler = fn;
 };
-// Deno.env shim -> Vercel Environment Variables
+// Deno.env shim -> Vercel Environment Variables.
+// Each variable is referenced STATICALLY: the Vercel Edge runtime only inlines
+// env vars it can see at build time, so a dynamic process.env[key] lookup
+// returns undefined in production.
+const _ENV: Record<string, string | undefined> = {
+  AI_API_KEY: process.env.AI_API_KEY,
+  GEE_PROJECT_ID: process.env.GEE_PROJECT_ID,
+  GEE_SERVICE_ACCOUNT_JSON: process.env.GEE_SERVICE_ACCOUNT_JSON,
+  GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+  GEMINI_MODEL: process.env.GEMINI_MODEL,
+  GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
+  GOOGLE_GENERATIVE_AI_API_KEY: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+  MAPBOX_TOKEN: process.env.MAPBOX_TOKEN,
+  SUPABASE_URL: process.env.SUPABASE_URL,
+};
 const Deno = {
   env: {
-    get: (key: string): string | undefined => (process.env as Record<string, string | undefined>)[key],
+    get: (key: string): string | undefined =>
+      _ENV[key] ?? (process.env as Record<string, string | undefined>)[key],
   },
 };
 void Deno;
