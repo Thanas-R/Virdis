@@ -7,7 +7,12 @@
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
 /** Model aliases tried in order when the configured model returns 404. */
-const MODEL_FALLBACKS = ["gemini-3.5-flash", "gemini-2.5-pro", "gemini-2.5-flash"];
+const MODEL_FALLBACKS = [
+  "gemini-3.5-flash",
+  "gemini-flash-latest",
+  "gemini-2.5-flash",
+  "gemini-2.5-pro",
+];
 
 export class AiError extends Error {
   status: number;
