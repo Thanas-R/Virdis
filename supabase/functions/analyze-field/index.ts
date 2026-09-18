@@ -250,7 +250,7 @@ serve(async (req) => {
     }
 
     // ── Mode 2: AI-powered analysis ─────────────────────────────
-    let { fieldName, crop, area, location, temperature, humidity, windSpeed, soilMoisture, ndviEstimate, isUrban, soilData, aqiData } = body;
+    let { fieldName, crop, area, location, temperature, humidity, windSpeed, soilMoisture, ndviEstimate, isUrban, soilData, aqiData, responseLanguage } = body;
     fieldName = clampStr(fieldName);
     crop = clampStr(crop);
     location = clampStr(location);
@@ -418,9 +418,9 @@ Based on the soil data (${soilData?.texture || "unknown"} texture, pH ${soilData
       }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     return new Response(JSON.stringify({
-      error: "SERVICE_UNAVAILABLE",
+      error: msg || "Field analysis is temporarily unavailable. Please retry shortly.",
       fallback: true,
-      message: "Field analysis is temporarily unavailable. Please retry shortly.",
+      message: msg || "Field analysis is temporarily unavailable. Please retry shortly.",
     }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
