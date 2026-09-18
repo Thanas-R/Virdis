@@ -7,13 +7,30 @@ let _handler: Handler = () => new Response("not ready", { status: 500 });
 const serve = (fn: Handler) => {
   _handler = fn;
 };
-// Deno.env shim -> Vercel Environment Variables
+// Deno.env shim -> Vercel Environment Variables.
+// Each variable is referenced STATICALLY: the Vercel Edge runtime only inlines
+// env vars it can see at build time, so a dynamic process.env[key] lookup
+// returns undefined in production.
+const _ENV: Record<string, string | undefined> = {
+  AI_API_KEY: process.env.AI_API_KEY,
+  GEE_PROJECT_ID: process.env.GEE_PROJECT_ID,
+  GEE_SERVICE_ACCOUNT_JSON: process.env.GEE_SERVICE_ACCOUNT_JSON,
+  GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+  GEMINI_MODEL: process.env.GEMINI_MODEL,
+  GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
+  GOOGLE_GENERATIVE_AI_API_KEY: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+  MAPBOX_TOKEN: process.env.MAPBOX_TOKEN,
+  SUPABASE_URL: process.env.SUPABASE_URL,
+};
 const Deno = {
   env: {
-    get: (key: string): string | undefined => (process.env as Record<string, string | undefined>)[key],
+    get: (key: string): string | undefined =>
+      _ENV[key] ?? (process.env as Record<string, string | undefined>)[key],
   },
 };
 void Deno;
+
+import { GoogleGenAI } from "@google/genai";
 
 // Shared AI client. Google Gemini is the primary (and only required) provider.
 //
@@ -21,10 +38,13 @@ void Deno;
 //   GEMINI_API_KEY  - required for every AI feature
 //   GEMINI_MODEL    - optional, defaults to Gemini 2.5 Pro
 //
-const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
-
 /** Model aliases tried in order when the configured model returns 404. */
-const MODEL_FALLBACKS = ["gemini-3.5-flash", "gemini-2.5-pro", "gemini-2.5-flash"];
+const MODEL_FALLBACKS = [
+  "gemini-3.5-flash",
+  "gemini-flash-latest",
+  "gemini-2.5-flash",
+  "gemini-2.5-pro",
+];
 
 class AiError extends Error {
   status: number;
@@ -101,81 +121,49 @@ function parseJsonLoose<T = unknown>(raw: string): T {
 }
 
 async function callGemini(apiKey: string, prompt: string, opts: GenerateOptions): Promise<string> {
+  const ai = new GoogleGenAI({ apiKey });
   const configured = getGeminiModel();
   const models = [configured, ...MODEL_FALLBACKS.filter((m) => m !== configured)];
-
-  const generationConfig: Record<string, unknown> = {
-    temperature: opts.temperature ?? 0.4,
-    maxOutputTokens: opts.maxOutputTokens ?? 8192,
-  };
-  if (opts.json || opts.schema) {
-    generationConfig.responseMimeType = "application/json";
-    if (opts.schema) generationConfig.responseSchema = opts.schema;
-  }
-
-  const body: Record<string, unknown> = {
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-    generationConfig,
-  };
-  if (opts.system) body.systemInstruction = { parts: [{ text: opts.system }] };
-
   let lastError: AiError | null = null;
 
   for (const model of models) {
-    const url = `${GEMINI_BASE}/${encodeURIComponent(model)}:generateContent`;
     const delays = [600, 1800, 4000];
 
     for (let attempt = 0; attempt <= delays.length; attempt++) {
-      let res: Response;
       try {
-        res = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-          body: JSON.stringify(body),
+        const response = await ai.models.generateContent({
+          model,
+          contents: prompt,
+          config: {
+            ...(opts.system ? { systemInstruction: opts.system } : {}),
+            temperature: opts.temperature ?? 0.4,
+            maxOutputTokens: opts.maxOutputTokens ?? 8192,
+            ...(opts.json || opts.schema ? { responseMimeType: "application/json" } : {}),
+            ...(opts.schema ? { responseJsonSchema: opts.schema } : {}),
+          },
         });
-      } catch (err) {
-        lastError = new AiError(`Could not reach the Gemini API: ${(err as Error)?.message ?? "network error"}`, 503);
-        if (attempt < delays.length) { await sleep(delays[attempt]); continue; }
-        break;
-      }
-
-      if (res.ok) {
-        const data = await res.json();
-        const candidate = data?.candidates?.[0];
-        const text = (candidate?.content?.parts ?? [])
-          .map((p: { text?: string }) => p?.text ?? "")
-          .join("")
-          .trim();
+        const text = response.text?.trim();
         if (text) return text;
-        const reason = candidate?.finishReason || data?.promptFeedback?.blockReason || "empty response";
-        lastError = new AiError(`Gemini returned no content (${reason})`, 502);
+        lastError = new AiError("Gemini returned no content", 502);
+        break;
+      } catch (err) {
+        const sdkError = err as { status?: number; code?: number; message?: string };
+        const status = Number(sdkError?.status ?? sdkError?.code) || 502;
+        const message = sdkError?.message || "Gemini request failed";
+        if (status === 404) {
+          lastError = new AiError(message, 404);
+          break;
+        }
+        if (status === 401 || status === 403 || status === 400) {
+          throw new AiError(message, status);
+        }
+        lastError = new AiError(message, status === 429 ? 429 : 502);
+        if ((status === 429 || status >= 500) && attempt < delays.length) {
+          await sleep(delays[attempt]);
+          continue;
+        }
         break;
       }
-
-      const errText = await res.text().catch(() => "");
-      if (res.status === 404) {
-        // Model alias not available on this key - try the next alias.
-        lastError = new AiError(`Model "${model}" is not available for this API key`, 404);
-        break;
-      }
-      if (res.status === 401 || res.status === 403) {
-        throw new AiError("The Gemini API key was rejected. Check the Gemini key in Vercel and redeploy.", 401);
-      }
-      if (res.status === 400) {
-        throw new AiError(`Gemini rejected the request: ${errText.slice(0, 300)}`, 400);
-      }
-      if (res.status === 429 || res.status >= 500) {
-        lastError = new AiError(
-          res.status === 429
-            ? "Gemini rate limit reached. Please try again in a moment."
-            : `Gemini service error (${res.status})`,
-          res.status === 429 ? 429 : 502,
-        );
-        if (attempt < delays.length) { await sleep(delays[attempt]); continue; }
-        break;
-      }
-      lastError = new AiError(`Gemini error ${res.status}: ${errText.slice(0, 200)}`, 502);
-      break;
     }
   }
 
@@ -432,7 +420,7 @@ serve(async (req) => {
     }
 
     // ── Mode 2: AI-powered analysis ─────────────────────────────
-    let { fieldName, crop, area, location, temperature, humidity, windSpeed, soilMoisture, ndviEstimate, isUrban, soilData, aqiData } = body;
+    let { fieldName, crop, area, location, temperature, humidity, windSpeed, soilMoisture, ndviEstimate, isUrban, soilData, aqiData, responseLanguage } = body;
     fieldName = clampStr(fieldName);
     crop = clampStr(crop);
     location = clampStr(location);
@@ -600,9 +588,9 @@ Based on the soil data (${soilData?.texture || "unknown"} texture, pH ${soilData
       }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     return new Response(JSON.stringify({
-      error: "SERVICE_UNAVAILABLE",
+      error: msg || "Field analysis is temporarily unavailable. Please retry shortly.",
       fallback: true,
-      message: "Field analysis is temporarily unavailable. Please retry shortly.",
+      message: msg || "Field analysis is temporarily unavailable. Please retry shortly.",
     }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
